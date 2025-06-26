@@ -1,6 +1,6 @@
 import { EmployeeOrder, CurrentOrderItem } from './types';
 
-const API_BASE = 'http://localhost:3001';
+const API_BASE = window.location.origin;
 
 export const fetchOrdersFromAPI = async (date: string): Promise<EmployeeOrder[]> => {
   try {
