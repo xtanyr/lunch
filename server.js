@@ -14,6 +14,9 @@ const ORDERS_FILE = path.join(__dirname, 'orders.json');
 app.use(cors());
 app.use(express.json());
 
+// Serve static files from the dist directory
+app.use(express.static(path.join(__dirname, 'dist')));
+
 // Helper to read orders from file
 function readOrders() {
   if (!fs.existsSync(ORDERS_FILE)) return [];
@@ -76,6 +79,11 @@ app.delete('/orders/:id', (req, res) => {
   res.status(204).end();
 });
 
-app.listen(PORT, () => {
+// Serve index.html for all non-API routes (for React Router support)
+app.get(/^\/(?!orders).*/, (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://localhost:${PORT}`);
 }); 
