@@ -1,9 +1,9 @@
-
 import { Dish, SideDish, DishCategory } from './types';
 
 // export const BUDGET_LIMIT = 400; // Removed: Prices and budget limits are no longer used
 
 export const SIDE_DISHES: SideDish[] = [
+  { id: 'no_garnish', name: 'Без гарнира' },
   { id: 'grilled_vegetables', name: 'Овощи гриль' },
   { id: 'rice_with_vegetables', name: 'Рис с овощами' },
   { id: 'boiled_rice', name: 'Рис отварной' },
@@ -23,8 +23,6 @@ export const MENU_ITEMS: Dish[] = [
   { id: 'salad_eggplant_cheese', name: 'Салат с баклажанами и творожным сыром', category: DishCategory.SALAD },
   { id: 'salad_grouse_nest', name: 'Салат "Гнездо глухаря"', category: DishCategory.SALAD },
   { id: 'salad_greek', name: 'Салат "Греческий"', category: DishCategory.SALAD },
-  { id: 'salad_crab', name: 'Салат "Крабовый"', category: DishCategory.SALAD },
-  { id: 'salad_snack', name: 'Салат "Закусочный"', category: DishCategory.SALAD },
   { id: 'salad_beans', name: 'Салат с фасолью', category: DishCategory.SALAD },
   { id: 'salad_bulgur', name: 'Салат с булгуром', category: DishCategory.SALAD },
   { id: 'salad_pancake', name: 'Салат блинный', category: DishCategory.SALAD },
@@ -37,24 +35,20 @@ export const MENU_ITEMS: Dish[] = [
   { id: 'salad_fresh_cabbage', name: 'Салат со свежей капустой', category: DishCategory.SALAD },
 
   // Горячее (включая бывшие супы)
-  { id: 'hot_kiev_cutlet', name: 'Котлета по Киевски', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
-  { id: 'hot_pasta_shrimp', name: 'Паста с креветкой', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
-  { id: 'hot_fish_baked_vegetables', name: 'Рыба запеченная с овощами', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
-  { id: 'hot_pasta_carbonara', name: 'Паста карбонара', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
-  { id: 'hot_meat_french_style', name: 'Мясо по-французски', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
+  { id: 'hot_meat_french_style', name: 'Мясо по-французски', category: DishCategory.HOT_DISH },
   { id: 'hot_schnitzel_chicken', name: 'Шницель куриный', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
   { id: 'hot_chicken_appetizing', name: 'Курица аппетитная', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
   { id: 'hot_liver_stroganoff', name: 'Печень по-строгановски', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
-  { id: 'hot_orzo_mushrooms', name: 'Паста орзо с грибами', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
-  { id: 'hot_pasta_bolognese', name: 'Паста болоньезе', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
-  { id: 'hot_soba_chicken', name: 'Соба с курицей', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
+  { id: 'hot_orzo_mushrooms', name: 'Паста орзо с грибами', category: DishCategory.HOT_DISH },
+  { id: 'hot_pasta_bolognese', name: 'Паста болоньезе', category: DishCategory.HOT_DISH },
+  { id: 'hot_soba_chicken', name: 'Соба с курицей', category: DishCategory.HOT_DISH },
   { id: 'hot_chicken_breast_sauce', name: 'Грудка куриная в соусе', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
   { id: 'hot_fish_cutlet', name: 'Котлета рыбная', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
-  { id: 'hot_potato_asian_chicken', name: 'Картофель по азиатски с курицей', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
-  { id: 'hot_plov_meat', name: 'Плов с мясом', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
+  { id: 'hot_potato_asian_chicken', name: 'Картофель по азиатски с курицей', category: DishCategory.HOT_DISH },
+  { id: 'hot_plov_meat', name: 'Плов с мясом', category: DishCategory.HOT_DISH },
   { id: 'hot_goulash', name: 'Гуляш (поджарка)', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
   { id: 'hot_strips', name: 'Стрипсы', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
-  { id: 'hot_lasagna', name: 'Лазанья', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
+  { id: 'hot_lasagna', name: 'Лазанья', category: DishCategory.HOT_DISH },
   { id: 'hot_sous_vide_breast', name: 'Грудка Су-вид', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
   { id: 'hot_chicken_breast_ginger', name: 'Грудка куриная в имбире', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
   { id: 'hot_wings', name: 'Крылья', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
@@ -64,7 +58,7 @@ export const MENU_ITEMS: Dish[] = [
   { id: 'hot_lyulya_kebab', name: 'Люля-кебаб', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
   { id: 'hot_stuffed_pepper_meat', name: 'Перец фаршированный с мясом', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
   { id: 'hot_cabbage_roll_meat_garnish', name: 'Голубец с мясом с гарниром', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
-  { id: 'hot_homemade_cutlet', name: 'Котлата домашняя', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
+  { id: 'hot_homemade_cutlet', name: 'Котлета домашняя', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
   { id: 'hot_fried_chicken_liver', name: 'Печень куриная жареная', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
   { id: 'hot_fish_meatball', name: 'Тефтелька рыбная', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
   { id: 'hot_sausages', name: 'Колбаски', category: DishCategory.HOT_DISH, availableSideIds: ALL_SIDE_IDS },
@@ -76,6 +70,12 @@ export const MENU_ITEMS: Dish[] = [
   { id: 'soup_mushroom_puree', name: 'Суп пюре из грибов', category: DishCategory.HOT_DISH },
   { id: 'soup_borscht_chicken', name: 'Борщ с курицей', category: DishCategory.HOT_DISH },
   { id: 'soup_pea', name: 'Суп гороховый', category: DishCategory.HOT_DISH },
+
+  // Одно блюдо
+  { id: 'hot_fish_baked_vegetables', name: 'Рыба с овощами', category: DishCategory.SINGLE_DISH, availableSideIds: ALL_SIDE_IDS },
+  { id: 'hot_kiev_cutlet', name: 'Котлета по киевски', category: DishCategory.SINGLE_DISH, availableSideIds: ALL_SIDE_IDS },
+  { id: 'hot_pasta_carbonara', name: 'Паста карбонара', category: DishCategory.SINGLE_DISH },
+  { id: 'hot_pasta_shrimp', name: 'Паста с креветкой', category: DishCategory.SINGLE_DISH },
 
   // Десерты - Removed
   // { id: 'dessert_cheesecake', name: 'Чизкейк', category: DishCategory.DESSERT },

@@ -9,6 +9,7 @@ import Footer from './components/Footer';
 import { fetchOrdersFromAPI, submitOrderToAPI, deleteOrderFromAPI } from './api'; // Импорт симулированного API
 import ConfirmModal from './components/ui/ConfirmModal';
 import Select from './components/ui/Select';
+import Input from './components/ui/Input';
 
 const getTodayDateString = (): string => {
   const today = new Date();
@@ -278,6 +279,17 @@ const App: React.FC = () => {
           />
         </section>
         <hr className="my-8 border-t border-neutral-200" />
+        <section className="mb-4">
+          <Input
+            aria-label="Выберите дату для сводки"
+            id="aggregateDate"
+            name="aggregateDate"
+            type="date"
+            value={selectedAggregateDate}
+            onChange={e => setSelectedAggregateDate(e.target.value)}
+            className="max-w-xs text-lg font-semibold"
+          />
+        </section>
         <section>
           <h2 className="text-2xl md:text-3xl font-bold text-black mb-6 tracking-tight">Индивидуальные заказы</h2>
           <div className="mb-4 max-w-xs">

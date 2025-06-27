@@ -70,7 +70,7 @@ const IndividualOrdersList: React.FC<IndividualOrdersListProps> = ({ orders, men
                   </svg>
                 </div>
               </summary>
-              <span className="block text-xs text-neutral-500 mt-1 mb-2 ml-11">Дата заказа: {formattedOrderDate} (Оформлен: {submissionTime.toLocaleString('ru-RU')})</span>
+              <span className="block text-xs text-neutral-500 mt-1 mb-2 ml-11">Дата доставки еды: {formattedOrderDate} (Оформлен: {submissionTime.toLocaleString('ru-RU')})</span>
               <ul className="mt-1 space-y-1.5 pl-4 border-l-2 border-[#ff4139] ml-1">
                 {order.items.map(item => {
                   const dish = menuItems.find(d => d.id === item.dishId);

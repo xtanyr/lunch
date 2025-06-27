@@ -2,6 +2,7 @@ export enum DishCategory {
   SALAD = "Салаты",
   HOT_DISH = "Горячее",
   SOUP = "Супы", // Keep for semantic consistency, but items will be recategorized
+  SINGLE_DISH = "Одно блюдо", // New category for third table
   // DESSERT = "Десерты", // Removed
 }
 

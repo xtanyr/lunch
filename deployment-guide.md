@@ -180,4 +180,12 @@ crontab -e
 - The API endpoints will be at: http://xtany.ru/orders
 - Make sure your Node.js server is running on port 3001
 - Consider setting up PM2 for process management
-- Monitor logs regularly: `tail -f /var/log/nginx/access.log` 
+- Monitor logs regularly: `tail -f /var/log/nginx/access.log`
+
+## TypeScript Linter Errors
+
+If you encounter TypeScript linter errors, you can install the necessary type declarations:
+
+```bash
+npm install --save-dev @types/react @types/react-dom
+``` 

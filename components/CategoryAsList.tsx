@@ -70,13 +70,13 @@ const CategoryAsList: React.FC<CategoryAsListProps> = ({
                   {dish.name}
                 </Button>
               </div>
-              {isSelected && dish.category === DishCategory.HOT_DISH && dish.availableSideIds && dish.availableSideIds.length > 0 && (
+              {isSelected && dish.availableSideIds && dish.availableSideIds.length > 0 && (
                 <div className="mt-2"> {/* Side dish selector appears below the button */}
                   <Select
                     id={`side-list-${dish.id}`}
                     value={selectedItemDetails?.selectedSideId || ""}
                     onChange={(e) => onSideDishChange(dish.id, e.target.value)}
-                    className="w-full max-w-xs" // Side dish select can be full width or constrained
+                    className="w-full max-w-xs"
                     aria-label={`Выберите гарнир для ${dish.name}`}
                   >
                     <option value="" disabled>Выберите гарнир...</option>
