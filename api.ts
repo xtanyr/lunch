@@ -14,7 +14,7 @@ export const fetchOrdersFromAPI = async (date: string): Promise<EmployeeOrder[]>
   } catch (error) {
     console.error('API Error (fetchOrdersFromAPI):', error);
     throw new Error('Не удалось получить заказы с сервера.');
-  }
+      }
 };
 
 export const submitOrderToAPI = async (
@@ -38,10 +38,10 @@ export const submitOrderToAPI = async (
       ...order,
       timestamp: order.timestamp ? new Date(order.timestamp) : new Date(),
     };
-  } catch (error) {
+      } catch (error) {
     console.error('API Error (submitOrderToAPI):', error);
     throw new Error('Не удалось отправить заказ на сервер.');
-  }
+      }
 };
 
 export const deleteOrderFromAPI = async (id: string): Promise<void> => {

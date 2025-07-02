@@ -97,46 +97,46 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({ aggrega
       {aggregatedItems.length === 0 ? (
         <p className="text-neutral-600">Нет данных для отображения сводного заказа на {formattedSelectedDate}.</p>
       ) : (
-        <div className="overflow-x-auto max-h-[520px] overflow-y-auto border border-neutral-200 rounded">
-          <table className="min-w-full divide-y divide-neutral-200">
-            <thead className="bg-neutral-100 sticky top-0 z-10">
-              <tr>
-                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-black uppercase tracking-wider">Блюдо</th>
-                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-black uppercase tracking-wider">Гарнир</th>
-                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-black uppercase tracking-wider">Категория</th>
-                <th scope="col" className="px-4 py-3 text-right text-xs font-semibold text-black uppercase tracking-wider">Кол-во</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-neutral-200">
-              {displayCategories.map(category => {
-                  const itemsInCategory = aggregatedItems.filter(item => item.category === category);
-                  if (itemsInCategory.length === 0) return null;
+          <div className="overflow-x-auto max-h-[520px] overflow-y-auto border border-neutral-200 rounded">
+            <table className="min-w-full divide-y divide-neutral-200">
+              <thead className="bg-neutral-100 sticky top-0 z-10">
+                <tr>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-black uppercase tracking-wider">Блюдо</th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-black uppercase tracking-wider">Гарнир</th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-black uppercase tracking-wider">Категория</th>
+                  <th scope="col" className="px-4 py-3 text-right text-xs font-semibold text-black uppercase tracking-wider">Кол-во</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-neutral-200">
+                {displayCategories.map(category => {
+                    const itemsInCategory = aggregatedItems.filter(item => item.category === category);
+                    if (itemsInCategory.length === 0) return null;
 
-                  return (
-                      <React.Fragment key={`category-group-${category}`}>
-                          <tr>
-                              <td colSpan={4} className="px-4 py-2.5 bg-neutral-100 text-black font-semibold text-sm border-b border-t border-neutral-300">
-                                  {category === DishCategory.HOT_DISH ? "Горячее и Супы" : category}
-                              </td>
-                          </tr>
-                          {itemsInCategory
-                              .sort((a, b) => a.dishName.localeCompare(b.dishName)) 
-                              .map(item => (
-                              <tr key={`${item.dishId}-${item.selectedSideId || 'noside'}`} className="hover:bg-neutral-50 transition-colors">
-                                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-black">{item.dishName}</td>
-                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-neutral-700">{item.selectedSideName || '---'}</td>
-                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-neutral-700">
-                                      {item.category === DishCategory.HOT_DISH ? "Горячее и Супы" : item.category}
-                                  </td>
-                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-neutral-700 text-right font-medium">{item.totalQuantity}</td>
-                              </tr>
-                          ))}
-                      </React.Fragment>
-                  );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    return (
+                        <React.Fragment key={`category-group-${category}`}>
+                            <tr>
+                                <td colSpan={4} className="px-4 py-2.5 bg-neutral-100 text-black font-semibold text-sm border-b border-t border-neutral-300">
+                                    {category === DishCategory.HOT_DISH ? "Горячее и Супы" : category}
+                                </td>
+                            </tr>
+                            {itemsInCategory
+                                .sort((a, b) => a.dishName.localeCompare(b.dishName)) 
+                                .map(item => (
+                                <tr key={`${item.dishId}-${item.selectedSideId || 'noside'}`} className="hover:bg-neutral-50 transition-colors">
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-black">{item.dishName}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-neutral-700">{item.selectedSideName || '---'}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-neutral-700">
+                                        {item.category === DishCategory.HOT_DISH ? "Горячее и Супы" : item.category}
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-neutral-700 text-right font-medium">{item.totalQuantity}</td>
+                                </tr>
+                            ))}
+                        </React.Fragment>
+                    );
+                })}
+              </tbody>
+            </table>
+          </div>
       )}
     </section>
   );

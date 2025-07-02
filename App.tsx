@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { EmployeeOrder, CurrentOrderItem, AggregatedOrderItem, DishCategory } from './types';
-import { MENU_ITEMS, SIDE_DISHES, DEPARTMENTS } from './constants';
+import { EmployeeOrder, CurrentOrderItem, AggregatedOrderItem, DishCategory, Dish } from './types';
+import { MENU_ITEMS, SIDE_DISHES, DEPARTMENTS, currentMenu } from './constants';
 import OrderForm from './components/OrderForm';
 import IndividualOrdersList from './components/IndividualOrdersList';
 import AggregatedOrderSummary from './components/AggregatedOrderSummary';
@@ -18,6 +18,19 @@ const getTodayDateString = (): string => {
   const day = today.getDate().toString().padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
+
+// Функция для преобразования currentMenu в массив Dish
+function getCurrentMenuDishes(): Dish[] {
+  const idToDish = (id: string) => MENU_ITEMS.find(d => d.id === id);
+  const result: Dish[] = [];
+  Object.values(currentMenu).forEach((arr: any) => {
+    arr.forEach((item: any) => {
+      const dish = idToDish(item.id);
+      if (dish) result.push(dish);
+    });
+  });
+  return result;
+}
 
 const App: React.FC = () => {
   const initialEmployeeOrderState: Omit<EmployeeOrder, 'id' | 'timestamp'> & { items: CurrentOrderItem[] } = {
@@ -119,7 +132,7 @@ const App: React.FC = () => {
     if (duplicate) {
       showNotification('error', 'Вы уже отправили заказ на этот день для этого отдела.');
       setConfirmModal({ open: false, type: 'send' });
-      return;
+        return;
     }
     setIsSubmittingOrder(true);
     setFetchError(null);
@@ -129,7 +142,7 @@ const App: React.FC = () => {
       if (newOrder.orderDate === selectedAggregateDate) {
         setAllOrders((prevOrders: EmployeeOrder[]) => [...prevOrders, newOrder]);
       } else {
-        console.log(`Order for ${newOrder.orderDate} submitted, but current view is for ${selectedAggregateDate}. Data saved.`);
+         console.log(`Order for ${newOrder.orderDate} submitted, but current view is for ${selectedAggregateDate}. Data saved.`);
       }
       setCurrentEmployeeOrder(initialEmployeeOrderState);
       showNotification('success', `Заказ для ${newOrder.employeeName} успешно добавлен!`);
@@ -267,14 +280,14 @@ const App: React.FC = () => {
       )}
       <main className={`flex-grow container mx-auto p-4 md:p-8 space-y-12 ${fetchError ? 'mt-28' : 'mt-10'}`}>
         <section>
-          <OrderForm
-            currentOrder={currentEmployeeOrder}
-            setCurrentOrder={setCurrentEmployeeOrder}
-            updateCurrentOrderItems={updateCurrentOrderItems}
-            onSubmit={handleOrderSubmit}
-            menuItems={MENU_ITEMS}
-            sideDishes={SIDE_DISHES}
-            departments={DEPARTMENTS}
+        <OrderForm
+          currentOrder={currentEmployeeOrder}
+          setCurrentOrder={setCurrentEmployeeOrder}
+          updateCurrentOrderItems={updateCurrentOrderItems}
+          onSubmit={handleOrderSubmit}
+          menuItems={getCurrentMenuDishes()}
+          sideDishes={SIDE_DISHES}
+          departments={DEPARTMENTS}
             isSubmitting={isSubmittingOrder}
           />
         </section>
@@ -306,7 +319,7 @@ const App: React.FC = () => {
                 <option key={dept} value={dept}>{dept}</option>
               ))}
             </Select>
-          </div>
+            </div>
           <IndividualOrdersList
             orders={filteredOrders}
             menuItems={MENU_ITEMS}
@@ -318,9 +331,9 @@ const App: React.FC = () => {
         <hr className="my-8 border-t border-neutral-200" />
         <section>
           <h2 className="text-2xl md:text-3xl font-bold text-black mb-6 tracking-tight">Сводный заказ</h2>
-          <AggregatedOrderSummary 
-            aggregatedItems={aggregatedOrder} 
-            selectedDate={selectedAggregateDate}
+            <AggregatedOrderSummary 
+              aggregatedItems={aggregatedOrder} 
+              selectedDate={selectedAggregateDate}
             onDateChange={setSelectedAggregateDate}
           />
         </section>
