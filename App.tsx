@@ -285,11 +285,11 @@ const App: React.FC = () => {
           setCurrentOrder={setCurrentEmployeeOrder}
           updateCurrentOrderItems={updateCurrentOrderItems}
           onSubmit={handleOrderSubmit}
-          menuItems={getCurrentMenuDishes()}
+          menuItems={getCurrentMenuDishes()} // Only current menu for new orders
           sideDishes={SIDE_DISHES}
           departments={DEPARTMENTS}
-            isSubmitting={isSubmittingOrder}
-          />
+          isSubmitting={isSubmittingOrder}
+        />
         </section>
         <hr className="my-8 border-t border-neutral-200" />
         <section className="mb-4">
@@ -322,7 +322,7 @@ const App: React.FC = () => {
             </div>
           <IndividualOrdersList
             orders={filteredOrders}
-            menuItems={MENU_ITEMS}
+            menuItems={MENU_ITEMS} // Use full menu for displaying old orders
             sideDishes={SIDE_DISHES}
             onDelete={handleDeleteOrder}
             deletingId={deletingOrderId}
@@ -334,8 +334,8 @@ const App: React.FC = () => {
             <AggregatedOrderSummary 
               aggregatedItems={aggregatedOrder} 
               selectedDate={selectedAggregateDate}
-            onDateChange={setSelectedAggregateDate}
-          />
+              onDateChange={setSelectedAggregateDate}
+            />
         </section>
         {notification && notification.type === 'success' && (
           <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50">
