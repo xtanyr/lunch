@@ -32,15 +32,24 @@ function getCurrentMenuDishes(): Dish[] {
   return result;
 }
 
+const ADDRESSES = [
+  { id: 'office', label: 'Офис' },
+  { id: 'kamergersky', label: 'Камергерский' },
+  { id: 'gagarina', label: 'Гагарина' },
+];
+
 const App: React.FC = () => {
   const initialEmployeeOrderState: Omit<EmployeeOrder, 'id' | 'timestamp'> & { items: CurrentOrderItem[] } = {
     employeeName: '',
     department: '',
     orderDate: getTodayDateString(),
     items: [],
+    address: ADDRESSES[0].id,
   };
 
-  const [currentEmployeeOrder, setCurrentEmployeeOrder] = useState<Omit<EmployeeOrder, 'id' | 'timestamp'> & { items: CurrentOrderItem[] }>(initialEmployeeOrderState);
+  const [currentEmployeeOrder, setCurrentEmployeeOrder] = useState<Omit<EmployeeOrder, 'id' | 'timestamp'> & { items: CurrentOrderItem[] }>({
+    ...initialEmployeeOrderState
+  });
   const [allOrders, setAllOrders] = useState<EmployeeOrder[]>([]);
   const [aggregatedOrder, setAggregatedOrder] = useState<AggregatedOrderItem[]>([]);
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'delete-success'; message: string } | null>(null);
@@ -57,17 +66,18 @@ const App: React.FC = () => {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const [selectedDept, setSelectedDept] = useState<string>('');
+  const [selectedAddress, setSelectedAddress] = useState(ADDRESSES[0].id);
 
   const showNotification = (type: 'success' | 'error' | 'delete-success', message: string) => {
     setNotification({ type, message });
     setTimeout(() => setNotification(null), type === 'delete-success' ? 2000 : 3000);
   };
 
-  const loadOrders = useCallback(async (date: string) => {
+  const loadOrders = useCallback(async (date: string, address: string) => {
     setIsLoadingOrders(true);
     setFetchError(null);
     try {
-      const orders = await fetchOrdersFromAPI(date);
+      const orders = await fetchOrdersFromAPI(date, address);
       setAllOrders(orders);
     } catch (error) {
       console.error("Failed to fetch orders:", error);
@@ -79,8 +89,8 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    loadOrders(selectedAggregateDate);
-  }, [selectedAggregateDate, loadOrders]);
+    loadOrders(selectedAggregateDate, selectedAddress);
+  }, [selectedAggregateDate, selectedAddress, loadOrders]);
   
 
   const updateCurrentOrderItems = useCallback((newItems: CurrentOrderItem[]) => {
@@ -138,7 +148,7 @@ const App: React.FC = () => {
     setFetchError(null);
     setConfirmModal({ open: false, type: 'send' });
     try {
-      const newOrder = await submitOrderToAPI(currentEmployeeOrder);
+      const newOrder = await submitOrderToAPI({ ...currentEmployeeOrder, address: selectedAddress });
       if (newOrder.orderDate === selectedAggregateDate) {
         setAllOrders((prevOrders: EmployeeOrder[]) => [...prevOrders, newOrder]);
       } else {
@@ -153,7 +163,7 @@ const App: React.FC = () => {
     } finally {
       setIsSubmittingOrder(false);
     }
-  }, [currentEmployeeOrder, initialEmployeeOrderState, selectedAggregateDate, loadOrders, allOrders]);
+  }, [currentEmployeeOrder, initialEmployeeOrderState, selectedAggregateDate, loadOrders, allOrders, selectedAddress]);
 
   const handleDeleteOrder = (id: string) => {
     setPendingDeleteId(id);
@@ -266,6 +276,17 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Header />
+      <div className="flex justify-center gap-4 mt-6 mb-8">
+        {ADDRESSES.map(addr => (
+          <button
+            key={addr.id}
+            className={`px-6 py-2 rounded-lg font-semibold border-2 transition-all duration-150 ${selectedAddress === addr.id ? 'bg-[#ff4139] text-white border-[#ff4139]' : 'bg-white text-black border-neutral-300 hover:bg-neutral-100'}`}
+            onClick={() => setSelectedAddress(addr.id)}
+          >
+            {addr.label}
+          </button>
+        ))}
+      </div>
       {notification && (
         <div className={`p-4 text-white text-center fixed top-0 left-0 right-0 z-50 shadow-lg rounded-lg animate-fade-in ${
           notification.type === 'success' ? 'bg-green-600' : notification.type === 'error' ? 'bg-red-600' : 'bg-neutral-700'
@@ -287,8 +308,9 @@ const App: React.FC = () => {
           onSubmit={handleOrderSubmit}
           menuItems={getCurrentMenuDishes()} // Only current menu for new orders
           sideDishes={SIDE_DISHES}
-          departments={DEPARTMENTS}
+          departments={selectedAddress === 'office' ? DEPARTMENTS : []}
           isSubmitting={isSubmittingOrder}
+          address={selectedAddress}
         />
         </section>
         <hr className="my-8 border-t border-neutral-200" />
@@ -335,6 +357,7 @@ const App: React.FC = () => {
               aggregatedItems={aggregatedOrder} 
               selectedDate={selectedAggregateDate}
               onDateChange={setSelectedAggregateDate}
+              address={selectedAddress}
             />
         </section>
         {notification && notification.type === 'success' && (

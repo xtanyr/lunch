@@ -31,8 +31,8 @@ export interface EmployeeOrder {
   department: string;
   orderDate: string; // Date for which the order is placed (YYYY-MM-DD)
   items: CurrentOrderItem[];
-  // totalCost: number; // Removed: Prices are no longer displayed or used
-  timestamp: Date; // Timestamp of when the order was submitted
+  timestamp: Date;
+  address: string; // Новый адрес (офис/кофейня)
 }
 
 export interface AggregatedOrderItem {

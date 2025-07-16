@@ -22,9 +22,10 @@ interface AggregatedOrderSummaryProps {
   aggregatedItems: AggregatedOrderItem[];
   selectedDate: string;
   onDateChange: (date: string) => void;
+  address?: string; // новый проп
 }
 
-const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({ aggregatedItems, selectedDate, onDateChange }) => {
+const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({ aggregatedItems, selectedDate, onDateChange, address }) => {
   const formattedSelectedDate = formatDateString(selectedDate);
   // const titleId = "aggregated-summary-title";
 
@@ -73,7 +74,11 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({ aggrega
     ];
     worksheet["!cols"] = colWidths;
 
-    const exportFileName = `Сводный_заказ_${formattedSelectedDate.replace(/\./g, '-')}.xlsx`;
+    let addressLabel = '';
+    if (address === 'office') addressLabel = 'Офис';
+    else if (address === 'kamergersky') addressLabel = 'Камергерский';
+    else if (address === 'gagarina') addressLabel = 'Гагарина';
+    const exportFileName = `Сводный_заказ${addressLabel ? '_' + addressLabel : ''}_${formattedSelectedDate.replace(/\./g, '-')}.xlsx`;
     XLSX.writeFile(workbook, exportFileName);
   };
 

@@ -18,6 +18,7 @@ interface OrderFormProps {
   sideDishes: SideDish[];
   departments: string[];
   isSubmitting: boolean; // New prop
+  address: string; // новый проп
 }
 
 const getTodayDateString = (): string => {
@@ -49,6 +50,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
   sideDishes,
   departments,
   isSubmitting, // Use prop
+  address,
 }: OrderFormProps) => {
   const [shake, setShake] = useState(false);
   const [showNameError, setShowNameError] = useState(false);
@@ -125,7 +127,12 @@ const OrderForm: React.FC<OrderFormProps> = ({
       setShowNameError(true);
       hasError = true;
     }
-    if (!currentOrder.department) {
+    // Для кофейни department подставляется автоматически
+    let departmentValue = currentOrder.department;
+    if (address !== 'office') {
+      departmentValue = address === 'kamergersky' ? 'Камергерский' : address === 'gagarina' ? 'Гагарина' : '';
+    }
+    if (address === 'office' && !departmentValue) {
       setShowDeptError(true);
       hasError = true;
     }
@@ -136,6 +143,12 @@ const OrderForm: React.FC<OrderFormProps> = ({
         nameInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
         nameInputRef.current.focus();
       }
+      return;
+    }
+    // Обновляем department для кофейни перед отправкой
+    if (address !== 'office' && currentOrder.department !== departmentValue) {
+      setCurrentOrder(prev => ({ ...prev, department: departmentValue }));
+      setTimeout(() => onSubmit(), 0); // вызовем onSubmit после обновления стейта
       return;
     }
     onSubmit();
@@ -165,23 +178,37 @@ const OrderForm: React.FC<OrderFormProps> = ({
           )}
         </div>
         <div className="flex flex-col">
-          <Select
-            label="Отдел"
-            id="department"
-            name="department"
-            value={currentOrder.department}
-            onChange={handleInputChange}
-            required
-            aria-required="true"
-            disabled={isSubmitting}
-            className={showDeptError ? 'border-red-500 ring-2 ring-red-400' : ''}
-          >
-            <option value="" disabled>Выберите отдел...</option>
-            {departments.map(dept => (
-              <option key={dept} value={dept}>{dept}</option>
-            ))}
-          </Select>
-          {showDeptError && (
+          {address === 'office' ? (
+            <Select
+              label="Отдел"
+              id="department"
+              name="department"
+              value={currentOrder.department}
+              onChange={handleInputChange}
+              required
+              aria-required="true"
+              disabled={isSubmitting}
+              className={showDeptError ? 'border-red-500 ring-2 ring-red-400' : ''}
+            >
+              <option value="" disabled>Выберите отдел...</option>
+              {departments.map(dept => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
+            </Select>
+          ) : (
+            <Input
+              label="Кофейня"
+              id="department"
+              name="department"
+              value={address === 'kamergersky' ? 'Камергерский' : address === 'gagarina' ? 'Гагарина' : ''}
+              disabled
+              readOnly
+              required
+              aria-required="true"
+              className="bg-neutral-100 cursor-not-allowed"
+            />
+          )}
+          {showDeptError && address === 'office' && (
             <div className="text-red-500 text-xs mt-1">Пожалуйста, выберите отдел</div>
           )}
         </div>

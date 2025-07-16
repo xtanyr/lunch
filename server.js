@@ -16,53 +16,58 @@ app.use(express.json());
 
 // Serve static files from the dist directory
 app.use(express.static(path.join(__dirname, 'dist')));
+app.use('/m7', express.static(path.join(__dirname, 'm7')));
 
-// Helper to read orders from file
-function readOrders() {
-  if (!fs.existsSync(ORDERS_FILE)) return [];
-  const data = fs.readFileSync(ORDERS_FILE, 'utf-8');
+// Получить путь к файлу заказов по адресу
+function getOrdersFileByAddress(address) {
+  if (!address || address === 'office') return ORDERS_FILE;
+  const safe = address.toLowerCase().replace(/[^a-zа-я0-9]/gi, '_');
+  return path.join(__dirname, `orders_${safe}.json`);
+}
+
+// Helper to read orders from file по адресу
+function readOrders(address) {
+  const file = getOrdersFileByAddress(address);
+  if (!fs.existsSync(file)) return [];
+  const data = fs.readFileSync(file, 'utf-8');
   try {
     return JSON.parse(data);
   } catch {
     return [];
   }
 }
-
-// Helper to write orders to file
-function writeOrders(orders) {
-  fs.writeFileSync(ORDERS_FILE, JSON.stringify(orders, null, 2));
+// Helper to write orders to file по адресу
+function writeOrders(orders, address) {
+  const file = getOrdersFileByAddress(address);
+  fs.writeFileSync(file, JSON.stringify(orders, null, 2));
 }
 
-// Get all orders
-app.get('/orders', (req, res) => {
-  const orders = readOrders();
-  res.json(orders);
-});
-
-// Get orders for a specific date
+// Get all orders for a date and address
 app.get('/orders/:date', (req, res) => {
+  const { address } = req.query;
   const { date } = req.params;
-  const orders = readOrders().filter(order => order.orderDate === date);
+  const orders = readOrders(address).filter(o => o.orderDate === date);
   res.json(orders);
 });
 
-// Add a new order
-app.post('/orders', (req, res) => {
-  const { employeeName, department, orderDate, items } = req.body;
-  if (!employeeName || !department || !orderDate || !items) {
+// Add a new order (address required)
+app.post('/orders', express.json(), (req, res) => {
+  const { employeeName, department, orderDate, items, address } = req.body;
+  if (!employeeName || !orderDate || !items || typeof address !== 'string') {
     return res.status(400).json({ error: 'Missing required fields' });
   }
-  const orders = readOrders();
+  const orders = readOrders(address);
   const newOrder = {
     id: `order-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     employeeName,
-    department,
+    department: department || '',
     orderDate,
     items,
+    address,
     timestamp: new Date().toISOString(),
   };
   orders.push(newOrder);
-  writeOrders(orders);
+  writeOrders(orders, address);
   res.status(201).json(newOrder);
 });
 
