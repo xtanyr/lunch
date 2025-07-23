@@ -78,6 +78,7 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({ aggrega
     if (address === 'office') addressLabel = 'Офис';
     else if (address === 'kamergersky') addressLabel = 'Камергерский';
     else if (address === 'gagarina') addressLabel = 'Гагарина';
+    else if (address === 'drujniy') addressLabel = 'Дружный';
     const exportFileName = `Сводный_заказ${addressLabel ? '_' + addressLabel : ''}_${formattedSelectedDate.replace(/\./g, '-')}.xlsx`;
     XLSX.writeFile(workbook, exportFileName);
   };

@@ -130,7 +130,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
     // Для кофейни department подставляется автоматически
     let departmentValue = currentOrder.department;
     if (address !== 'office') {
-      departmentValue = address === 'kamergersky' ? 'Камергерский' : address === 'gagarina' ? 'Гагарина' : '';
+      departmentValue = address === 'kamergersky' ? 'Камергерский' : address === 'gagarina' ? 'Гагарина' : address === 'drujniy' ? 'Дружный' : '';
     }
     if (address === 'office' && !departmentValue) {
       setShowDeptError(true);
@@ -200,7 +200,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
               label="Кофейня"
               id="department"
               name="department"
-              value={address === 'kamergersky' ? 'Камергерский' : address === 'gagarina' ? 'Гагарина' : ''}
+              value={address === 'kamergersky' ? 'Камергерский' : address === 'gagarina' ? 'Гагарина' : address === 'drujniy' ? 'Дружный' : ''}
               disabled
               readOnly
               required

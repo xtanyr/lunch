@@ -25,5 +25,6 @@ dist-ssr
 orders.json
 orders_office.json
 orders_kamergersky.json
+orders_drujniy.json
 orders_gagarina.json
 orders_*.json

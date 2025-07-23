@@ -36,6 +36,7 @@ const ADDRESSES = [
   { id: 'office', label: 'Офис' },
   { id: 'kamergersky', label: 'Камергерский' },
   { id: 'gagarina', label: 'Гагарина' },
+  { id: 'drujniy', label: 'Дружный' },
 ];
 
 const App: React.FC = () => {
