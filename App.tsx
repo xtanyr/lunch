@@ -277,7 +277,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Header />
-      <div className="flex justify-center gap-4 mt-6 mb-8">
+      <div className="flex justify-center gap-4 mt-6 mb-8 flex-col sm:flex-row items-center">
         {ADDRESSES.map(addr => (
           <button
             key={addr.id}
