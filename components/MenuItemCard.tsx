@@ -36,6 +36,11 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
     <div className={`${cardBaseClasses} ${selectedCardClasses}`}>
       <div>
         <h4 className="text-lg font-semibold text-black mb-2">{dish.name}</h4>
+        {dish.composition && (
+          <p className="text-sm text-gray-600 mb-3 leading-relaxed">
+            <span className="font-medium text-gray-700">Состав:</span> {dish.composition}
+          </p>
+        )}
       </div>
 
       {isSelected && dish.availableSideIds && dish.availableSideIds.length > 0 && (

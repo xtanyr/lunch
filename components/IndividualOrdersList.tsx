@@ -78,8 +78,8 @@ const IndividualOrdersList: React.FC<IndividualOrdersListProps> = ({ orders, men
                   if (!dish) return null;
                   return (
                     <li key={`${item.dishId}-${item.selectedSideId || 'noside'}`} className="text-sm text-neutral-700">
-                      {dish.name}
-                      {side && <span className="text-xs text-neutral-500"> (Гарнир: {side.name})</span>}
+                      <div className="font-medium">{dish.name}</div>
+                      {side && <div className="text-xs text-neutral-500 mt-1">Гарнир: {side.name}</div>}
                     </li>
                   );
                 })}

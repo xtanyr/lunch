@@ -57,18 +57,22 @@ const CategoryAsList: React.FC<CategoryAsListProps> = ({
                   ${isSelected ? 'border-[#ff4139] bg-red-50' : 'border-neutral-300 bg-white'}
                 `}
               >
-                <Button
-                  variant={isSelected ? 'primary' : 'ghost'}
-                  onClick={() => onSelectDish(dish.id)}
-                  // Removed explicit padding override and inline-block from button's className.
-                  // Button uses its default padding from 'size' prop.
-                  // text-left and justify-start ensure text inside button is aligned left.
-                  className={`text-left justify-start`}
-                  aria-pressed={isSelected}
-                  aria-label={isSelected ? `Отменить выбор ${dish.name}` : `Выбрать ${dish.name}`}
-                >
-                  {dish.name}
-                </Button>
+                <div className="w-full">
+                  <Button
+                    variant={isSelected ? 'primary' : 'ghost'}
+                    onClick={() => onSelectDish(dish.id)}
+                    className={`text-left justify-start w-full`}
+                    aria-pressed={isSelected}
+                    aria-label={isSelected ? `Отменить выбор ${dish.name}` : `Выбрать ${dish.name}`}
+                  >
+                    {dish.name}
+                  </Button>
+                  {dish.composition && (
+                    <div className="mt-1 ml-2 text-xs text-gray-600 leading-relaxed">
+                      <span className="font-medium text-gray-700">Состав:</span> {dish.composition}
+                    </div>
+                  )}
+                </div>
               </div>
               {isSelected && dish.availableSideIds && dish.availableSideIds.length > 0 && (
                 <div className="mt-2"> {/* Side dish selector appears below the button */}

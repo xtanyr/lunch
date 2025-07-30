@@ -74,13 +74,14 @@ app.post('/orders', express.json(), (req, res) => {
 // Delete an order by id
 app.delete('/orders/:id', (req, res) => {
   const { id } = req.params;
-  let orders = readOrders();
+  const { address } = req.query;
+  let orders = readOrders(address);
   const initialLength = orders.length;
   orders = orders.filter(order => order.id !== id);
   if (orders.length === initialLength) {
     return res.status(404).json({ error: 'Order not found' });
   }
-  writeOrders(orders);
+  writeOrders(orders, address);
   res.status(204).end();
 });
 

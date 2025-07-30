@@ -17,6 +17,7 @@ export interface Dish {
   // price: number; // Removed: Prices are no longer displayed or used
   category: DishCategory;
   availableSideIds?: string[];
+  composition?: string; // Состав блюда
 }
 
 export interface CurrentOrderItem {
@@ -41,6 +42,7 @@ export interface AggregatedOrderItem {
   category: DishCategory;
   selectedSideId?: string;
   selectedSideName?: string;
+  composition?: string;
   totalQuantity: number; // This remains, representing how many people ordered it
   // unitPrice: number; // Removed: Prices are no longer displayed or used
 }

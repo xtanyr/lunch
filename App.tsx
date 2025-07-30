@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { EmployeeOrder, CurrentOrderItem, AggregatedOrderItem, DishCategory, Dish } from './types';
+import { EmployeeOrder, CurrentOrderItem, AggregatedOrderItem, Dish } from './types';
 import { MENU_ITEMS, SIDE_DISHES, DEPARTMENTS, currentMenu } from './constants';
 import OrderForm from './components/OrderForm';
 import IndividualOrdersList from './components/IndividualOrdersList';
@@ -176,7 +176,7 @@ const App: React.FC = () => {
     setDeletingOrderId(pendingDeleteId);
     setConfirmModal({ open: false, type: 'delete' });
     try {
-      await deleteOrderFromAPI(pendingDeleteId);
+      await deleteOrderFromAPI(pendingDeleteId, selectedAddress);
       setAllOrders((prev: EmployeeOrder[]) => prev.filter((order: EmployeeOrder) => order.id !== pendingDeleteId));
       showNotification('delete-success', 'Заказ удалён.');
     } catch (error) {
