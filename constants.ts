@@ -114,7 +114,7 @@ export const MENU_ITEMS: Dish[] = [
   { id: 'soup_rassolnik_chicken', name: 'Рассольник с курицей', category: DishCategory.HOT_DISH, composition: 'рассольник с курицей' },
   { id: 'hot_lyulya_kebab_vegetables', name: 'Люля-кебаб, овощи гриль с картофельными дольками', category: DishCategory.HOT_DISH, composition: 'фарш курица, свинина, перец болгарский, зелень, сыр: овощи гриль с картофельными дольками' },
   { id: 'hot_flounder_onion', name: 'Камбала жаренная с луком пассированным', category: DishCategory.HOT_DISH, availableSideIds: ['mashed_potatoes', 'boiled_rice'], composition: 'камбала жаренная с луком пассированным' },
-  { id: 'hot_salmon_sous_vide', name: 'Семга Су-вид на дульене из печенных овощей', category: DishCategory.HOT_DISH, composition: 'жульен: кабачок, морковь, лимонный сок, прованские травы: либо рис' },
+  { id: 'hot_salmon_sous_vide', name: 'Семга Су-вид на жюльене из печенных овощей', category: DishCategory.HOT_DISH, composition: 'жульен: кабачок, морковь, лимонный сок, прованские травы' },
   { id: 'single_flounder_onion', name: 'Камбала жаренная с луком пассированным', category: DishCategory.SINGLE_DISH, availableSideIds: ['mashed_potatoes', 'boiled_rice'], composition: 'камбала жаренная с луком пассированным' },
 ];
 
