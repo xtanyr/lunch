@@ -144,7 +144,6 @@ export const currentMenu = {
     { id: 'soup_rassolnik_chicken' }, // Рассольник с курицей
     { id: 'hot_liver_stroganoff_garnish' }, // Печень по-строгановски (пюре, гречка)
     { id: 'hot_lyulya_kebab_vegetables' }, // Люля-кебаб, овощи гриль с картофельными дольками
-    { id: 'hot_flounder_onion' }, // Камбала жаренная с луком пассированным (пюре, рис)
     { id: 'hot_salmon_sous_vide' }, // Семга Су-вид на дульене из печенных овощей (либо рис)
     { id: 'hot_potato_asian_chicken' }, // Картофель по азиатски с курицей
     { id: 'hot_pasta_bolognese' }, // Паста болоньезе
