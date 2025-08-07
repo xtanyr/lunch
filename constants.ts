@@ -119,7 +119,7 @@ export const MENU_ITEMS: Dish[] = [
   
   // Новые блюда для актуального меню
   { id: 'dessert_chocolate_pancakes', name: 'Блины шоколадные с вишней и творогом (2шт)', category: DishCategory.HOT_DISH, composition: 'блины шоколадные с вишней и творогом' },
-  { id: 'single_chicken_patties_steam', name: 'Биточки куриные на пару', category: DishCategory.SINGLE_DISH, composition: 'биточки куриные на пару' },
+  { id: 'single_chicken_patties_steam', name: 'Биточки куриные на пару', category: DishCategory.SINGLE_DISH, availableSideIds: ['steamed_vegetables', 'baked_potatoes', 'grilled_vegetables'], composition: 'биточки куриные на пару' },
   { id: 'single_pollock_cream_sauce', name: 'Минтай в сливочном соусе с овощами', category: DishCategory.SINGLE_DISH, availableSideIds: ['mashed_potatoes', 'boiled_rice'], composition: 'филе минтая, картофель, морковь, лук, помидор, сливочный соус, брокколи' },
   { id: 'dessert_caramel', name: 'Карамелька', category: DishCategory.SINGLE_DISH, composition: 'бисквит выпекается с уваренным сгущенным молоком, крем заварной и сырно-карамельный' },
   { id: 'single_pike_patties', name: 'Биточек из щуки', category: DishCategory.SINGLE_DISH, availableSideIds: ['mashed_potatoes', 'boiled_rice'], composition: 'щука, молоко, пассированный лук, морковь, хлеб' },
