@@ -39,6 +39,13 @@ const ADDRESSES = [
   { id: 'drujniy', label: 'Дружный' },
 ];
 
+// Функция для унификации адреса - убирает суффиксы типа :1, :2 и т.д.
+const normalizeAddress = (address: string): string => {
+  if (!address || address === 'office') return 'office';
+  // Убираем суффиксы типа :1, :2 и т.д. для всех адресов кроме офиса
+  return address.split(':')[0];
+};
+
 const App: React.FC = () => {
   const initialEmployeeOrderState: Omit<EmployeeOrder, 'id' | 'timestamp'> & { items: CurrentOrderItem[] } = {
     employeeName: '',
@@ -78,7 +85,8 @@ const App: React.FC = () => {
     setIsLoadingOrders(true);
     setFetchError(null);
     try {
-      const orders = await fetchOrdersFromAPI(date, address);
+      const normalizedAddress = normalizeAddress(address);
+      const orders = await fetchOrdersFromAPI(date, normalizedAddress);
       setAllOrders(orders);
     } catch (error) {
       console.error("Failed to fetch orders:", error);
@@ -149,7 +157,8 @@ const App: React.FC = () => {
     setFetchError(null);
     setConfirmModal({ open: false, type: 'send' });
     try {
-      const newOrder = await submitOrderToAPI({ ...currentEmployeeOrder, address: selectedAddress });
+      const normalizedAddress = normalizeAddress(selectedAddress);
+      const newOrder = await submitOrderToAPI({ ...currentEmployeeOrder, address: normalizedAddress });
       if (newOrder.orderDate === selectedAggregateDate) {
         setAllOrders((prevOrders: EmployeeOrder[]) => [...prevOrders, newOrder]);
       } else {
@@ -176,7 +185,8 @@ const App: React.FC = () => {
     setDeletingOrderId(pendingDeleteId);
     setConfirmModal({ open: false, type: 'delete' });
     try {
-      await deleteOrderFromAPI(pendingDeleteId, selectedAddress);
+      const normalizedAddress = normalizeAddress(selectedAddress);
+      await deleteOrderFromAPI(pendingDeleteId, normalizedAddress);
       setAllOrders((prev: EmployeeOrder[]) => prev.filter((order: EmployeeOrder) => order.id !== pendingDeleteId));
       showNotification('delete-success', 'Заказ удалён.');
     } catch (error) {
