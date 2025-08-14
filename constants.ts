@@ -143,7 +143,6 @@ export const DEPARTMENTS: string[] = [
 // Новый актуальный список для заказов (currentMenu)
 export const currentMenu = {
   [DishCategory.SALAD]: [
-    { id: 'salad_sous_vide_breast_mash' }, // Салат с грудкой Су-вид и машем
     { id: 'salad_snack' }, // Салат "Закусочный"
     { id: 'salad_vegetables_cheese' }, // Салат овощи с сыром
     { id: 'salad_cabbage_apple' }, // Салат капустой и яблоком
