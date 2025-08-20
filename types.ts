@@ -14,7 +14,7 @@ export interface SideDish {
 export interface Dish {
   id: string;
   name: string;
-  // price: number; // Removed: Prices are no longer displayed or used
+  price?: number; // Цена для экспорта в Excel
   category: DishCategory;
   availableSideIds?: string[];
   composition?: string; // Состав блюда
@@ -44,5 +44,5 @@ export interface AggregatedOrderItem {
   selectedSideName?: string;
   composition?: string;
   totalQuantity: number; // This remains, representing how many people ordered it
-  // unitPrice: number; // Removed: Prices are no longer displayed or used
+  price?: number; // Цена для экспорта в Excel
 }

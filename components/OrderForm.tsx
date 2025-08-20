@@ -13,6 +13,7 @@ interface OrderFormProps {
   currentOrder: CurrentOrderFormState;
   setCurrentOrder: React.Dispatch<React.SetStateAction<CurrentOrderFormState>>;
   updateCurrentOrderItems: (items: CurrentOrderItem[]) => void;
+  updateCurrentOrderDetails: (field: 'employeeName' | 'department' | 'orderDate', value: string) => void;
   onSubmit: () => void;
   menuItems: Dish[]; 
   sideDishes: SideDish[];
@@ -45,6 +46,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
   currentOrder,
   setCurrentOrder,
   updateCurrentOrderItems,
+  updateCurrentOrderDetails,
   onSubmit,
   menuItems, 
   sideDishes,
@@ -58,7 +60,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setCurrentOrder((prev: CurrentOrderFormState) => ({ ...prev, [e.target.name]: e.target.value }));
+    updateCurrentOrderDetails(e.target.name as 'employeeName' | 'department' | 'orderDate', e.target.value);
     if (e.target.name === 'employeeName') setShowNameError(false);
     if (e.target.name === 'department') setShowDeptError(false);
   };

@@ -121,7 +121,9 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
         if (items.length === 0) return;
 
         const excelData: (string | number)[][] = [];
-        excelData.push(["Категория", "Блюдо", "Гарнир", "Кол-во"]);
+        excelData.push(["Категория", "Блюдо", "Гарнир", "Кол-во", "Цена", "Сумма"]);
+
+        let dailyTotal = 0; // Общая сумма для дня
 
         displayCategories.forEach(category => {
           const itemsInCategory = items.filter((item: any) => item.category === category);
@@ -129,15 +131,24 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
             itemsInCategory
               .sort((a: any, b: any) => a.dishName.localeCompare(b.dishName))
               .forEach((item: any) => {
+                const price = item.price || 0;
+                const totalPrice = price * item.totalQuantity;
+                dailyTotal += totalPrice; // Добавляем к общей сумме дня
                 excelData.push([
                   item.category === DishCategory.HOT_DISH ? "Горячее и Супы" : item.category,
                   item.dishName,
                   item.selectedSideName || '---',
-                  item.totalQuantity
+                  item.totalQuantity,
+                  price,
+                  totalPrice
                 ]);
               });
           }
         });
+
+        // Добавляем пустую строку и общую сумму для дня
+        excelData.push([]); // Пустая строка
+        excelData.push(["ИТОГО ЗА ДЕНЬ:", "", "", "", "", dailyTotal]);
 
         if (excelData.length > 1) {
           const worksheet = XLSX.utils.aoa_to_sheet(excelData);
@@ -147,7 +158,9 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
             { wch: 25 }, 
             { wch: 45 }, 
             { wch: 30 }, 
-            { wch: 10 }  
+            { wch: 10 },
+            { wch: 12 },
+            { wch: 15 }
           ];
           worksheet["!cols"] = colWidths;
 
@@ -192,7 +205,9 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
     }
 
     const excelData: (string | number)[][] = [];
-    excelData.push(["Категория", "Блюдо", "Состав", "Гарнир", "Кол-во"]);
+    excelData.push(["Категория", "Блюдо", "Состав", "Гарнир", "Кол-во", "Цена", "Сумма"]);
+
+    let dailyTotal = 0; // Общая сумма для дня
 
     displayCategories.forEach(category => {
       const itemsInCategory = aggregatedItems.filter(item => item.category === category);
@@ -200,15 +215,25 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
         itemsInCategory
           .sort((a, b) => a.dishName.localeCompare(b.dishName))
           .forEach(item => {
+            const price = item.price || 0;
+            const totalPrice = price * item.totalQuantity;
+            dailyTotal += totalPrice; // Добавляем к общей сумме дня
             excelData.push([
               item.category === DishCategory.HOT_DISH ? "Горячее и Супы" : item.category,
               item.dishName,
+              item.composition || '---',
               item.selectedSideName || '---',
-              item.totalQuantity
+              item.totalQuantity,
+              price,
+              totalPrice
             ]);
           });
       }
     });
+
+    // Добавляем пустую строку и общую сумму для дня
+    excelData.push([]); // Пустая строка
+    excelData.push(["ИТОГО ЗА ДЕНЬ:", "", "", "", "", dailyTotal]);
 
     if (excelData.length <= 1) { 
         alert("Нет данных для экспорта на выбранную дату.");
@@ -223,7 +248,10 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
         { wch: 25 }, 
         { wch: 45 }, 
         { wch: 30 }, 
-        { wch: 10 }  
+        { wch: 30 },
+        { wch: 10 },
+        { wch: 12 },
+        { wch: 15 }
     ];
     worksheet["!cols"] = colWidths;
 

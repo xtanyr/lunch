@@ -19,6 +19,16 @@ const getTodayDateString = (): string => {
   return `${year}-${month}-${day}`;
 };
 
+// Функция для увеличения даты на один день
+const addOneDayToDate = (dateString: string): string => {
+  const date = new Date(dateString + "T00:00:00");
+  date.setDate(date.getDate() + 1);
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 // Функция для преобразования currentMenu в массив Dish
 function getCurrentMenuDishes(): Dish[] {
   const idToDish = (id: string) => MENU_ITEMS.find(d => d.id === id);
@@ -76,6 +86,10 @@ const App: React.FC = () => {
   const [selectedDept, setSelectedDept] = useState<string>('');
   const [selectedAddress, setSelectedAddress] = useState(ADDRESSES[0].id);
 
+  // Состояния для сохранения последних введённых данных
+  const [lastEmployeeName, setLastEmployeeName] = useState<string>('');
+  const [lastDepartment, setLastDepartment] = useState<string>('');
+
   const showNotification = (type: 'success' | 'error' | 'delete-success', message: string) => {
     setNotification({ type, message });
     setTimeout(() => setNotification(null), type === 'delete-success' ? 2000 : 3000);
@@ -100,12 +114,30 @@ const App: React.FC = () => {
   useEffect(() => {
     loadOrders(selectedAggregateDate, selectedAddress);
   }, [selectedAggregateDate, selectedAddress, loadOrders]);
+
+  // Восстанавливаем сохранённые имя и отдел при изменении currentEmployeeOrder
+  useEffect(() => {
+    if (lastEmployeeName && lastDepartment && currentEmployeeOrder.items.length === 0) {
+      setCurrentEmployeeOrder(prev => ({
+        ...prev,
+        employeeName: lastEmployeeName,
+        department: lastDepartment,
+      }));
+    }
+  }, [currentEmployeeOrder.items.length, lastEmployeeName, lastDepartment]);
   
 
   const updateCurrentOrderItems = useCallback((newItems: CurrentOrderItem[]) => {
     setCurrentEmployeeOrder((prev: Omit<EmployeeOrder, 'id' | 'timestamp'> & { items: CurrentOrderItem[] }) => ({
       ...prev,
       items: newItems,
+    }));
+  }, []);
+
+  const updateCurrentOrderDetails = useCallback((field: 'employeeName' | 'department' | 'orderDate', value: string) => {
+    setCurrentEmployeeOrder((prev: Omit<EmployeeOrder, 'id' | 'timestamp'> & { items: CurrentOrderItem[] }) => ({
+      ...prev,
+      [field]: value,
     }));
   }, []);
 
@@ -164,7 +196,19 @@ const App: React.FC = () => {
       } else {
          console.log(`Order for ${newOrder.orderDate} submitted, but current view is for ${selectedAggregateDate}. Data saved.`);
       }
-      setCurrentEmployeeOrder(initialEmployeeOrderState);
+      
+      // Сохраняем последние введённые данные
+      setLastEmployeeName(currentEmployeeOrder.employeeName);
+      setLastDepartment(currentEmployeeOrder.department);
+      
+      // Увеличиваем дату на один день и сбрасываем только блюда
+      const nextDate = addOneDayToDate(currentEmployeeOrder.orderDate);
+      setCurrentEmployeeOrder({
+        ...currentEmployeeOrder,
+        orderDate: nextDate,
+        items: [], // Сбрасываем только блюда
+      });
+      
       showNotification('success', `Заказ для ${newOrder.employeeName} успешно добавлен!`);
     } catch (error) {
       console.error("Failed to submit order:", error);
@@ -316,6 +360,7 @@ const App: React.FC = () => {
           currentOrder={currentEmployeeOrder}
           setCurrentOrder={setCurrentEmployeeOrder}
           updateCurrentOrderItems={updateCurrentOrderItems}
+          updateCurrentOrderDetails={updateCurrentOrderDetails}
           onSubmit={handleOrderSubmit}
           menuItems={getCurrentMenuDishes()} // Only current menu for new orders
           sideDishes={SIDE_DISHES}

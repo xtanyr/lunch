@@ -14,6 +14,8 @@ export const SIDE_DISHES: SideDish[] = [
   { id: 'grechka', name: 'Гречка'},
   { id: 'spaghetti', name: 'Спагетти' }, // добавлен новый гарнир
   { id: 'ptitim', name: 'Паста пти-тим' }, // добавлен новый гарнир
+  { id: 'poppy_seeds', name: 'Мак' }, // добавлен для штруделя
+  { id: 'apple', name: 'Яблоко' }, // добавлен для штруделя
 ];
 
 const ALL_SIDE_IDS = SIDE_DISHES.map(s => s.id);
@@ -43,40 +45,38 @@ export const MENU_ITEMS: Dish[] = [
   
   // Остальные блюда (оставляем для совместимости)
   { id: 'salad_mimosa', name: 'Салат "Мимоза"', category: DishCategory.SALAD },
-  { id: 'salad_krab', name: 'Салат "Крабовый"', category: DishCategory.SALAD },
+  { id: 'salad_krab', name: 'Салат "Крабовый"', price: 150, category: DishCategory.SALAD },
   { id: 'salad_grouse_nest', name: 'Салат "Гнездо глухаря"', category: DishCategory.SALAD, composition: 'курица, яйцо, пассированый лук, солёный огурец, картофель пай, майонез' },
   { id: 'salad_health', name: 'Салат «Здоровье»', category: DishCategory.SALAD },
   { id: 'salad_spring', name: 'Салат весенний', category: DishCategory.SALAD },
   { id: 'salad_pineapple', name: 'Салат с ананасом', category: DishCategory.SALAD },
-  { id: 'salad_caesar_chicken', name: 'Салат "Цезарь с курицей"', category: DishCategory.SALAD },
-  { id: 'salad_eggplant_cheese', name: 'Салат с баклажанами и творожным сыром', category: DishCategory.SALAD, composition: 'с помидором, зеленью, творожным сыром и кисло-сладким соусом' },
+  { id: 'salad_caesar_chicken', name: 'Салат "Цезарь с курицей"', price: 160, category: DishCategory.SALAD },
+  { id: 'salad_eggplant_cheese', name: 'Салат с баклажанами и творожным сыром', price: 160, category: DishCategory.SALAD, composition: 'с помидором, зеленью, творожным сыром и кисло-сладким соусом' },
   { id: 'salad_greek', name: 'Салат "Греческий"', category: DishCategory.SALAD, composition: 'помидор, огурец, болгарский перец свежие, маслины, творожный сыр, заправка масло+соевый соус' },
-  { id: 'salad_beans', name: 'Салат с фасолью', category: DishCategory.SALAD },
+  { id: 'salad_beans', name: 'Салат с фасолью', price: 150, category: DishCategory.SALAD, composition: 'фасоль отварная, ветчина куриная, соленый огурец, перец и пассированные лук и морковь, майонез' },
   { id: 'salad_bulgur', name: 'Салат с булгуром', category: DishCategory.SALAD, composition: 'булгур, морковь, перец болгарский, св. огурец, пекинская капуста, масло растит+лим.сок' },
   { id: 'salad_pancake', name: 'Салат блинный', category: DishCategory.SALAD, composition: 'блинчики, ветчина куриная, помидор, болгарский перец, майонез' },
   { id: 'salad_herring_fur_coat', name: 'Салат "Сельдь под шубой"', category: DishCategory.SALAD, composition: 'сельдь соленая, картофель, свекла, морковь отварная, майонез' },
   { id: 'salad_baked_vegetables', name: 'Салат из овощей печеных', category: DishCategory.SALAD },
-  { id: 'salad_olivier', name: 'Салат "Оливье"', category: DishCategory.SALAD },
+  { id: 'salad_olivier', name: 'Салат "Оливье"', price: 125, category: DishCategory.SALAD },
   { id: 'salad_vinaigrette', name: 'Салат "Винегрет"', category: DishCategory.SALAD, composition: 'отварные овощи картофель, свекла, морковь, кв.капуста, соленый огурец, зел. горошек, масло растительное' },
-  { id: 'salad_beet_cheese', name: 'Салат свекла с сыром', category: DishCategory.SALAD },
+  { id: 'salad_beet_cheese', name: 'Салат свекла с сыром', price: 100, category: DishCategory.SALAD },
   { id: 'salad_fresh_cabbage', name: 'Салат со свежей капустой', category: DishCategory.SALAD },
   { id: 'salad_egg_chicken_sous_vide', name: 'Салат с яйцом, Грудкой Су-вид', category: DishCategory.SALAD },
   { id: 'salad_layered_chicken_liver', name: 'Салат слоеный с куриной печенью', category: DishCategory.SALAD },
-  { id: 'salad_baked_vegetables', name: 'Салат из овощей печеных', category: DishCategory.SALAD },
   { id: 'salad_pineapple_chicken', name: 'Салат с ананасом и курицей', category: DishCategory.SALAD },
-  { id: 'salad_caesar_chicken', name: 'Салат Цезарь с курицей', category: DishCategory.SALAD },
   { id: 'salad_vegetables', name: 'Салат овощной', category: DishCategory.SALAD },
   { id: 'soup_broccoli_puree', name: 'Суп пюре брокколи', category: DishCategory.HOT_DISH, composition: 'броколли, картофель, овощной бульон, шпинат' },
   { id: 'soup_noodle_chicken', name: 'Суп лапша домашняя с курицей', category: DishCategory.HOT_DISH, composition: 'суп лапша домашняя с курицей' },
   { id: 'soup_solyanka_meat', name: 'Солянка мясная', category: DishCategory.HOT_DISH },
   { id: 'soup_mushroom_puree', name: 'Суп пюре из грибов', category: DishCategory.HOT_DISH },
   { id: 'hot_sous_vide_breast_grilled_veg', name: 'Грудка Су-вид с овощами гриль', category: DishCategory.HOT_DISH },
-  { id: 'soup_pea', name: 'Суп гороховый', category: DishCategory.HOT_DISH },
+  { id: 'soup_pea', name: 'Суп гороховый', price: 200, category: DishCategory.HOT_DISH },
   { id: 'hot_chicken_meatballs_garnish', name: 'Тефтели куриные с пюре', category: DishCategory.HOT_DISH, composition: 'фарш-свинина, курица, маринад- лук, морковь, томат, гвоздика, перец' },
   { id: 'hot_schnitzel_chicken', name: 'Шницель куриный', category: DishCategory.HOT_DISH, availableSideIds: ['mashed_potatoes', 'steamed_vegetables'] },
   { id: 'hot_liver_stroganoff_garnish', name: 'Печень по-строгановски', category: DishCategory.HOT_DISH, availableSideIds: ['mashed_potatoes', 'grechka'], composition: 'печень говяжья, лук, соус на основе сливок, масла сливочного: пюре, гречка' },
   { id: 'hot_plov_pork', name: 'Плов со свининой', category: DishCategory.HOT_DISH },
-  { id: 'hot_manti_sauce', name: 'Манты с соусом', category: DishCategory.HOT_DISH },
+  { id: 'hot_manti_sauce', name: 'Манты с соусом', price: 185, category: DishCategory.HOT_DISH },
   { id: 'hot_meat_french_style', name: 'Мясо по-французски', category: DishCategory.HOT_DISH },
   { id: 'hot_chicken_appetizing', name: 'Курица аппетитная', category: DishCategory.HOT_DISH, composition: 'грудка куриная, помидор, сыр, майонез запекается' },
   { id: 'hot_liver_stroganoff', name: 'Печень по-строгановски', category: DishCategory.HOT_DISH },
@@ -88,10 +88,10 @@ export const MENU_ITEMS: Dish[] = [
   { id: 'hot_plov_meat', name: 'Плов с мясом', category: DishCategory.HOT_DISH },
   { id: 'hot_strips', name: 'Стрипсы', category: DishCategory.HOT_DISH },
   { id: 'hot_lasagna', name: 'Лазанья', category: DishCategory.HOT_DISH },
-  { id: 'hot_chicken_breast_ginger', name: 'Грудка куриная в имбире', category: DishCategory.HOT_DISH },
+  { id: 'hot_chicken_breast_ginger', name: 'Грудка куриная в имбире', price: 235, category: DishCategory.HOT_DISH, composition: 'цветная капуста жареная во фритюре' },
   { id: 'hot_wings', name: 'Крылья', category: DishCategory.HOT_DISH },
   { id: 'hot_liver_patties', name: 'Оладьи из печени', category: DishCategory.HOT_DISH },
-  { id: 'hot_chicken_cutlet_garnish', name: 'Котлета куриная с гарниром', category: DishCategory.HOT_DISH, availableSideIds: ['mashed_potatoes', 'ptitim', 'grechka'] },
+  { id: 'hot_chicken_cutlet_garnish', name: 'Котлета куриная с гарниром', price: 230, category: DishCategory.HOT_DISH, availableSideIds: ['mashed_potatoes', 'ptitim', 'grechka'] },
   { id: 'hot_lyulya_kebab', name: 'Люля-кебаб', category: DishCategory.HOT_DISH },
   { id: 'hot_stuffed_pepper_meat', name: 'Перец фаршированный с мясом', category: DishCategory.HOT_DISH },
   { id: 'hot_cabbage_roll_meat_garnish', name: 'Голубец с мясом с гарниром', category: DishCategory.HOT_DISH },
@@ -102,7 +102,7 @@ export const MENU_ITEMS: Dish[] = [
   { id: 'hot_zucchini', name: 'Кабачок', category: DishCategory.HOT_DISH },
   { id: 'dessert_trifle_snickers', name: 'Трайфл сникерс (тирамису)', category: DishCategory.HOT_DISH },
   { id: 'dessert_trifle_cherry', name: 'Трайфл вишня (тирамису)', category: DishCategory.HOT_DISH },
-  { id: 'soup_cabbage_fresh', name: 'Суп щи со свежей капустой', category: DishCategory.HOT_DISH },
+  { id: 'soup_cabbage_fresh', name: 'Суп щи со свежей капустой', price: 200, category: DishCategory.HOT_DISH },
   { id: 'hot_goulash', name: 'Гуляш из курицы', category: DishCategory.HOT_DISH, availableSideIds: ['mashed_potatoes', 'boiled_rice'] },
   { id: 'hot_medovik', name: 'Медовик', category: DishCategory.HOT_DISH },
   { id: 'hot_panna_cotta_strawberry', name: 'Десерт панна-котта с малиной', category: DishCategory.HOT_DISH },
@@ -110,9 +110,9 @@ export const MENU_ITEMS: Dish[] = [
   { id: 'single_meat_french_chicken', name: 'Мясо по-французски (курица)', category: DishCategory.SINGLE_DISH },
   { id: 'single_twister_chicken', name: 'Твистер с курицей и овощами в сырной лепешке', category: DishCategory.SINGLE_DISH },
   { id: 'hot_fish_baked_vegetables', name: 'Рыба с овощами', category: DishCategory.SINGLE_DISH },
-  { id: 'hot_kiev_cutlet', name: 'Котлета по киевски', category: DishCategory.SINGLE_DISH },
-  { id: 'hot_pasta_carbonara', name: 'Паста карбонара', category: DishCategory.SINGLE_DISH },
-  { id: 'hot_pasta_shrimp', name: 'Паста с креветкой', category: DishCategory.SINGLE_DISH },
+  { id: 'hot_kiev_cutlet', name: 'Котлета по киевски', category: DishCategory.HOT_DISH },
+  { id: 'hot_pasta_carbonara', name: 'Паста карбонара', category: DishCategory.HOT_DISH },
+  { id: 'hot_pasta_shrimp', name: 'Паста с креветкой', price: 320, category: DishCategory.SINGLE_DISH },
   { id: 'single_fish_batter_garnish', name: 'Рыба в кляре', category: DishCategory.SINGLE_DISH, availableSideIds: ['mashed_potatoes', 'boiled_rice'] },
   { id: 'single_pasta_carbonara', name: 'Паста карбонара', category: DishCategory.SINGLE_DISH },
   { id: 'single_pavlova', name: 'Десерт Павловой', category: DishCategory.SINGLE_DISH },
@@ -127,6 +127,13 @@ export const MENU_ITEMS: Dish[] = [
   { id: 'single_pollock_cream_sauce', name: 'Минтай в сливочном соусе с овощами', category: DishCategory.SINGLE_DISH, availableSideIds: ['mashed_potatoes', 'boiled_rice'], composition: 'филе минтая, картофель, морковь, лук, помидор, сливочный соус, брокколи' },
   { id: 'dessert_caramel', name: 'Карамелька', category: DishCategory.SINGLE_DISH, composition: 'бисквит выпекается с уваренным сгущенным молоком, крем заварной и сырно-карамельный' },
   { id: 'single_pike_patties', name: 'Биточек из щуки', category: DishCategory.SINGLE_DISH, availableSideIds: ['mashed_potatoes', 'boiled_rice'], composition: 'щука, молоко, пассированный лук, морковь, хлеб' },
+  
+  // Новые блюда с ценами
+  { id: 'hot_meatballs_garnish', name: 'Тефтели с гарниром', price: 225, category: DishCategory.HOT_DISH, composition: 'фарш курица, свинина', availableSideIds: ['ptitim', 'grechka'] },
+  { id: 'hot_goulash_pork', name: 'Гуляш поджарка из свинины', price: 235, category: DishCategory.HOT_DISH, availableSideIds: ['grechka', 'boiled_rice'] },
+  { id: 'dessert_trifle_tiramisu', name: 'Трайфл тирамису (кофейный)', price: 235, category: DishCategory.HOT_DISH },
+  { id: 'dessert_strudel', name: 'Штрудель', price: 250, category: DishCategory.HOT_DISH, availableSideIds: ['poppy_seeds', 'apple'] },
+  { id: 'single_pike_perch_sauce_vegetables', name: 'Судак в соусе с овощами и рисом', price: 400, category: DishCategory.SINGLE_DISH, composition: 'лук, морковь, брокколи' },
 ];
 
 export const DEPARTMENTS: string[] = [
@@ -143,25 +150,27 @@ export const DEPARTMENTS: string[] = [
 // Новый актуальный список для заказов (currentMenu)
 export const currentMenu = {
   [DishCategory.SALAD]: [
-    { id: 'salad_snack' }, // Салат "Закусочный"
-    { id: 'salad_vegetables_cheese' }, // Салат овощи с сыром
-    { id: 'salad_cabbage_apple' }, // Салат капустой и яблоком
-    { id: 'salad_beef_liver' }, // Салат с говяжьей печенью
+    { id: 'salad_olivier' }, // Салат "Оливье"
+    { id: 'salad_caesar_chicken' }, // Салат "Цезарь с курицей"
+    { id: 'salad_krab' }, // Салат "Крабовый"
+    { id: 'salad_eggplant_cheese' }, // Салат с баклажанами и творожным сыром
+    { id: 'salad_beet_cheese' }, // Салат свекла с сыром
+    { id: 'salad_beans' }, // Салат с фасолью
   ],
   [DishCategory.HOT_DISH]: [
-    { id: 'soup_mushroom_home' }, // Суп грибной по домашнему
-    { id: 'soup_borscht_chicken' }, // Борщ с курицей
-    { id: 'hot_lasagna_meat' }, // Лазанья мясная
-    { id: 'hot_chicken_strips_vegetables' }, // Стрипсы куринные с картофельной с овощами гриль
-    { id: 'hot_soba_chicken' }, // Соба с курицей
-    { id: 'hot_sous_vide_breast' }, // Грудка Су-вид
-    { id: 'dessert_trifle_winter_cherry' }, // Трайфл Зимняя вишня
-    { id: 'dessert_basket_sour_cream_berry' }, // Корзинка сметанно-ягодная
+    { id: 'soup_pea' }, // Суп гороховый
+    { id: 'soup_cabbage_fresh' }, // Суп щи со свежей капустой
+    { id: 'hot_manti_sauce' }, // Манты с соусом
+    { id: 'hot_meatballs_garnish' }, // Тефтели с гарниром
+    { id: 'hot_chicken_cutlet_garnish' }, // Котлета куриная с гарниром
+    { id: 'hot_chicken_breast_ginger' }, // Грудка куриная в имбире
+    { id: 'hot_goulash_pork' }, // Гуляш поджарка из свинины
+    { id: 'dessert_trifle_tiramisu' }, // Трайфл тирамису (кофейный)
+    { id: 'dessert_strudel' }, // Штрудель
   ],
   [DishCategory.SINGLE_DISH]: [
-    { id: 'salad_shrimp_cucumber' }, // Салат с креветками огурцом
-    { id: 'single_tongue_cream_spinach' }, // Язык в сливочно-шпиинатном соусе с пюре
-    { id: 'single_pike_perch_onion_carrot' }, // Судак припущенный с луком и морковью
+    { id: 'hot_pasta_shrimp' }, // Паста с креветкой
+    { id: 'single_pike_perch_sauce_vegetables' }, // Судак в соусе с овощами и рисом
   ],
 };
 
@@ -192,6 +201,7 @@ export const aggregateOrdersByDate = (ordersByDate: { [date: string]: any[] }, m
             selectedSideName: side?.name,
             composition: dish.composition,
             totalQuantity: 1,
+            price: dish.price, // Добавляем цену из меню
           };
         }
       });
