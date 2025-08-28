@@ -33,7 +33,7 @@ export const MENU_ITEMS: Dish[] = [
   { id: 'soup_borscht_chicken', name: 'Борщ с курицей', price: 200, category: DishCategory.HOT_DISH },
   { id: 'hot_lasagna_meat', name: 'Лазанья мясная', category: DishCategory.HOT_DISH, composition: 'томаты с пряными травами и фаршем, сыр, соус бешамель, тесто для лазаньи, фарш( курица, свинина, говядина)' },
   { id: 'hot_chicken_strips_vegetables', name: 'Стрипсы куринные с картофельной с овощами гриль', category: DishCategory.HOT_DISH },
-  { id: 'hot_soba_chicken', name: 'Соба с курицей', price: 235, category: DishCategory.HOT_DISH, composition: 'гречишная лапша, с курицей и овощами заправка на основе имбиря, соевого соуса и терияки', availableSideIds: ['no_garnish'] },
+  { id: 'hot_soba_chicken', name: 'Соба с курицей', price: 235, category: DishCategory.HOT_DISH, composition: 'гречишная лапша, с курицей и овощами заправка на основе имбиря, соевого соуса и терияки'},
   { id: 'soup_pumpkin_puree', name: 'Суп пюре из тыквы', price: 210, category: DishCategory.HOT_DISH },
   { id: 'hot_chicken_liver_fried', name: 'Печень куриная жареная', price: 225, category: DishCategory.HOT_DISH },
   { id: 'dessert_honey_cake', name: 'Медовик', price: 210, category: DishCategory.HOT_DISH },
