@@ -30,17 +30,7 @@ const getTodayDateString = (): string => {
   return `${year}-${month}-${day}`;
 };
 
-const parseDate = (dateStr: string) => {
-  const [year, month, day] = dateStr.split('-');
-  return new Date(Number(year), Number(month) - 1, Number(day));
-};
 
-const formatDate = (date: Date) => {
-  const year = date.getFullYear();
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const day = date.getDate().toString().padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 
 const OrderForm: React.FC<OrderFormProps> = ({
   currentOrder,
@@ -236,7 +226,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
         <div>
           <CategoryAsList
             category={DishCategory.SALAD}
-            title="Салаты"
+            title="Первое блюдо"
             menuItems={menuItems}
             sideDishes={sideDishes}
             currentOrderItems={currentOrder.items}
@@ -247,7 +237,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
         <div>
           <CategoryAsList
             category={DishCategory.HOT_DISH}
-            title="Горячее и Супы"
+            title="Второе блюдо"
             menuItems={menuItems}
             sideDishes={sideDishes}
             currentOrderItems={currentOrder.items}
