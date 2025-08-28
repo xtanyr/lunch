@@ -36,8 +36,8 @@ export const MENU_ITEMS: Dish[] = [
   { id: 'hot_soba_chicken', name: 'Соба с курицей', price: 235, category: DishCategory.HOT_DISH, composition: 'гречишная лапша, с курицей и овощами заправка на основе имбиря, соевого соуса и терияки', availableSideIds: ['no_garnish'] },
   { id: 'soup_pumpkin_puree', name: 'Суп пюре из тыквы', price: 210, category: DishCategory.HOT_DISH },
   { id: 'hot_chicken_liver_fried', name: 'Печень куриная жареная', price: 225, category: DishCategory.HOT_DISH },
-  { id: 'dessert_honey_cake', name: 'Медовик', price: 210, category: DishCategory.SINGLE_DISH },
-  { id: 'dessert_earl_grey_chocolate', name: 'Эрл грей шоколадный', price: 250, category: DishCategory.HOT_DISH },
+  { id: 'dessert_honey_cake', name: 'Медовик', price: 210, category: DishCategory.HOT_DISH },
+  { id: 'dessert_earl_grey_chocolate', name: 'Эрл грей шоколадный', price: 250, category: DishCategory.SINGLE_DISH },
   { id: 'dessert_basket_sour_cream_berry', name: 'Корзинка сметанно-ягодная', price: 210, category: DishCategory.HOT_DISH },
   { id: 'hot_sous_vide_breast', name: 'Грудка Су-вид', category: DishCategory.HOT_DISH, availableSideIds: ['grilled_vegetables', 'grechka'] },
   { id: 'dessert_trifle_winter_cherry', name: 'Трайфл Зимняя вишня', category: DishCategory.HOT_DISH },
@@ -173,13 +173,14 @@ export const currentMenu = {
     { id: 'hot_soba_chicken' }, // Соба с курицей - гарнир (гречневая лапша с курицей и овощами)
     { id: 'hot_chicken_liver_fried' }, // Печень куриная жареная
     { id: 'dessert_earl_grey_chocolate' }, // Эрл грей шоколадный
+    { id: 'dessert_honey_cake' }, // Медовик
     { id: 'dessert_basket_sour_cream_berry' }, // Корзинка сметанно-ягодная
   ],
   [DishCategory.SINGLE_DISH]: [
     { id: 'single_chicken_cutlets_steamed' }, // Биточки куриные на пару - гарнир (гречка или рис)
     { id: 'single_salmon_sous_vide_vegetables' }, // Семга су-вид с овощами
     { id: 'single_chicken_french_style' }, // Курица по-французски
-    { id: 'dessert_honey_cake' }, // Медовик
+    { id: 'dessert_earl_grey_chocolate' }, // Эрл грей шоколадный
   ],
 };
 
