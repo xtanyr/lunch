@@ -27,7 +27,7 @@ const Footer: React.FC = () => {
 
   return (
     <footer
-      className="p-6 text-center mt-auto border-t-2"
+      className="p-4 text-center mt-auto border-t-2"
       style={{
         backgroundColor: '#FDE7F0', // Very soft, light March 7th pink
         borderColor: '#A0D8F0',    // Clear, light blue for top border
@@ -35,17 +35,23 @@ const Footer: React.FC = () => {
     >
       <div className="container mx-auto flex flex-col items-center justify-center gap-2 sm:flex-row sm:justify-center">
         <p
-          style={{ color: '#4A5568' }}
+          style={{ color: '#fea2ba' }}
           className="font-semibold mb-2 sm:mb-0"
         >
-          xtany development
+          xtany
         </p>
         <img
           src={"/m7/" + randomImage}
           alt="March 7th random"
-          style={{ height: 48, width: 'auto', borderRadius: 8, boxShadow: '0 2px 8px #e0e0e0' }}
+          style={{ height: 64, width: 'auto', borderRadius: 8, boxShadow: '0 2px 8px #e0e0e0' }}
           loading="lazy"
         />
+        <p
+          style={{ color: '#1adee6' }}
+          className="font-semibold mb-2 sm:mb-0"
+        >
+          dev
+        </p>
       </div>
     </footer>
   );
