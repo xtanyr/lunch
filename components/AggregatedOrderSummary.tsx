@@ -39,6 +39,10 @@ const getAddressLabel = (address: string): string => {
     case 'kamergersky': return 'Камергерский';
     case 'gagarina': return 'Гагарина';
     case 'drujniy': return 'Дружный';
+    case 'chv': return 'ЧВ';
+    case 'festival': return 'Фестиваль';
+    case 'atlantida': return 'Атлантида';
+    case 'sfera': return 'Сфера';
     default: return '';
   }
 };
@@ -52,10 +56,7 @@ interface AggregatedOrderSummaryProps {
 
 const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({ 
   aggregatedItems, 
-  selectedDate, 
-  onDateChange, 
-  address 
-}) => {
+  selectedDate}) => {
   const [startDate, setStartDate] = useState<string>(selectedDate);
   const [endDate, setEndDate] = useState<string>(selectedDate);
   const [isExporting, setIsExporting] = useState<boolean>(false);
@@ -64,6 +65,106 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
   const formattedSelectedDate = formatDateString(selectedDate);
   const displayCategories = [DishCategory.SALAD, DishCategory.HOT_DISH, DishCategory.SINGLE_DISH];
 
+  const fetchAllLocationsData = async (date: string) => {
+    const locations = ['office', 'kamergersky', 'gagarina', 'drujniy', 'chv', 'festival', 'atlantida', 'sfera'];
+    const allOrders: { [key: string]: any[] } = {};
+    
+    for (const loc of locations) {
+      try {
+        const response = await fetchOrdersForDateRange(date, date, loc);
+        if (response[date] && response[date].length > 0) {
+          allOrders[loc] = response[date];
+        }
+      } catch (error) {
+        console.error(`Error fetching data for ${loc}:`, error);
+      }
+    }
+    
+    return allOrders;
+  };
+
+  const processSingleDateExport = async (date: string, workbook: any) => {
+    const allLocationsData = await fetchAllLocationsData(date);
+    const sheetName = formatDateForSheetName(date);
+    const excelData: (string | number)[][] = [];
+    
+    // Add title with date
+    excelData.push([`Сводный заказ за ${sheetName}`]);
+    excelData.push([]); // Empty row
+    
+    let grandTotal = 0;
+    
+    // Process each location
+    for (const [location, orders] of Object.entries(allLocationsData)) {
+      const locationName = getAddressLabel(location);
+      if (!locationName) continue;
+      
+      // Add location header
+      excelData.push([locationName]);
+      excelData.push(["Блюдо", "Гарнир", "Кол-во", "Цена", "Сумма"]);
+      
+      // Aggregate orders for this location
+      const aggregatedItems = aggregateOrdersByDate(
+        { [date]: orders },
+        MENU_ITEMS,
+        SIDE_DISHES
+      )[date] || [];
+      
+      let locationTotal = 0;
+      
+      // Add items by category
+      displayCategories.forEach(category => {
+        const itemsInCategory = aggregatedItems.filter(item => item.category === category);
+        if (itemsInCategory.length === 0) return;
+        
+        itemsInCategory
+          .sort((a, b) => a.dishName.localeCompare(b.dishName))
+          .forEach(item => {
+            const price = item.price || 0;
+            const totalPrice = price * item.totalQuantity;
+            locationTotal += totalPrice;
+            
+            excelData.push([
+              item.dishName,
+              item.selectedSideName || '---',
+              item.totalQuantity,
+              price,
+              totalPrice
+            ]);
+          });
+      });
+      
+      // Add location total
+      excelData.push(["", "", "", "Итого:", locationTotal]);
+      excelData.push([]); // Empty row
+      grandTotal += locationTotal;
+    }
+    
+    // Add grand total
+    excelData.push(["", "", "", "ОБЩАЯ СУММА:", grandTotal]);
+    
+    // Create worksheet
+    if (excelData.length > 3) { // More than just the title and empty rows
+      const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+      
+      // Set column widths
+      const colWidths = [
+        { wch: 45 }, // Dish
+        { wch: 30 }, // Side dish
+        { wch: 10 }, // Quantity
+        { wch: 12 }, // Price
+        { wch: 15 }  // Total
+      ];
+      worksheet["!cols"] = colWidths;
+      
+      // Add to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+      return true;
+    }
+    
+    return false;
+  };
+
   const handleExportToExcel = useCallback(async () => {
     if (typeof XLSX === 'undefined') {
       console.error("XLSX library is not loaded.");
@@ -71,7 +172,7 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
       return;
     }
 
-    // Валидация дат
+    // Validate dates
     if (!startDate || !endDate) {
       alert("Пожалуйста, выберите начальную и конечную даты.");
       return;
@@ -85,7 +186,7 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
       return;
     }
 
-    // Ограничение на количество дней (например, максимум 31 день)
+    // Limit date range to 31 days
     const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     if (daysDiff > 31) {
       alert("Максимальный диапазон дат - 31 день.");
@@ -93,171 +194,96 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
     }
 
     setIsExporting(true);
-    setExportProgress('Загружаем данные...');
+    setExportProgress('Подготовка к экспорту...');
 
     try {
-      // Получаем данные за диапазон дат
-      const ordersByDate = await fetchOrdersForDateRange(startDate, endDate, address);
-      
-      if (Object.keys(ordersByDate).length === 0) {
-        alert("Нет данных для экспорта в выбранном диапазоне дат.");
-        setIsExporting(false);
-        return;
-      }
-
-      setExportProgress('Агрегируем данные...');
-      
-      // Агрегируем данные по датам
-      const aggregatedByDate = aggregateOrdersByDate(ordersByDate, MENU_ITEMS, SIDE_DISHES);
-
-      setExportProgress('Создаем Excel файл...');
-
-      // Создаем рабочую книгу
       const workbook = XLSX.utils.book_new();
-      const addressLabel = getAddressLabel(address || '');
-
-      // Создаем лист для каждой даты
-      Object.entries(aggregatedByDate).forEach(([date, items]) => {
-        if (items.length === 0) return;
-
-        const excelData: (string | number)[][] = [];
-        excelData.push(["Категория", "Блюдо", "Гарнир", "Кол-во", "Цена", "Сумма"]);
-
-        let dailyTotal = 0; // Общая сумма для дня
-
-        displayCategories.forEach(category => {
-          const itemsInCategory = items.filter((item: any) => item.category === category);
-          if (itemsInCategory.length > 0) {
-            itemsInCategory
-              .sort((a: any, b: any) => a.dishName.localeCompare(b.dishName))
-              .forEach((item: any) => {
-                const price = item.price || 0;
-                const totalPrice = price * item.totalQuantity;
-                dailyTotal += totalPrice; // Добавляем к общей сумме дня
-                excelData.push([
-                  item.category === DishCategory.HOT_DISH ? "Горячее и Супы" : item.category,
-                  item.dishName,
-                  item.selectedSideName || '---',
-                  item.totalQuantity,
-                  price,
-                  totalPrice
-                ]);
-              });
-          }
-        });
-
-        // Добавляем пустую строку и общую сумму для дня
-        excelData.push([]); // Пустая строка
-        excelData.push(["ИТОГО ЗА ДЕНЬ:", "", "", "", "", dailyTotal]);
-
-        if (excelData.length > 1) {
-          const worksheet = XLSX.utils.aoa_to_sheet(excelData);
-          
-          // Настраиваем ширину колонок
-          const colWidths = [
-            { wch: 25 }, 
-            { wch: 45 }, 
-            { wch: 30 }, 
-            { wch: 10 },
-            { wch: 12 },
-            { wch: 15 }
-          ];
-          worksheet["!cols"] = colWidths;
-
-          // Создаем название листа в формате "Адрес ДД.ММ"
-          const sheetDate = formatDateForSheetName(date);
-          const sheetName = addressLabel ? `${addressLabel} ${sheetDate}` : sheetDate;
-          
-          // Ограничиваем длину названия листа (Excel ограничение - 31 символ)
-          const truncatedSheetName = sheetName.length > 31 ? sheetName.substring(0, 31) : sheetName;
-          
-          XLSX.utils.book_append_sheet(workbook, worksheet, truncatedSheetName);
-        }
-      });
-
-      setExportProgress('Сохраняем файл...');
-
-      // Создаем имя файла
+      let sheetsCreated = 0;
+      
+      // Generate array of dates in the range
+      const dates: string[] = [];
+      const currentDate = new Date(start);
+      
+      while (currentDate <= end) {
+        dates.push(new Date(currentDate).toISOString().split('T')[0]);
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      
+      // Process each date
+      for (const date of dates) {
+        setExportProgress(`Обработка данных за ${formatDateString(date)}...`);
+        const success = await processSingleDateExport(date, workbook);
+        if (success) sheetsCreated++;
+      }
+      
+      if (sheetsCreated === 0) {
+        throw new Error("Нет данных для экспорта в выбранном диапазоне дат.");
+      }
+      
+      setExportProgress('Сохранение файла...');
+      
+      // Generate filename
       const startDateFormatted = formatDateString(startDate).replace(/\./g, '-');
       const endDateFormatted = formatDateString(endDate).replace(/\./g, '-');
-      const dateRange = startDate === endDate ? startDateFormatted : `${startDateFormatted}_${endDateFormatted}`;
-      const exportFileName = `Сводный_заказ${addressLabel ? '_' + addressLabel : ''}_${dateRange}.xlsx`;
+      const dateRange = startDate === endDate 
+        ? startDateFormatted 
+        : `${startDateFormatted}_${endDateFormatted}`;
       
+      const exportFileName = `Сводный_заказ_${dateRange}.xlsx`;
+      
+      // Save file
       XLSX.writeFile(workbook, exportFileName);
       
-      setExportProgress('');
-      alert(`Excel файл успешно создан! Файл содержит ${Object.keys(aggregatedByDate).length} листов.`);
-
+      alert(`Excel файл успешно создан! Файл содержит ${sheetsCreated} листов.`);
+      
     } catch (error) {
       console.error("Failed to export to Excel:", error);
-      alert("Ошибка при создании Excel файла. Пожалуйста, попробуйте еще раз.");
+      const errorMessage = error instanceof Error ? error.message : "Неизвестная ошибка";
+      alert(`Ошибка при создании Excel файла: ${errorMessage}`);
     } finally {
       setIsExporting(false);
       setExportProgress('');
     }
-  }, [startDate, endDate, address]);
+  }, [startDate, endDate]);
 
-  const handleSingleDateExport = () => {
+  const handleSingleDateExport = async () => {
     if (typeof XLSX === 'undefined') {
       console.error("XLSX library is not loaded.");
       alert("Ошибка: Библиотека для экспорта в Excel не загружена. Пожалуйста, проверьте ваше интернет-соединение или обратитесь к администратору.");
       return;
     }
 
-    const excelData: (string | number)[][] = [];
-    excelData.push(["Категория", "Блюдо", "Состав", "Гарнир", "Кол-во", "Цена", "Сумма"]);
+    setIsExporting(true);
+    setExportProgress('Подготовка данных для экспорта...');
 
-    let dailyTotal = 0; // Общая сумма для дня
-
-    displayCategories.forEach(category => {
-      const itemsInCategory = aggregatedItems.filter(item => item.category === category);
-      if (itemsInCategory.length > 0) {
-        itemsInCategory
-          .sort((a, b) => a.dishName.localeCompare(b.dishName))
-          .forEach(item => {
-            const price = item.price || 0;
-            const totalPrice = price * item.totalQuantity;
-            dailyTotal += totalPrice; // Добавляем к общей сумме дня
-            excelData.push([
-              item.category === DishCategory.HOT_DISH ? "Горячее и Супы" : item.category,
-              item.dishName,
-              item.composition || '---',
-              item.selectedSideName || '---',
-              item.totalQuantity,
-              price,
-              totalPrice
-            ]);
-          });
+    try {
+      const workbook = XLSX.utils.book_new();
+      
+      // Process the selected date
+      const success = await processSingleDateExport(selectedDate, workbook);
+      
+      if (!success) {
+        throw new Error("Нет данных для экспорта на выбранную дату.");
       }
-    });
-
-    // Добавляем пустую строку и общую сумму для дня
-    excelData.push([]); // Пустая строка
-    excelData.push(["ИТОГО ЗА ДЕНЬ:", "", "", "", "", dailyTotal]);
-
-    if (excelData.length <= 1) { 
-        alert("Нет данных для экспорта на выбранную дату.");
-        return;
+      
+      setExportProgress('Сохранение файла...');
+      
+      // Generate filename
+      const exportFileName = `Сводный_заказ_${formatDateString(selectedDate).replace(/\./g, '-')}.xlsx`;
+      
+      // Save file
+      XLSX.writeFile(workbook, exportFileName);
+      
+      alert('Excel файл успешно создан!');
+      
+    } catch (error) {
+      console.error("Failed to export to Excel:", error);
+      const errorMessage = error instanceof Error ? error.message : "Неизвестная ошибка";
+      alert(`Ошибка при создании Excel файла: ${errorMessage}`);
+    } finally {
+      setIsExporting(false);
+      setExportProgress('');
     }
-
-    const worksheet = XLSX.utils.aoa_to_sheet(excelData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Сводный заказ");
- 
-    const colWidths = [
-        { wch: 25 }, 
-        { wch: 45 }, 
-        { wch: 30 }, 
-        { wch: 30 },
-        { wch: 10 },
-        { wch: 12 },
-        { wch: 15 }
-    ];
-    worksheet["!cols"] = colWidths;
-
-    const addressLabel = getAddressLabel(address || '');
-    const exportFileName = `Сводный_заказ${addressLabel ? '_' + addressLabel : ''}_${formattedSelectedDate.replace(/\./g, '-')}.xlsx`;
-    XLSX.writeFile(workbook, exportFileName);
   };
 
   return (

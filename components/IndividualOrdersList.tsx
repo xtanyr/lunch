@@ -1,6 +1,5 @@
 import React from 'react';
 import { EmployeeOrder, Dish, SideDish } from '../types';
-import { TrashIcon } from '@heroicons/react/24/outline';
 
 interface IndividualOrdersListProps {
   orders: EmployeeOrder[];

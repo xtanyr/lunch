@@ -47,6 +47,10 @@ const ADDRESSES = [
   { id: 'kamergersky', label: 'Камергерский' },
   { id: 'gagarina', label: 'Гагарина' },
   { id: 'drujniy', label: 'Дружный' },
+  { id: 'chv', label: 'ЧВ' },
+  { id: 'festival', label: 'Фестиваль' },
+  { id: 'atlantida', label: 'Атлантида' },
+  { id: 'sfera', label: 'Сфера' },
 ];
 
 // Функция для унификации адреса - убирает суффиксы типа :1, :2 и т.д.
@@ -83,8 +87,27 @@ const App: React.FC = () => {
   );
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
-  const [selectedDept, setSelectedDept] = useState<string>('');
-  const [selectedAddress, setSelectedAddress] = useState(ADDRESSES[0].id);
+  const [selectedDept, setSelectedDept] = useState<string>('Все отделы');
+  // Load selected address from localStorage or default to first address
+  const [selectedAddress, setSelectedAddress] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('selectedAddress') || ADDRESSES[0].id;
+    }
+    return ADDRESSES[0].id;
+  });
+
+  // Save selected address to localStorage and reset department in form when address changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('selectedAddress', selectedAddress);
+      // Reset department in the form when switching between office and coffee shops
+      setCurrentEmployeeOrder(prev => ({
+        ...prev,
+        department: ''
+      }));
+      setSelectedDept('Все отделы');
+    }
+  }, [selectedAddress]);
 
   // Состояния для сохранения последних введённых данных
   const [lastEmployeeName, setLastEmployeeName] = useState<string>('');
@@ -201,13 +224,15 @@ const App: React.FC = () => {
       setLastEmployeeName(currentEmployeeOrder.employeeName);
       setLastDepartment(currentEmployeeOrder.department);
       
-      // Увеличиваем дату на один день и сбрасываем только блюда
+      // Увеличиваем дату на один день, сбрасываем блюда и отдел
       const nextDate = addOneDayToDate(currentEmployeeOrder.orderDate);
       setCurrentEmployeeOrder({
         ...currentEmployeeOrder,
         orderDate: nextDate,
-        items: [], // Сбрасываем только блюда
+        department: '', // Сбрасываем отдел
+        items: [], // Сбрасываем блюда
       });
+      setSelectedDept('Все отделы'); // Сбрасываем выпадающий список отделов
       
       showNotification('success', `Заказ для ${newOrder.employeeName} успешно добавлен!`);
     } catch (error) {
@@ -303,14 +328,6 @@ const App: React.FC = () => {
       localStorage.setItem('lunch_department', currentEmployeeOrder.department);
   }, [currentEmployeeOrder.employeeName, currentEmployeeOrder.department]);
 
-  // Spinner SVG
-  const Spinner = () => (
-    <svg className="animate-spin h-6 w-6 text-black mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
-    </svg>
-  );
-
   // Success checkmark animation with background
   const SuccessCheck = () => (
     <div className="flex flex-col items-center justify-center bg-green-100 bg-opacity-90 rounded-xl shadow-lg px-8 py-6 border-2 border-green-400">
@@ -331,16 +348,46 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Header />
-      <div className="flex justify-center gap-4 mt-6 mb-8 flex-col sm:flex-row items-center">
-        {ADDRESSES.map(addr => (
-          <button
-            key={addr.id}
-            className={`px-6 py-2 rounded-lg font-semibold border-2 transition-all duration-150 ${selectedAddress === addr.id ? 'bg-[#ff4139] text-white border-[#ff4139]' : 'bg-white text-black border-neutral-300 hover:bg-neutral-100'}`}
-            onClick={() => setSelectedAddress(addr.id)}
-          >
-            {addr.label}
+      <div className="flex justify-center gap-4 mt-2 mb-2 flex-col sm:flex-row items-center">
+        <button
+          className={`px-6 py-2 rounded-lg font-semibold border-2 transition-all duration-150 ${
+            selectedAddress === 'office' 
+              ? 'bg-[#ff4139] text-white border-[#ff4139]' 
+              : 'bg-white text-black border-neutral-300 hover:bg-neutral-100'
+          }`}
+          onClick={() => setSelectedAddress('office')}
+        >
+          Офис
+        </button>
+        <div className="relative group">
+          <button className={`px-6 py-2 rounded-lg font-semibold border-2 transition-all duration-150 flex items-center gap-2 ${
+            selectedAddress !== 'office'
+              ? 'bg-[#ff4139] text-white border-[#ff4139]'
+              : 'bg-white text-black border-neutral-300 hover:bg-neutral-100'
+          }`}>
+            {selectedAddress === 'office' ? 'Выберите кофейню' : ADDRESSES.find(a => a.id === selectedAddress)?.label}
+            <svg className={`w-4 h-4 ${selectedAddress !== 'office' ? 'text-white' : 'text-black'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
           </button>
-        ))}
+          <div className="absolute right-0 mt-1 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+            <div className="py-1">
+              {ADDRESSES.filter(addr => addr.id !== 'office').map(addr => (
+                <button
+                  key={addr.id}
+                  className={`block w-full text-left px-4 py-2 text-sm ${
+                    selectedAddress === addr.id 
+                      ? 'bg-gray-100 text-gray-900' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                  onClick={() => setSelectedAddress(addr.id)}
+                >
+                  {addr.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
       {notification && (
         <div className={`p-4 text-white text-center fixed top-0 left-0 right-0 z-50 shadow-lg rounded-lg animate-fade-in ${
@@ -354,7 +401,7 @@ const App: React.FC = () => {
           {fetchError}
         </div>
       )}
-      <main className={`flex-grow container mx-auto p-4 md:p-8 space-y-12 ${fetchError ? 'mt-28' : 'mt-10'}`}>
+      <main className={`flex-grow container mx-auto p-4 md:p-8 space-y-12 ${fetchError ? 'mt-2' : 'mt-1'}`}>
         <section>
         <OrderForm
           currentOrder={currentEmployeeOrder}
