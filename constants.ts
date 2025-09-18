@@ -64,7 +64,7 @@ export const MENU_ITEMS: Dish[] = [
   
   // Остальные блюда (оставляем для совместимости)
   { id: 'salad_krab', name: 'Салат "Крабовый"', price: 150, category: DishCategory.SALAD },
-  { id: 'salad_grouse_nest', name: 'Салат "Гнездо глухаря"', category: DishCategory.SALAD, composition: 'курица, яйцо, пассированый лук, солёный огурец, картофель пай, майонез' },
+  { id: 'salad_grouse_nest', name: 'Салат "Гнездо глухаря"', price: 160, category: DishCategory.SALAD, composition: 'курица, яйцо, пассированый лук, солёный огурец, картофель пай, майонез' },
   { id: 'salad_health', name: 'Салат «Здоровье»', price: 160, category: DishCategory.SALAD, composition: 'перец болгарский, помидор, огурец свежий, зелень, кукуруза, соус на основе сыра' },
   { id: 'salad_sous_vide_breast', name: 'Салат с грудкой су-вид', price: 180, category: DishCategory.HOT_DISH, composition: 'со свежим огурцом, яйцом, зеленью, хрустящая кукуруза и имбирная заправка' },
   { id: 'salad_vitamin', name: 'Салат витаминный', price: 150, category: DishCategory.SALAD, composition: 'свежая капуста, перец болгарский, св. огурец заправка на основе масла растительного и соевого соуса' },
@@ -75,19 +75,27 @@ export const MENU_ITEMS: Dish[] = [
   { id: 'salad_eggplant_cheese', name: 'Салат с баклажанами и творожным сыром', price: 160, category: DishCategory.SALAD, composition: 'с помидором, зеленью, творожным сыром и кисло-сладким соусом' },
   { id: 'salad_beans', name: 'Салат с фасолью', price: 150, category: DishCategory.SALAD, composition: 'фасоль отварная, ветчина куриная, соленый огурец, перец и пассированные лук и морковь, майонез' },
   { id: 'salad_pancake', name: 'Салат блинный', category: DishCategory.SALAD, composition: 'блинчики, ветчина куриная, помидор, болгарский перец, майонез' },
-  { id: 'salad_herring_fur_coat', name: 'Салат "Сельдь под шубой"', category: DishCategory.SALAD, composition: 'сельдь соленая, картофель, свекла, морковь отварная, майонез' },
-  { id: 'salad_baked_vegetables', name: 'Салат из овощей печеных', category: DishCategory.SALAD },
+  { id: 'salad_herring_fur_coat', name: 'Салат "Сельдь под шубой"', price: 135, category: DishCategory.SALAD, composition: 'сельдь соленая, картофель, свекла, морковь отварная, майонез' },
+  { id: 'salad_baked_vegetables', name: 'Салат из овощей печеных', price: 135, category: DishCategory.SALAD },
   { id: 'salad_vinaigrette', name: 'Салат "Винегрет"', category: DishCategory.SALAD, composition: 'отварные овощи картофель, свекла, морковь, кв.капуста, соленый огурец, зел. горошек, масло растительное' },
   { id: 'salad_beet_cheese', name: 'Салат свекла с сыром', price: 100, category: DishCategory.SALAD },
   { id: 'salad_fresh_cabbage', name: 'Салат со свежей капустой', price: 105, category: DishCategory.SALAD },
   { id: 'salad_egg_chicken_sous_vide', name: 'Салат с яйцом, Грудкой Су-вид', category: DishCategory.SALAD },
   { id: 'salad_layered_chicken_liver', name: 'Салат слоеный с куриной печенью', category: DishCategory.SALAD },
   { id: 'salad_pineapple_chicken', name: 'Салат с ананасом и курицей', price: 175, category: DishCategory.SALAD },
-  { id: 'salad_vegetables', name: 'Салат овощной', category: DishCategory.SALAD },
+  { id: 'salad_vegetables', name: 'Салат овощной', price: 160, category: DishCategory.SALAD, composition: 'перец болгарский, огурец, пекинка, помидор, зелень, заправка на основе масла' },
   { id: 'soup_broccoli_puree', name: 'Суп пюре брокколи', category: DishCategory.HOT_DISH, composition: 'броколли, картофель, овощной бульон, шпинат' },
   { id: 'soup_mushroom_puree', name: 'Суп пюре из грибов', category: DishCategory.HOT_DISH },
   { id: 'hot_sous_vide_breast_grilled_veg', name: 'Грудка Су-вид с овощами гриль', category: DishCategory.HOT_DISH },
   { id: 'soup_pea', name: 'Суп гороховый', price: 200, category: DishCategory.HOT_DISH },
+  { id: 'roll_chicken', name: 'Ролл с курицей', price: 245, category: DishCategory.HOT_DISH, composition: 'лаваш, курица запеченная, морковь по корейски, помидор, болгарский перец, зелень, майонез' },
+  { id: 'borsh_chicken', name: 'Борщ с курицей', price: 200, category: DishCategory.HOT_DISH },
+  { id: 'liver_pancakes', name: 'Оладьи из печени', price: 225, category: DishCategory.HOT_DISH },
+  { id: 'plov_pork', name: 'Плов со свининой', price: 250, category: DishCategory.HOT_DISH },
+  { id: 'pork_goulash', name: 'Гуляш из свинины', price: 240, category: DishCategory.HOT_DISH },
+  { id: 'chicken_steam_cutlet_rice_broccoli', name: 'Биточек куриный на пару с рисом и брокколи', price: 240, category: DishCategory.HOT_DISH },
+  { id: 'stozhok_mushrooms', name: 'Стожок с грибами', price: 250, category: DishCategory.HOT_DISH },
+  { id: 'fish_baked_vegetables', name: 'Рыба запеченная с овощами', price: 285, category: DishCategory.SINGLE_DISH, availableSideIds: ['boiled_rice', 'mashed_potatoes'] },
   { id: 'hot_chicken_meatballs_garnish', name: 'Тефтели куриные с пюре', category: DishCategory.HOT_DISH, composition: 'фарш-свинина, курица, маринад- лук, морковь, томат, гвоздика, перец' },
   { id: 'hot_schnitzel_chicken', name: 'Шницель куриный', category: DishCategory.HOT_DISH, availableSideIds: ['mashed_potatoes', 'steamed_vegetables'] },
   { id: 'hot_plov_pork', name: 'Плов со свининой', category: DishCategory.HOT_DISH },
@@ -164,26 +172,24 @@ export const DEPARTMENTS: string[] = [
 // Меню на текущую неделю
 export const currentMenu = {
   [DishCategory.SALAD]: [
-    { id: 'salad_olivier' }, // Салат "Оливье"
-    { id: 'salad_beef_liver' }, // Салат с говяжьей печенью
-    { id: 'salad_mimosa' }, // Салат "Мимоза"
-    { id: 'salad_greek' }, // Салат "Греческий"
-    { id: 'salad_bulgur' }, // Салат с булгуром
-    { id: 'salad_cabbage_apple' }, // Салат с капустой и яблоком
+    { id: 'salad_krab' }, // Салат "Крабовый"
+    { id: 'salad_grouse_nest' }, // Салат "Гнездо глухаря"
+    { id: 'salad_baked_vegetables' }, // Салат из овощей печеных
+    { id: 'salad_vegetables' }, // Салат овощной
+    { id: 'salad_herring_fur_coat' }, // Салат "Сельдь под шубой"
   ],
   [DishCategory.HOT_DISH]: [
-    { id: 'soup_solyanka_meat' }, // Солянка мясная
-    { id: 'soup_mushroom_home' }, // Суп грибной по домашнему
-    { id: 'hot_chicken_cutlet_garnish' }, // Котлета куриная с гарниром
-    { id: 'hot_liver_stroganoff' }, // Печень по-строгановски с гарниром
-    { id: 'hot_manti_sauce' }, // Манты
-    { id: 'hot_lasagna' }, // Лазанья
-    { id: 'hot_sous_vide_breast' }, // Грудка Су-вид
-    { id: 'dessert_apple_tart' }, // Тарт яблочный
+    { id: 'roll_chicken' }, // Ролл с курицей
+    { id: 'borsh_chicken' }, // Борщ с курицей
+    { id: 'soup_pea' }, // Суп гороховый
+    { id: 'liver_pancakes' }, // Оладьи из печени
+    { id: 'plov_pork' }, // Плов со свининой
+    { id: 'pork_goulash' }, // Гуляш из свинины
+    { id: 'chicken_steam_cutlet_rice_broccoli' }, // Биточек куриный на пару с рисом и брокколи
+    { id: 'stozhok_mushrooms' }, // Стожок с грибами
   ],
   [DishCategory.SINGLE_DISH]: [
-    { id: 'single_salmon_roll' }, // Ролл с семгой
-    { id: 'hot_pasta_shrimp' }, // Паста с креветкой
+    { id: 'fish_baked_vegetables' }, // Рыба запеченная с овощами
   ],
 };
 
