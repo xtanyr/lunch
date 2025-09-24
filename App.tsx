@@ -51,6 +51,8 @@ const ADDRESSES = [
   { id: 'festival', label: 'Фестиваль' },
   { id: 'atlantida', label: 'Атлантида' },
   { id: 'sfera', label: 'Сфера' },
+  { id: 'inter', label: 'Интер' },
+  { id: 'sibirskie_ogni', label: 'Сибирские Огни' },
 ];
 
 // Функция для унификации адреса - убирает суффиксы типа :1, :2 и т.д.

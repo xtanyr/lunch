@@ -129,7 +129,9 @@ const OrderForm: React.FC<OrderFormProps> = ({
         address === 'chv' ? 'ЧВ' :
         address === 'festival' ? 'Фестиваль' :
         address === 'atlantida' ? 'Атлантида' :
-        address === 'sfera' ? 'Сфера' : '';
+        address === 'sfera' ? 'Сфера' :
+        address === 'inter' ? 'Интер' :
+        address === 'sibirskie_ogni' ? 'Сибирские Огни' : '';
     }
     if (address === 'office' && !departmentValue) {
       setShowDeptError(true);
@@ -206,7 +208,9 @@ const OrderForm: React.FC<OrderFormProps> = ({
                 address === 'chv' ? 'ЧВ' :
                 address === 'festival' ? 'Фестиваль' :
                 address === 'atlantida' ? 'Атлантида' :
-                address === 'sfera' ? 'Сфера' : ''
+                address === 'sfera' ? 'Сфера' :
+                address === 'inter' ? 'Интер' :
+                address === 'sibirskie_ogni' ? 'Сибирские Огни' : ''
               }
               disabled
               readOnly

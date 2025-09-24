@@ -43,6 +43,8 @@ const getAddressLabel = (address: string): string => {
     case 'festival': return 'Фестиваль';
     case 'atlantida': return 'Атлантида';
     case 'sfera': return 'Сфера';
+    case 'inter': return 'Интер';
+    case 'sibirskie_ogni': return 'Сибирские Огни';
     default: return '';
   }
 };
@@ -66,7 +68,7 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
   const displayCategories = [DishCategory.SALAD, DishCategory.HOT_DISH, DishCategory.SINGLE_DISH];
 
   const fetchAllLocationsData = async (date: string) => {
-    const locations = ['office', 'kamergersky', 'gagarina', 'drujniy', 'chv', 'festival', 'atlantida', 'sfera'];
+    const locations = ['office', 'kamergersky', 'gagarina', 'drujniy', 'chv', 'festival', 'atlantida', 'sfera', 'inter', 'sibirskie_ogni'];
     const allOrders: { [key: string]: any[] } = {};
     
     for (const loc of locations) {
