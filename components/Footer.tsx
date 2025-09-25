@@ -22,6 +22,10 @@ const Footer: React.FC = () => {
     'March 7th_17.png',
     'March 7th_18.png',
     'March 7th_19.png',
+    'March_25.png',
+    'March 7th_26.png',
+    'March 7th_27.png',
+    'March 7th_28.png',
   ];
   const randomImage = images[Math.floor(Math.random() * images.length)];
 
