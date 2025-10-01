@@ -33,7 +33,16 @@ export const MENU_ITEMS: Dish[] = [
   { id: 'salad_shrimp_cucumber', name: 'Салат с креветками огурцом', category: DishCategory.SINGLE_DISH, composition: 'креветка, яйцо отварное, огурец свежий, зелень, соус песто' },
   
   // Горячее и супы
-  { id: 'soup_solyanka_meat', name: 'Солянка мясная', price: 250, category: DishCategory.HOT_DISH},
+  { 
+    id: 'soup_solyanka_meat', 
+    name: 'Солянка мясная', 
+    price: 250, 
+    category: DishCategory.HOT_DISH,
+    protein: 12.3,
+    carbs: 8.7,
+    fats: 9.5,
+    weight: 300
+  },
   { id: 'soup_mushroom_home', name: 'Суп грибной по домашнему', price: 225, category: DishCategory.HOT_DISH, composition: 'шампиньоны, картофель, морковь, лук, зелень, сливки' },
   { id: 'hot_chicken_cutlet_garnish', name: 'Котлета куриная с гарниром', price: 225, category: DishCategory.HOT_DISH, availableSideIds: ['mashed_potatoes', 'boiled_rice'], composition: 'котлета из куриного фарша' },
   { id: 'hot_liver_stroganoff', name: 'Печень по-строгановски с гарниром', price: 250, category: DishCategory.HOT_DISH, availableSideIds: ['mashed_potatoes', 'grechka']},
@@ -52,7 +61,16 @@ export const MENU_ITEMS: Dish[] = [
   { id: 'dessert_basket_sour_cream_berry', name: 'Корзинка сметанно-ягодная', category: DishCategory.HOT_DISH },
   
   // Одно блюдо
-  { id: 'single_salmon_roll', name: 'Ролл с семгой', price: 350, category: DishCategory.SINGLE_DISH},
+  { 
+    id: 'single_salmon_roll', 
+    name: 'Ролл с семгой', 
+    price: 350, 
+    category: DishCategory.SINGLE_DISH,
+    protein: 15.8,
+    carbs: 45.2,
+    fats: 8.3,
+    weight: 250
+  },
   { id: 'hot_pasta_shrimp', name: 'Паста с креветкой', price: 320, category: DishCategory.SINGLE_DISH},
   { id: 'single_chicken_cutlets_steamed', name: 'Биточки куриные на пару', price: 285, category: DishCategory.SINGLE_DISH, availableSideIds: ['grechka', 'boiled_rice'] },
   { id: 'single_salmon_sous_vide_vegetables', name: 'Семга су-вид с овощами', price: 400, category: DishCategory.SINGLE_DISH, composition: 'жюльен: кабачок, морковь, лимонный сок, прованские травы' },
@@ -194,9 +212,9 @@ export const currentMenu = {
     { id: 'dessert_tiramisu_coffee' }, // Тирамису кофе
     { id: 'dessert_apple_basket' }, // Корзинка яблочная
     { id: 'dessert_earl_grey_cake' }, // Тортик эрл-грей
-  ],
+  ],  
   [DishCategory.SINGLE_DISH]: [
-    { id: 'single_roll_caesar' }, // Ролл «Цезарь»
+    { id: 'single_salmon_roll' }, // Ролл «Цезарь»
     { id: 'single_meat_french_chicken' }, // Мясо по-французски (курица)
     { id: 'single_fish_marinade' }, // Рыба под маринадом (минтай)
   ],

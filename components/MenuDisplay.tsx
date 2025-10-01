@@ -43,16 +43,16 @@ const MenuDisplay: React.FC<MenuDisplayProps> = ({
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {itemsInCategory.map(dish => (
-                  <MenuItemCard
-                    key={dish.id}
-                    dish={dish}
-                    sideDishes={sideDishes}
-                    isSelected={selectedItemInThisCategory?.dishId === dish.id}
-                    selectedSideId={selectedItemInThisCategory?.dishId === dish.id ? selectedItemInThisCategory?.selectedSideId : undefined}
-                    onSelectDish={onSelectDish}
-                    onSideDishChange={onSideDishChange}
-                  />
-                ))}
+                <MenuItemCard
+                  key={dish.id}
+                  dish={dish}
+                  sideDishes={sideDishes}
+                  isSelected={selectedItemInThisCategory?.dishId === dish.id}
+                  selectedSideId={selectedItemInThisCategory?.dishId === dish.id ? selectedItemInThisCategory?.selectedSideId : undefined}
+                  onSelectDish={onSelectDish}
+                  onSideDishChange={onSideDishChange}
+                />
+              ))}
             </div>
           </section>
         );

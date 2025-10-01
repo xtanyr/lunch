@@ -61,23 +61,55 @@ const CategoryAsList: React.FC<CategoryAsListProps> = ({
                   <Button
                     variant={isSelected ? 'primary' : 'ghost'}
                     onClick={() => onSelectDish(dish.id)}
-                    className={`text-left justify-start w-full`}
+                    className="w-full text-left justify-start"
                     aria-pressed={isSelected}
                     aria-label={isSelected ? `Отменить выбор ${dish.name}` : `Выбрать ${dish.name}`}
                   >
-                    {dish.name}
+                    <span className="block w-full">{dish.name}</span>
                   </Button>
-                  {dish.composition && (
-                    <div className="mt-1 ml-2 text-xs text-gray-600 leading-relaxed">
-                      <span className="font-medium text-gray-700">Состав:</span> {dish.composition}
-                    </div>
-                  )}
+                  <div className="mt-1 ml-2 text-xs text-gray-600 leading-relaxed">
+                    {dish.composition && (
+                      <div>
+                        <span className="font-medium text-gray-700">Состав:</span> {dish.composition}
+                      </div>
+                    )}
+                    {(dish.protein !== undefined || dish.carbs !== undefined || dish.fats !== undefined || dish.weight !== undefined) && (
+                      <div className="mt-1 pt-1 border-t border-gray-200">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                          {dish.protein !== undefined && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Белки:</span>
+                              <span className="font-medium">{dish.protein} г</span>
+                            </div>
+                          )}
+                          {dish.carbs !== undefined && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Углеводы:</span>
+                              <span className="font-medium">{dish.carbs} г</span>
+                            </div>
+                          )}
+                          {dish.fats !== undefined && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Жиры:</span>
+                              <span className="font-medium">{dish.fats} г</span>
+                            </div>
+                          )}
+                          {dish.weight !== undefined && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Вес:</span>
+                              <span className="font-medium">{dish.weight} г</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
               {isSelected && dish.availableSideIds && dish.availableSideIds.length > 0 && (
                 <div className="mt-2"> {/* Side dish selector appears below the button */}
                   <Select
-                    id={`side-list-${dish.id}`}
+                    id={`side-dish-${dish.id}`}
                     value={selectedItemDetails?.selectedSideId || ""}
                     onChange={(e) => onSideDishChange(dish.id, e.target.value)}
                     className="w-full max-w-xs"

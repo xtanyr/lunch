@@ -5,7 +5,6 @@ export enum DishCategory {
   SINGLE_DISH = "Одно блюдо", // New category for third table
   // DESSERT = "Десерты", // Removed
 }
-
 export interface SideDish {
   id: string;
   name: string;
@@ -18,6 +17,10 @@ export interface Dish {
   category: DishCategory;
   availableSideIds?: string[];
   composition?: string; // Состав блюда
+  protein?: number; // Белки (г)
+  carbs?: number;   // Углеводы (г)
+  fats?: number;    // Жиры (г)
+  weight?: number;  // Вес (г)
 }
 
 export interface CurrentOrderItem {

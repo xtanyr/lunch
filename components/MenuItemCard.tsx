@@ -31,6 +31,13 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
 
   const cardBaseClasses = "bg-white p-5 rounded shadow-md hover:shadow-lg transition-all duration-200 flex flex-col justify-between border border-neutral-200";
   const selectedCardClasses = isSelected ? "ring-2 ring-[#ff4139] shadow-xl" : "border-transparent";
+  // Debug log to check the dish props
+  console.log('Dish:', dish.id, {
+    protein: dish.protein,
+    carbs: dish.carbs,
+    fats: dish.fats,
+    weight: dish.weight
+  });
 
   return (
     <div className={`${cardBaseClasses} ${selectedCardClasses}`}>
@@ -40,6 +47,38 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
           <p className="text-sm text-gray-600 mb-3 leading-relaxed">
             <span className="font-medium text-gray-700">Состав:</span> {dish.composition}
           </p>
+        )}
+        
+        {(dish.protein !== undefined || dish.carbs !== undefined || dish.fats !== undefined || dish.weight !== undefined) && (
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <h5 className="text-sm font-medium text-gray-700 mb-2">Пищевая ценность на порцию:</h5>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              {dish.protein !== undefined && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Белки:</span>
+                  <span className="font-medium">{dish.protein} г</span>
+                </div>
+              )}
+              {dish.carbs !== undefined && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Углеводы:</span>
+                  <span className="font-medium">{dish.carbs} г</span>
+                </div>
+              )}
+              {dish.fats !== undefined && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Жиры:</span>
+                  <span className="font-medium">{dish.fats} г</span>
+                </div>
+              )}
+              {dish.weight !== undefined && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Вес:</span>
+                  <span className="font-medium">{dish.weight} г</span>
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </div>
 
