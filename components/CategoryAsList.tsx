@@ -77,25 +77,25 @@ const CategoryAsList: React.FC<CategoryAsListProps> = ({
                       <div className="mt-1 pt-1 border-t border-gray-200">
                         <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                           {dish.protein !== undefined && (
-                            <div className="flex justify-between">
+                            <div className="flex items-center gap-2">
                               <span className="text-gray-600">Белки:</span>
                               <span className="font-medium">{dish.protein} г</span>
                             </div>
                           )}
                           {dish.carbs !== undefined && (
-                            <div className="flex justify-between">
+                            <div className="flex items-center gap-2">
                               <span className="text-gray-600">Углеводы:</span>
                               <span className="font-medium">{dish.carbs} г</span>
                             </div>
                           )}
                           {dish.fats !== undefined && (
-                            <div className="flex justify-between">
+                            <div className="flex items-center gap-2">
                               <span className="text-gray-600">Жиры:</span>
                               <span className="font-medium">{dish.fats} г</span>
                             </div>
                           )}
                           {dish.weight !== undefined && (
-                            <div className="flex justify-between">
+                            <div className="col-span-2 flex items-center gap-2">
                               <span className="text-gray-600">Вес:</span>
                               <span className="font-medium">{dish.weight} г</span>
                             </div>

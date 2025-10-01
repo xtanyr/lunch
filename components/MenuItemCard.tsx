@@ -54,25 +54,25 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
             <h5 className="text-sm font-medium text-gray-700 mb-2">Пищевая ценность на порцию:</h5>
             <div className="grid grid-cols-2 gap-2 text-sm">
               {dish.protein !== undefined && (
-                <div className="flex justify-between">
+                <div className="flex items-center gap-2">
                   <span className="text-gray-600">Белки:</span>
                   <span className="font-medium">{dish.protein} г</span>
                 </div>
               )}
               {dish.carbs !== undefined && (
-                <div className="flex justify-between">
+                <div className="flex items-center gap-2">
                   <span className="text-gray-600">Углеводы:</span>
                   <span className="font-medium">{dish.carbs} г</span>
                 </div>
               )}
               {dish.fats !== undefined && (
-                <div className="flex justify-between">
+                <div className="flex items-center gap-2">
                   <span className="text-gray-600">Жиры:</span>
                   <span className="font-medium">{dish.fats} г</span>
                 </div>
               )}
               {dish.weight !== undefined && (
-                <div className="flex justify-between">
+                <div className="col-span-2 flex items-center gap-2">
                   <span className="text-gray-600">Вес:</span>
                   <span className="font-medium">{dish.weight} г</span>
                 </div>
