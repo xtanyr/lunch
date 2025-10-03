@@ -93,7 +93,7 @@ export const MENU_ITEMS: Dish[] = [
   { id: 'salad_pancake', name: 'Салат блинный', price: 150, category: DishCategory.SALAD, composition: 'блины, ветчина куриная, помидор, зелень, перец болгарский, майонез, лук пассированный' },
   { id: 'salad_herring_fur_coat', name: 'Салат "Сельдь под шубой"', price: 135, category: DishCategory.SALAD, composition: 'сельдь соленая, картофель, свекла, морковь отварная, майонез' },
   { id: 'salad_baked_vegetables', name: 'Салат из овощей печеных', price: 135, category: DishCategory.SALAD },
-  { id: 'salad_vinaigrette', name: 'Салат "Винегрет"', category: DishCategory.SALAD, composition: 'отварные овощи картофель, свекла, морковь, кв.капуста, соленый огурец, зел. горошек, масло растительное' },
+  { id: 'salad_vinaigrette', name: 'Салат "Винегрет"', price:130, category: DishCategory.SALAD, composition: 'отварные овощи картофель, свекла, морковь, кв.капуста, соленый огурец, зел. горошек, масло растительное' },
   { id: 'salad_beet_cheese', name: 'Салат свекла с сыром', price: 100, category: DishCategory.SALAD },
   { id: 'salad_fresh_cabbage', name: 'Салат со свежей капустой', price: 105, category: DishCategory.SALAD },
   { id: 'salad_egg_chicken_sous_vide', name: 'Салат с яйцом, Грудкой Су-вид', category: DishCategory.SALAD },

@@ -89,6 +89,7 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
     const allLocationsData = await fetchAllLocationsData(date);
     const sheetName = formatDateForSheetName(date);
     const excelData: (string | number)[][] = [];
+    const locationTotals: Record<string, number> = {};
     
     // Add title with date
     excelData.push([`Сводный заказ за ${sheetName}`]);
@@ -140,6 +141,8 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
       excelData.push(["", "", "", "Итого:", locationTotal]);
       excelData.push([]); // Empty row
       grandTotal += locationTotal;
+      // Save total for summary sheet
+      locationTotals[location] = (locationTotals[location] || 0) + locationTotal;
     }
     
     // Add grand total
@@ -161,10 +164,10 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
       
       // Add to workbook
       XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-      return true;
+      return { sheetCreated: true, locationTotals };
     }
     
-    return false;
+    return { sheetCreated: false, locationTotals };
   };
 
   const handleExportToExcel = useCallback(async () => {
@@ -201,6 +204,9 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
     try {
       const workbook = XLSX.utils.book_new();
       let sheetsCreated = 0;
+      const locations = ['office', 'kamergersky', 'gagarina', 'drujniy', 'chv', 'festival', 'atlantida', 'sfera', 'inter', 'sibirskie_ogni'];
+      const summaryTotals: Record<string, Record<string, number>> = {};
+      const perDateTotals: Record<string, number> = {};
       
       // Generate array of dates in the range
       const dates: string[] = [];
@@ -214,14 +220,62 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
       // Process each date
       for (const date of dates) {
         setExportProgress(`Обработка данных за ${formatDateString(date)}...`);
-        const success = await processSingleDateExport(date, workbook);
-        if (success) sheetsCreated++;
+        const result = await processSingleDateExport(date, workbook);
+        if (result.sheetCreated) sheetsCreated++;
+
+        // Collect totals for the summary sheet
+        let dateTotal = 0;
+        for (const loc of locations) {
+          const value = result.locationTotals[loc] || 0;
+          if (!summaryTotals[loc]) summaryTotals[loc] = {};
+          summaryTotals[loc][date] = value;
+          dateTotal += value;
+        }
+        perDateTotals[date] = dateTotal;
       }
       
       if (sheetsCreated === 0) {
         throw new Error("Нет данных для экспорта в выбранном диапазоне дат.");
       }
       
+      // Build summary sheet (totals per destination across dates)
+      setExportProgress('Формирование листа итогов...');
+      const headerRow: (string)[] = ['Наименование'];
+      const dateHeaders = dates.map(d => formatDateString(d));
+      headerRow.push(...dateHeaders);
+      headerRow.push('ИТОГО');
+
+      const summarySheetData: (string | number)[][] = [];
+      summarySheetData.push(['Итоги по адресам за период']);
+      summarySheetData.push([]);
+      summarySheetData.push(headerRow);
+
+      let grandTotalAll = 0;
+      for (const loc of locations) {
+        const row: (string | number)[] = [getAddressLabel(loc)];
+        let rowTotal = 0;
+        for (const d of dates) {
+          const value = (summaryTotals[loc] && summaryTotals[loc][d]) ? summaryTotals[loc][d] : 0;
+          row.push(value);
+          rowTotal += value;
+        }
+        row.push(rowTotal);
+        grandTotalAll += rowTotal;
+        summarySheetData.push(row);
+      }
+
+      // Bottom totals by date
+      const totalsRow: (string | number)[] = ['ИТОГО ПО ДНЯМ'];
+      for (const d of dates) {
+        totalsRow.push(perDateTotals[d] || 0);
+      }
+      totalsRow.push(grandTotalAll);
+      summarySheetData.push(totalsRow);
+
+      const summarySheet = XLSX.utils.aoa_to_sheet(summarySheetData);
+      summarySheet['!cols'] = [{ wch: 24 }, ...dateHeaders.map(() => ({ wch: 12 })), { wch: 14 }];
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'ИТОГИ');
+
       setExportProgress('Сохранение файла...');
       
       // Generate filename
@@ -236,7 +290,7 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
       // Save file
       XLSX.writeFile(workbook, exportFileName);
       
-      alert(`Excel файл успешно создан! Файл содержит ${sheetsCreated} листов.`);
+      alert(`Excel файл успешно создан! Файл содержит ${sheetsCreated + 1} листов (включая лист итогов).`);
       
     } catch (error) {
       console.error("Failed to export to Excel:", error);
@@ -262,9 +316,9 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
       const workbook = XLSX.utils.book_new();
       
       // Process the selected date
-      const success = await processSingleDateExport(selectedDate, workbook);
+      const result = await processSingleDateExport(selectedDate, workbook);
       
-      if (!success) {
+      if (!result.sheetCreated) {
         throw new Error("Нет данных для экспорта на выбранную дату.");
       }
       
