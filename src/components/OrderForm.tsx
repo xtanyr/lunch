@@ -148,7 +148,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
       if (newItems.length === 1 && newItems[0].dishId === dishIdToSelect) {
         newItems = [];
       } else {
-        newItems = [{ dishId: dishIdToSelect, composition: dish.composition, protein: dish.protein, carbs: dish.carbs, fats: dish.fats, garnishGrams: dish.garnishGrams, sideDishGrams: dish.sideDishGrams }];
+        newItems = [{ dishId: dishIdToSelect, composition: dish.composition, protein: dish.protein, carbs: dish.carbs, fats: dish.fats, calories: dish.calories, garnishGrams: dish.garnishGrams, sideDishGrams: dish.sideDishGrams }];
       }
     } else {
       const singleDishSelected = newItems.some(item => {
@@ -167,11 +167,11 @@ const OrderForm: React.FC<OrderFormProps> = ({
           newItems.splice(existingItemIndexInCategory, 1);
         } else {
           const defaultSideId = (dish.availableSideIds && dish.availableSideIds.length > 0 && dish.category === DishCategory.HOT_DISH) ? dish.availableSideIds[0] : undefined;
-          newItems[existingItemIndexInCategory] = { dishId: dishIdToSelect, selectedSideId: defaultSideId, composition: dish.composition, protein: dish.protein, carbs: dish.carbs, fats: dish.fats, garnishGrams: dish.garnishGrams, sideDishGrams: dish.sideDishGrams };
+          newItems[existingItemIndexInCategory] = { dishId: dishIdToSelect, selectedSideId: defaultSideId, composition: dish.composition, protein: dish.protein, carbs: dish.carbs, fats: dish.fats, calories: dish.calories, garnishGrams: dish.garnishGrams, sideDishGrams: dish.sideDishGrams };
         }
       } else {
         const defaultSideId = (dish.availableSideIds && dish.availableSideIds.length > 0 && dish.category === DishCategory.HOT_DISH) ? dish.availableSideIds[0] : undefined;
-        newItems.push({ dishId: dishIdToSelect, selectedSideId: defaultSideId, composition: dish.composition, protein: dish.protein, carbs: dish.carbs, fats: dish.fats, garnishGrams: dish.garnishGrams, sideDishGrams: dish.sideDishGrams });
+        newItems.push({ dishId: dishIdToSelect, selectedSideId: defaultSideId, composition: dish.composition, protein: dish.protein, carbs: dish.carbs, fats: dish.fats, calories: dish.calories, garnishGrams: dish.garnishGrams, sideDishGrams: dish.sideDishGrams });
       }
     }
     updateCurrentOrderItems(newItems);
@@ -253,7 +253,16 @@ const OrderForm: React.FC<OrderFormProps> = ({
 
   return (
     <section aria-labelledby="order-form-title" className="bg-white p-6 md:p-8 rounded-lg shadow-lg space-y-8 border border-neutral-200">
-      <h2 id="order-form-title" className="text-3xl font-bold text-black mb-6">Создать новый заказ</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 id="order-form-title" className="text-3xl font-bold text-black">Создать новый заказ</h2>
+        <button
+          type="button"
+          className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded"
+          title="КБЖУ указан на 100г. Для блюд, у которых можно выбрать гарнир, КБЖУ указан только для основного блюда"
+        >
+          КБЖУ
+        </button>
+      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="flex flex-col">

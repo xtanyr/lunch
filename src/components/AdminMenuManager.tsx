@@ -46,6 +46,7 @@ const AdminMenuManager: React.FC<AdminMenuManagerProps> = ({
       protein: undefined,
       carbs: undefined,
       fats: undefined,
+      calories: undefined,
       garnishGrams: undefined,
       sideDishGrams: undefined
     });
@@ -209,6 +210,14 @@ const AdminMenuManager: React.FC<AdminMenuManagerProps> = ({
               type="number"
               value={editingItem.fats ?? ''}
               onChange={(e) => handleInputChange('fats', e.target.value === '' ? undefined : Number(e.target.value))}
+            />
+
+            <Input
+              id="calories"
+              label="Калории (ккал)"
+              type="number"
+              value={editingItem.calories ?? ''}
+              onChange={(e) => handleInputChange('calories', e.target.value === '' ? undefined : Number(e.target.value))}
             />
             
             <div className="md:col-span-2">
