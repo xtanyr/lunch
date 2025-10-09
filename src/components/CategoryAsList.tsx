@@ -2,12 +2,11 @@ import React from 'react';
 import { Dish, SideDish, CurrentOrderItem, DishCategory } from '../types';
 import Button from './ui/Button';
 import Select from './ui/Select';
-import { MENU_ITEMS } from '../constants'; // To find dish details
 
 interface CategoryAsListProps {
   category: DishCategory;
   title: string;
-  menuItems: Dish[]; // All menu items to be filtered
+  menuItems: Dish[];
   sideDishes: SideDish[];
   currentOrderItems: CurrentOrderItem[];
   onSelectDish: (dishId: string) => void;
@@ -23,7 +22,7 @@ const CategoryAsList: React.FC<CategoryAsListProps> = ({
   onSelectDish,
   onSideDishChange,
 }) => {
-  const itemsInCategory = menuItems.filter(dish => dish.category === category);
+  const itemsInCategory = menuItems.filter(dish => dish.category === category && dish.isActive !== false);
 
   if (itemsInCategory.length === 0) {
     return null;
@@ -31,7 +30,7 @@ const CategoryAsList: React.FC<CategoryAsListProps> = ({
 
   const getSelectedItemInThisCategory = (): CurrentOrderItem | undefined => {
     return currentOrderItems.find(item => {
-      const dishDetails = MENU_ITEMS.find(d => d.id === item.dishId);
+      const dishDetails = menuItems.find(d => d.id === item.dishId);
       return dishDetails?.category === category;
     });
   };
@@ -50,7 +49,7 @@ const CategoryAsList: React.FC<CategoryAsListProps> = ({
           const isSelected = selectedItemDetails?.dishId === dish.id;
           
           return (
-            <div key={dish.id}> {/* Outer container for each item, block for vertical stacking */}
+            <div key={dish.id}>
               <div 
                 className={`
                   inline-block border rounded-md transition-all duration-150 ease-in-out
@@ -73,7 +72,7 @@ const CategoryAsList: React.FC<CategoryAsListProps> = ({
                         <span className="font-medium text-gray-700">Состав:</span> {dish.composition}
                       </div>
                     )}
-                    {(dish.protein !== undefined || dish.carbs !== undefined || dish.fats !== undefined || dish.weight !== undefined) && (
+                    {(dish.protein !== undefined || dish.carbs !== undefined || dish.fats !== undefined || dish.garnishGrams !== undefined || dish.sideDishGrams !== undefined) && (
                       <div className="mt-1 pt-1 border-t border-gray-200">
                         <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                           {dish.protein !== undefined && (
@@ -94,10 +93,16 @@ const CategoryAsList: React.FC<CategoryAsListProps> = ({
                               <span className="font-medium">{dish.fats} г</span>
                             </div>
                           )}
-                          {dish.weight !== undefined && (
-                            <div className="col-span-2 flex items-center gap-2">
-                              <span className="text-gray-600">Вес:</span>
-                              <span className="font-medium">{dish.weight} г</span>
+                          {dish.garnishGrams !== undefined && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-600">Вес основного блюда:</span>
+                              <span className="font-medium">{dish.garnishGrams} г</span>
+                            </div>
+                          )}
+                          {dish.sideDishGrams !== undefined && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-600">Вес гарнира:</span>
+                              <span className="font-medium">{dish.sideDishGrams} г</span>
                             </div>
                           )}
                         </div>
@@ -107,11 +112,11 @@ const CategoryAsList: React.FC<CategoryAsListProps> = ({
                 </div>
               </div>
               {isSelected && dish.availableSideIds && dish.availableSideIds.length > 0 && (
-                <div className="mt-2"> {/* Side dish selector appears below the button */}
+                <div className="mt-2">
                   <Select
                     id={`side-dish-${dish.id}`}
                     value={selectedItemDetails?.selectedSideId || ""}
-                    onChange={(e) => onSideDishChange(dish.id, e.target.value)}
+                    onChange={(value) => onSideDishChange(dish.id, value)}
                     className="w-full max-w-xs"
                     aria-label={`Выберите гарнир для ${dish.name}`}
                   >

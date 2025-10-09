@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -22,14 +21,14 @@ const Button: React.FC<ButtonProps> = ({
   const variantStyles = {
     primary: "bg-[#ff4139] hover:bg-[#e0352f] text-white focus:ring-[#ff4139]",
     secondary: "bg-white hover:bg-neutral-100 text-black border border-neutral-400 focus:ring-[#ff4139]",
-    danger: "bg-[#ff4139] hover:bg-[#e0352f] text-white focus:ring-[#ff4139]", // Using primary red for danger
+    danger: "bg-[#ff4139] hover:bg-[#e0352f] text-white focus:ring-[#ff4139]",
     ghost: "bg-transparent hover:bg-neutral-100 text-black focus:ring-[#ff4139]",
   };
 
   const sizeStyles = {
     sm: "px-3 py-1.5 text-xs",
-    md: "px-5 py-2.5 text-sm", // Adjusted padding for a more modern feel
-    lg: "px-7 py-3.5 text-base", // Adjusted padding
+    md: "px-5 py-2.5 text-sm",
+    lg: "px-7 py-3.5 text-base",
   };
 
   return (

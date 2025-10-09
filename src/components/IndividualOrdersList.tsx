@@ -78,6 +78,47 @@ const IndividualOrdersList: React.FC<IndividualOrdersListProps> = ({ orders, men
                   return (
                     <li key={`${item.dishId}-${item.selectedSideId || 'noside'}`} className="text-sm text-neutral-700">
                       <div className="font-medium">{dish.name}</div>
+                      {item.composition && (
+                        <div className="mt-1">
+                          <span className="font-medium text-gray-700">Состав:</span> {item.composition}
+                        </div>
+                      )}
+                      {(item.protein !== undefined || item.carbs !== undefined || item.fats !== undefined || item.garnishGrams !== undefined || item.sideDishGrams !== undefined) && (
+                        <div className="mt-1 pt-1 border-t border-gray-200">
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                            {item.protein !== undefined && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-600">Белки:</span>
+                                <span className="font-medium">{item.protein} г</span>
+                              </div>
+                            )}
+                            {item.carbs !== undefined && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-600">Углеводы:</span>
+                                <span className="font-medium">{item.carbs} г</span>
+                              </div>
+                            )}
+                            {item.fats !== undefined && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-600">Жиры:</span>
+                                <span className="font-medium">{item.fats} г</span>
+                              </div>
+                            )}
+                            {item.garnishGrams !== undefined && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-600">Вес основного блюда:</span>
+                                <span className="font-medium">{item.garnishGrams} г</span>
+                              </div>
+                            )}
+                            {item.sideDishGrams !== undefined && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-600">Вес гарнира:</span>
+                                <span className="font-medium">{item.sideDishGrams} г</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                       {side && <div className="text-xs text-neutral-500 mt-1">Гарнир: {side.name}</div>}
                     </li>
                   );

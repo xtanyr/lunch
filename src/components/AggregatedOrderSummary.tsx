@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { AggregatedOrderItem, DishCategory } from '../types';
-import { MENU_ITEMS, SIDE_DISHES, aggregateOrdersByDate } from '../constants';
+import { CITY_ADDRESSES, aggregateOrdersByDate } from '../constants';
 import { fetchOrdersForDateRange } from '../api';
 import Button from './ui/Button';
 import Input from './ui/Input';
@@ -33,20 +33,10 @@ const formatDateForSheetName = (dateStr: string): string => {
   }
 };
 
-const getAddressLabel = (address: string): string => {
-  switch (address) {
-    case 'office': return 'Офис';
-    case 'kamergersky': return 'Камергерский';
-    case 'gagarina': return 'Гагарина';
-    case 'drujniy': return 'Дружный';
-    case 'chv': return 'ЧВ';
-    case 'festival': return 'Фестиваль';
-    case 'atlantida': return 'Атлантида';
-    case 'sfera': return 'Сфера';
-    case 'inter': return 'Интер';
-    case 'sibirskie_ogni': return 'Сибирские Огни';
-    default: return '';
-  }
+const getAddressLabel = (address: string, city: string | undefined): string => {
+  const list = (city && CITY_ADDRESSES[city]) || CITY_ADDRESSES['omsk'];
+  const found = list.find(a => a.id === address);
+  return found ? found.label : '';
 };
 
 interface AggregatedOrderSummaryProps {
@@ -54,11 +44,18 @@ interface AggregatedOrderSummaryProps {
   selectedDate: string;
   onDateChange: (date: string) => void;
   address?: string;
+  city?: string;
+  menuItems: any[];
+  sides: any[];
 }
 
-const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({ 
-  aggregatedItems, 
-  selectedDate}) => {
+const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
+  aggregatedItems,
+  selectedDate,
+  city,
+  menuItems,
+  sides,
+}) => {
   const [startDate, setStartDate] = useState<string>(selectedDate);
   const [endDate, setEndDate] = useState<string>(selectedDate);
   const [isExporting, setIsExporting] = useState<boolean>(false);
@@ -68,7 +65,8 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
   const displayCategories = [DishCategory.SALAD, DishCategory.HOT_DISH, DishCategory.SINGLE_DISH];
 
   const fetchAllLocationsData = async (date: string) => {
-    const locations = ['office', 'kamergersky', 'gagarina', 'drujniy', 'chv', 'festival', 'atlantida', 'sfera', 'inter', 'sibirskie_ogni'];
+    const list = (city && CITY_ADDRESSES[city]) || CITY_ADDRESSES['omsk'];
+    const locations = list.map(a => a.id);
     const allOrders: { [key: string]: any[] } = {};
     
     for (const loc of locations) {
@@ -99,7 +97,7 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
     
     // Process each location
     for (const [location, orders] of Object.entries(allLocationsData)) {
-      const locationName = getAddressLabel(location);
+      const locationName = getAddressLabel(location, city);
       if (!locationName) continue;
       
       // Add location header
@@ -109,8 +107,8 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
       // Aggregate orders for this location
       const aggregatedItems = aggregateOrdersByDate(
         { [date]: orders },
-        MENU_ITEMS,
-        SIDE_DISHES
+        menuItems,
+        sides
       )[date] || [];
       
       let locationTotal = 0;
@@ -204,7 +202,8 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
     try {
       const workbook = XLSX.utils.book_new();
       let sheetsCreated = 0;
-      const locations = ['office', 'kamergersky', 'gagarina', 'drujniy', 'chv', 'festival', 'atlantida', 'sfera', 'inter', 'sibirskie_ogni'];
+      const cityLocations = (city && CITY_ADDRESSES[city]) || CITY_ADDRESSES['omsk'];
+      const locations = cityLocations.map(a => a.id);
       const summaryTotals: Record<string, Record<string, number>> = {};
       const perDateTotals: Record<string, number> = {};
       
@@ -252,7 +251,7 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
 
       let grandTotalAll = 0;
       for (const loc of locations) {
-        const row: (string | number)[] = [getAddressLabel(loc)];
+        const row: (string | number)[] = [getAddressLabel(loc, city)];
         let rowTotal = 0;
         for (const d of dates) {
           const value = (summaryTotals[loc] && summaryTotals[loc][d]) ? summaryTotals[loc][d] : 0;
@@ -347,28 +346,28 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
       <div className="mb-6">
         <h3 className="text-lg font-semibold text-black mb-4">Экспорт в Excel</h3>
         
-                 {/* Выбор диапазона дат */}
-         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-           <div>
-             <Input
-               id="start-date"
-               type="date"
-               value={startDate}
-               onChange={(e) => setStartDate(e.target.value)}
-               className="w-full"
-               label="Начальная дата"
-             />
-           </div>
-           <div>
-             <Input
-               id="end-date"
-               type="date"
-               value={endDate}
-               onChange={(e) => setEndDate(e.target.value)}
-               className="w-full"
-               label="Конечная дата"
-             />
-           </div>
+        {/* Выбор диапазона дат */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div>
+            <Input
+              id="start-date"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full"
+              label="Начальная дата"
+            />
+          </div>
+          <div>
+            <Input
+              id="end-date"
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full"
+              label="Конечная дата"
+            />
+          </div>
           <div className="flex items-end">
             <Button
               onClick={handleExportToExcel}
@@ -409,12 +408,12 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
           <div className="text-sm text-gray-600">
             Экспорт для текущей даты ({formattedSelectedDate})
           </div>
-                     <Button
-             onClick={handleSingleDateExport}
-             variant="ghost"
-             size="sm"
-             disabled={aggregatedItems.length === 0 || isExporting}
-           >
+          <Button
+            onClick={handleSingleDateExport}
+            variant="ghost"
+            size="sm"
+            disabled={aggregatedItems.length === 0 || isExporting}
+          >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
             </svg>

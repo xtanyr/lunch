@@ -3,8 +3,8 @@ export enum DishCategory {
   HOT_DISH = "Горячее",
   SOUP = "Супы", // Keep for semantic consistency, but items will be recategorized
   SINGLE_DISH = "Одно блюдо", // New category for third table
-  // DESSERT = "Десерты", // Removed
 }
+
 export interface SideDish {
   id: string;
   name: string;
@@ -20,13 +20,20 @@ export interface Dish {
   protein?: number; // Белки (г)
   carbs?: number;   // Углеводы (г)
   fats?: number;    // Жиры (г)
-  weight?: number;  // Вес (г)
+  garnishGrams?: number;  // Вес гарнира (г)
+  sideDishGrams?: number; // Вес гарнира (г)
+  isActive?: boolean; // Новое поле для управления доступностью блюда
 }
 
 export interface CurrentOrderItem {
   dishId: string;
-  // quantity: number; // Removed: quantity is implicitly 1
   selectedSideId?: string;
+  composition?: string;
+  protein?: number;
+  carbs?: number;
+  fats?: number;
+  garnishGrams?: number;
+  sideDishGrams?: number;
 }
 
 export interface EmployeeOrder {
@@ -48,4 +55,16 @@ export interface AggregatedOrderItem {
   composition?: string;
   totalQuantity: number; // This remains, representing how many people ordered it
   price?: number; // Цена для экспорта в Excel
+}
+
+// Новые типы для админки
+export interface MenuCategory {
+  id: string;
+  name: string;
+  dishIds: string[];
+}
+
+export interface MenuConfig {
+  categories: MenuCategory[];
+  lastUpdated: string;
 }

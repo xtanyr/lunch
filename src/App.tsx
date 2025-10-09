@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { EmployeeOrder, CurrentOrderItem, AggregatedOrderItem, Dish } from './types';
-import { MENU_ITEMS, SIDE_DISHES, DEPARTMENTS, currentMenu } from './constants';
+import { MENU_ITEMS, SIDE_DISHES, DEPARTMENTS, CITY_ADDRESSES, CITIES } from './constants';
 import OrderForm from './components/OrderForm';
 import IndividualOrdersList from './components/IndividualOrdersList';
 import AggregatedOrderSummary from './components/AggregatedOrderSummary';
 import Header from './components/Header';
 import Footer from './components/Footer';
-import { fetchOrdersFromAPI, submitOrderToAPI, deleteOrderFromAPI } from './api'; // Импорт симулированного API
+import AdminPage from './components/AdminPage';
+import AdminAccess from './components/AdminAccess';
+import { fetchOrdersFromAPI, submitOrderToAPI, deleteOrderFromAPI, fetchMenuItems, fetchSideDishes, fetchMenuConfig } from './api';
 import ConfirmModal from './components/ui/ConfirmModal';
 import Select from './components/ui/Select';
 import Input from './components/ui/Input';
@@ -19,7 +22,6 @@ const getTodayDateString = (): string => {
   return `${year}-${month}-${day}`;
 };
 
-// Функция для увеличения даты на один день
 const addOneDayToDate = (dateString: string): string => {
   const date = new Date(dateString + "T00:00:00");
   date.setDate(date.getDate() + 1);
@@ -29,36 +31,12 @@ const addOneDayToDate = (dateString: string): string => {
   return `${year}-${month}-${day}`;
 };
 
-// Функция для преобразования currentMenu в массив Dish
-function getCurrentMenuDishes(): Dish[] {
-  const idToDish = (id: string) => MENU_ITEMS.find(d => d.id === id);
-  const result: Dish[] = [];
-  Object.values(currentMenu).forEach((arr: any) => {
-    arr.forEach((item: any) => {
-      const dish = idToDish(item.id);
-      if (dish) result.push(dish);
-    });
-  });
-  return result;
+function getCurrentMenuDishes(menuItems: Dish[]): Dish[] {
+  return menuItems.filter(item => item.isActive !== false);
 }
 
-const ADDRESSES = [
-  { id: 'office', label: 'Офис' },
-  { id: 'kamergersky', label: 'Камергерский' },
-  { id: 'gagarina', label: 'Гагарина' },
-  { id: 'drujniy', label: 'Дружный' },
-  { id: 'chv', label: 'ЧВ' },
-  { id: 'festival', label: 'Фестиваль' },
-  { id: 'atlantida', label: 'Атлантида' },
-  { id: 'sfera', label: 'Сфера' },
-  { id: 'inter', label: 'Интер' },
-  { id: 'sibirskie_ogni', label: 'Сибирские Огни' },
-];
-
-// Функция для унификации адреса - убирает суффиксы типа :1, :2 и т.д.
 const normalizeAddress = (address: string): string => {
   if (!address || address === 'office') return 'office';
-  // Убираем суффиксы типа :1, :2 и т.д. для всех адресов кроме офиса
   return address.split(':')[0];
 };
 
@@ -68,7 +46,7 @@ const App: React.FC = () => {
     department: '',
     orderDate: getTodayDateString(),
     items: [],
-    address: ADDRESSES[0].id,
+    address: 'office',
   };
 
   const [currentEmployeeOrder, setCurrentEmployeeOrder] = useState<Omit<EmployeeOrder, 'id' | 'timestamp'> & { items: CurrentOrderItem[] }>({
@@ -77,6 +55,10 @@ const App: React.FC = () => {
   const [allOrders, setAllOrders] = useState<EmployeeOrder[]>([]);
   const [aggregatedOrder, setAggregatedOrder] = useState<AggregatedOrderItem[]>([]);
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'delete-success'; message: string } | null>(null);
+  const [menuItems, setMenuItems] = useState<Dish[]>([]);
+  const [isLoadingMenu, setIsLoadingMenu] = useState(true);
+  const [sides, setSides] = useState(SIDE_DISHES);
+  const [menuConfigDishIds, setMenuConfigDishIds] = useState<string[] | null>(null);
   const [selectedAggregateDate, setSelectedAggregateDate] = useState<string>(getTodayDateString());
 
   const [isLoadingOrders, setIsLoadingOrders] = useState<boolean>(true);
@@ -90,28 +72,19 @@ const App: React.FC = () => {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const [selectedDept, setSelectedDept] = useState<string>('Все отделы');
-  // Load selected address from localStorage or default to first address
+  const [city, setCity] = useState<string>(() => {
+    try { return localStorage.getItem('city') || ''; } catch { return ''; }
+  });
   const [selectedAddress, setSelectedAddress] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('selectedAddress') || ADDRESSES[0].id;
+      const addr = localStorage.getItem('selectedAddress');
+      if (addr) return addr;
+      const list = CITY_ADDRESSES[city] || CITY_ADDRESSES.omsk;
+      return list[0]?.id || 'office';
     }
-    return ADDRESSES[0].id;
+    return 'office';
   });
 
-  // Save selected address to localStorage and reset department in form when address changes
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('selectedAddress', selectedAddress);
-      // Reset department in the form when switching between office and coffee shops
-      setCurrentEmployeeOrder(prev => ({
-        ...prev,
-        department: ''
-      }));
-      setSelectedDept('Все отделы');
-    }
-  }, [selectedAddress]);
-
-  // Состояния для сохранения последних введённых данных
   const [lastEmployeeName, setLastEmployeeName] = useState<string>('');
   const [lastDepartment, setLastDepartment] = useState<string>('');
 
@@ -140,7 +113,72 @@ const App: React.FC = () => {
     loadOrders(selectedAggregateDate, selectedAddress);
   }, [selectedAggregateDate, selectedAddress, loadOrders]);
 
-  // Восстанавливаем сохранённые имя и отдел при изменении currentEmployeeOrder
+  useEffect(() => {
+    const loadMenu = async () => {
+      try {
+        const [items, sd, config] = await Promise.all([
+          fetchMenuItems(city).catch(() => []), 
+          fetchSideDishes().catch(() => SIDE_DISHES),
+          fetchMenuConfig(city).catch(() => null)
+        ]);
+        
+        // If no items are returned from the server, fall back to default items
+        const menuItemsToUse = items && items.length ? items : MENU_ITEMS;
+        const sidesToUse = sd && sd.length ? sd : SIDE_DISHES;
+        
+        setMenuItems(menuItemsToUse);
+        setSides(sidesToUse);
+
+        if (config && Array.isArray(config.categories)) {
+          const unionIds = new Set<string>();
+          for (const cat of config.categories) {
+            if (Array.isArray(cat.dishIds)) {
+              cat.dishIds.forEach((id: string) => unionIds.add(id));
+            }
+          }
+          setMenuConfigDishIds(Array.from(unionIds));
+        } else {
+          setMenuConfigDishIds(null);
+        }
+
+        // Clear any existing orders when city changes
+        setCurrentEmployeeOrder(prev => ({
+          ...prev,
+          items: []
+        }));
+
+        setIsLoadingMenu(false);
+      } catch (error) {
+        console.error('Error loading menu:', error);
+        setMenuItems(MENU_ITEMS);
+        setSides(SIDE_DISHES);
+        setMenuConfigDishIds(null);
+        setIsLoadingMenu(false);
+      }
+    };
+    
+    loadMenu();
+  }, [city]); // Add city as a dependency
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('selectedAddress', selectedAddress);
+      setCurrentEmployeeOrder(prev => ({
+        ...prev,
+        department: ''
+      }));
+      setSelectedDept('Все отделы');
+    }
+  }, [selectedAddress]);
+
+  useEffect(() => {
+    try { localStorage.setItem('city', city); } catch {}
+    // Reset address to first for city
+    const list = CITY_ADDRESSES[city] || CITY_ADDRESSES.omsk;
+    const first = list[0]?.id || 'office';
+    setSelectedAddress(first);
+  }, [city]);
+
   useEffect(() => {
     if (lastEmployeeName && lastDepartment && currentEmployeeOrder.items.length === 0) {
       setCurrentEmployeeOrder(prev => ({
@@ -150,7 +188,6 @@ const App: React.FC = () => {
       }));
     }
   }, [currentEmployeeOrder.items.length, lastEmployeeName, lastDepartment]);
-  
 
   const updateCurrentOrderItems = useCallback((newItems: CurrentOrderItem[]) => {
     setCurrentEmployeeOrder((prev: Omit<EmployeeOrder, 'id' | 'timestamp'> & { items: CurrentOrderItem[] }) => ({
@@ -199,7 +236,7 @@ const App: React.FC = () => {
       setConfirmModal({ open: false, type: 'send' });
       return;
     }
-    // Prevent duplicate order for same name+department+date
+    
     const duplicate = allOrders.some(order =>
       order.employeeName.trim().toLowerCase() === currentEmployeeOrder.employeeName.trim().toLowerCase() &&
       order.department === currentEmployeeOrder.department &&
@@ -210,6 +247,7 @@ const App: React.FC = () => {
       setConfirmModal({ open: false, type: 'send' });
         return;
     }
+    
     setIsSubmittingOrder(true);
     setFetchError(null);
     setConfirmModal({ open: false, type: 'send' });
@@ -222,19 +260,17 @@ const App: React.FC = () => {
          console.log(`Order for ${newOrder.orderDate} submitted, but current view is for ${selectedAggregateDate}. Data saved.`);
       }
       
-      // Сохраняем последние введённые данные
       setLastEmployeeName(currentEmployeeOrder.employeeName);
       setLastDepartment(currentEmployeeOrder.department);
       
-      // Увеличиваем дату на один день, сбрасываем блюда и отдел
       const nextDate = addOneDayToDate(currentEmployeeOrder.orderDate);
       setCurrentEmployeeOrder({
         ...currentEmployeeOrder,
         orderDate: nextDate,
-        department: '', // Сбрасываем отдел
-        items: [], // Сбрасываем блюда
+        department: '',
+        items: [],
       });
-      setSelectedDept('Все отделы'); // Сбрасываем выпадающий список отделов
+      setSelectedDept('Все отделы');
       
       showNotification('success', `Заказ для ${newOrder.employeeName} успешно добавлен!`);
     } catch (error) {
@@ -276,10 +312,10 @@ const App: React.FC = () => {
 
       ordersForSelectedDate.forEach((order: EmployeeOrder) => {
         order.items.forEach((item: CurrentOrderItem) => {
-          const dish = MENU_ITEMS.find(d => d.id === item.dishId);
+          const dish = menuItems.find(d => d.id === item.dishId);
           if (!dish) return;
 
-          const side = item.selectedSideId ? SIDE_DISHES.find(s => s.id === item.selectedSideId) : undefined;
+          const side = item.selectedSideId ? sides.find(s => s.id === item.selectedSideId) : undefined;
           
           const key = `${dish.id}${item.selectedSideId ? `_${item.selectedSideId}` : ''}`;
 
@@ -307,9 +343,8 @@ const App: React.FC = () => {
     if (!isLoadingOrders) {
         aggregate();
     }
-  }, [allOrders, selectedAggregateDate, isLoadingOrders]);
+  }, [allOrders, selectedAggregateDate, isLoadingOrders, menuItems, sides]);
 
-  // Load persisted user info from localStorage on mount
   useEffect(() => {
     const savedName = localStorage.getItem('lunch_employeeName') || '';
     const savedDept = localStorage.getItem('lunch_department') || '';
@@ -322,7 +357,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Persist employeeName and department when changed
   useEffect(() => {
     if (currentEmployeeOrder.employeeName)
       localStorage.setItem('lunch_employeeName', currentEmployeeOrder.employeeName);
@@ -330,7 +364,6 @@ const App: React.FC = () => {
       localStorage.setItem('lunch_department', currentEmployeeOrder.department);
   }, [currentEmployeeOrder.employeeName, currentEmployeeOrder.department]);
 
-  // Success checkmark animation with background
   const SuccessCheck = () => (
     <div className="flex flex-col items-center justify-center bg-green-100 bg-opacity-90 rounded-xl shadow-lg px-8 py-6 border-2 border-green-400">
       <svg className="h-12 w-12 text-green-500 animate-bounce mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -340,41 +373,70 @@ const App: React.FC = () => {
     </div>
   );
 
-  // Filter orders for selected department
   const filteredOrders = selectedDept === 'Все отделы'
     ? allOrders
     : selectedDept
       ? allOrders.filter(order => order.department === selectedDept)
       : [];
 
-  return (
+  const availableDepartments = Array.from(new Set(allOrders.map(order => order.department))).sort();
+
+  useEffect(() => {
+    if (selectedDept !== 'Все отделы' && selectedDept !== '' && !availableDepartments.includes(selectedDept)) {
+      setSelectedDept('Все отделы');
+    }
+  }, [availableDepartments, selectedDept]);
+
+  const OrderPage = () => (
     <div className="min-h-screen bg-white flex flex-col">
       <Header />
+      {/* Force city selection modal */}
+      {!city && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm mx-2 animate-fade-in">
+            <h3 className="text-lg font-semibold mb-2 text-black">Выберите город</h3>
+            <p className="text-sm text-neutral-600 mb-4">Пожалуйста, выберите город для загрузки меню и адресов.</p>
+            <div className="space-y-2">
+              {CITIES.map(c => (
+                <button
+                  key={c.id}
+                  className="w-full text-left px-4 py-2 rounded border border-neutral-300 hover:bg-neutral-100"
+                  onClick={() => setCity(c.id)}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex justify-center gap-4 mt-2 mb-2 flex-col sm:flex-row items-center">
-        <button
-          className={`px-6 py-2 rounded-lg font-semibold border-2 transition-all duration-150 ${
-            selectedAddress === 'office' 
-              ? 'bg-[#ff4139] text-white border-[#ff4139]' 
-              : 'bg-white text-black border-neutral-300 hover:bg-neutral-100'
-          }`}
-          onClick={() => setSelectedAddress('office')}
-        >
-          Офис
-        </button>
+        {(city === 'omsk') && (
+          <button
+            className={`px-6 py-2 rounded-lg font-semibold border-2 transition-all duration-150 ${
+              selectedAddress === 'office' 
+                ? 'bg-[#ff4139] text-white border-[#ff4139]' 
+                : 'bg-white text-black border-neutral-300 hover:bg-neutral-100'
+            }`}
+            onClick={() => setSelectedAddress('office')}
+          >
+            Офис
+          </button>
+        )}
         <div className="relative group">
           <button className={`px-6 py-2 rounded-lg font-semibold border-2 transition-all duration-150 flex items-center gap-2 ${
             selectedAddress !== 'office'
               ? 'bg-[#ff4139] text-white border-[#ff4139]'
               : 'bg-white text-black border-neutral-300 hover:bg-neutral-100'
           }`}>
-            {selectedAddress === 'office' ? 'Выберите кофейню' : ADDRESSES.find(a => a.id === selectedAddress)?.label}
+            {selectedAddress === 'office' ? 'Выберите кофейню' : (CITY_ADDRESSES[city] || CITY_ADDRESSES.omsk).find(a => a.id === selectedAddress)?.label}
             <svg className={`w-4 h-4 ${selectedAddress !== 'office' ? 'text-white' : 'text-black'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
           <div className="absolute right-0 mt-1 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
             <div className="py-1">
-              {ADDRESSES.filter(addr => addr.id !== 'office').map(addr => (
+              {(CITY_ADDRESSES[city] || CITY_ADDRESSES.omsk).filter(addr => addr.id !== 'office').map(addr => (
                 <button
                   key={addr.id}
                   className={`block w-full text-left px-4 py-2 text-sm ${
@@ -385,6 +447,28 @@ const App: React.FC = () => {
                   onClick={() => setSelectedAddress(addr.id)}
                 >
                   {addr.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="relative group">
+          <button className="px-6 py-2 rounded-lg font-semibold border-2 transition-all duration-150 bg-white text-black border-neutral-300 hover:bg-neutral-100">
+            {(CITIES.find(c => c.id === city)?.label) || 'Город'}
+          </button>
+          <div className="absolute right-0 mt-1 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+            <div className="py-1">
+              {CITIES.map(c => (
+                <button
+                  key={c.id}
+                  className={`block w-full text-left px-4 py-2 text-sm ${
+                    city === c.id 
+                      ? 'bg-gray-100 text-gray-900' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                  onClick={() => setCity(c.id)}
+                >
+                  {c.label}
                 </button>
               ))}
             </div>
@@ -411,11 +495,15 @@ const App: React.FC = () => {
           updateCurrentOrderItems={updateCurrentOrderItems}
           updateCurrentOrderDetails={updateCurrentOrderDetails}
           onSubmit={handleOrderSubmit}
-          menuItems={getCurrentMenuDishes()} // Only current menu for new orders
-          sideDishes={SIDE_DISHES}
-          departments={selectedAddress === 'office' ? DEPARTMENTS : []}
+          menuItems={getCurrentMenuDishes(
+            menuConfigDishIds ? menuItems.filter(m => menuConfigDishIds!.includes(m.id)) : menuItems
+          )}
+          sideDishes={sides}
+          departments={selectedAddress === 'office' && city === 'omsk' ? DEPARTMENTS : []}
           isSubmitting={isSubmittingOrder}
           address={selectedAddress}
+          addressLabel={(CITY_ADDRESSES[city] || CITY_ADDRESSES.omsk).find(a => a.id === selectedAddress)?.label}
+          isLoadingMenu={isLoadingMenu}
         />
         </section>
         <hr className="my-8 border-t border-neutral-200" />
@@ -437,20 +525,19 @@ const App: React.FC = () => {
               id="department-filter"
               name="department-filter"
               value={selectedDept}
-              onChange={e => setSelectedDept(e.target.value)}
+              onChange={setSelectedDept}
               className=""
-            >
-              <option value="">Выберите отдел...</option>
-              <option value="Все отделы">Все отделы</option>
-              {DEPARTMENTS.map(dept => (
-                <option key={dept} value={dept}>{dept}</option>
-              ))}
-            </Select>
+              options={[
+                { id: '', label: 'Выберите отдел...' },
+                { id: 'Все отделы', label: 'Все отделы' },
+                ...availableDepartments.map(dept => ({ id: dept, label: dept }))
+              ]}
+            />
             </div>
           <IndividualOrdersList
             orders={filteredOrders}
-            menuItems={MENU_ITEMS} // Use full menu for displaying old orders
-            sideDishes={SIDE_DISHES}
+            menuItems={menuItems}
+            sideDishes={sides}
             onDelete={handleDeleteOrder}
             deletingId={deletingOrderId}
           />
@@ -458,11 +545,14 @@ const App: React.FC = () => {
         <hr className="my-8 border-t border-neutral-200" />
         <section>
           <h2 className="text-2xl md:text-3xl font-bold text-black mb-6 tracking-tight">Сводный заказ</h2>
-            <AggregatedOrderSummary 
-              aggregatedItems={aggregatedOrder} 
+            <AggregatedOrderSummary
+              aggregatedItems={aggregatedOrder}
               selectedDate={selectedAggregateDate}
               onDateChange={setSelectedAggregateDate}
               address={selectedAddress}
+              city={city}
+              menuItems={menuItems}
+              sides={sides}
             />
         </section>
         {notification && notification.type === 'success' && (
@@ -490,6 +580,23 @@ const App: React.FC = () => {
       </main>
       <Footer />
     </div>
+  );
+
+  return (
+    <Routes>
+      <Route path="/" element={<OrderPage />} />
+      <Route
+        path="/admin"
+        element={
+          localStorage.getItem('adminCodeEntered') ? (
+            <AdminPage />
+          ) : (
+            <Navigate to="/admin/login" replace />
+          )
+        }
+      />
+      <Route path="/admin/login" element={<AdminAccess />} />
+    </Routes>
   );
 };
 

@@ -1,6 +1,5 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { EmployeeOrder, CurrentOrderItem, Dish, SideDish, DishCategory } from '../types';
-import { MENU_ITEMS } from '../constants'; 
 import Input from './ui/Input';
 import Button from './ui/Button';
 import Select from './ui/Select';
@@ -8,18 +7,19 @@ import CategoryAsList from './CategoryAsList';
 
 type CurrentOrderFormState = Omit<EmployeeOrder, 'id' | 'timestamp'> & { items: CurrentOrderItem[] };
 
-
 interface OrderFormProps {
   currentOrder: CurrentOrderFormState;
   setCurrentOrder: React.Dispatch<React.SetStateAction<CurrentOrderFormState>>;
   updateCurrentOrderItems: (items: CurrentOrderItem[]) => void;
   updateCurrentOrderDetails: (field: 'employeeName' | 'department' | 'orderDate', value: string) => void;
   onSubmit: () => void;
-  menuItems: Dish[]; 
+  menuItems: Dish[];
   sideDishes: SideDish[];
   departments: string[];
-  isSubmitting: boolean; // New prop
-  address: string; // новый проп
+  isSubmitting: boolean;
+  address: string;
+  addressLabel?: string;
+  isLoadingMenu: boolean;
 }
 
 const getTodayDateString = (): string => {
@@ -30,7 +30,13 @@ const getTodayDateString = (): string => {
   return `${year}-${month}-${day}`;
 };
 
-
+const debounce = (func: Function, delay: number) => {
+  let timeoutId: NodeJS.Timeout;
+  return (...args: any[]) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func.apply(null, args), delay);
+  };
+};
 
 const OrderForm: React.FC<OrderFormProps> = ({
   currentOrder,
@@ -38,25 +44,70 @@ const OrderForm: React.FC<OrderFormProps> = ({
   updateCurrentOrderItems,
   updateCurrentOrderDetails,
   onSubmit,
-  menuItems, 
+  menuItems,
   sideDishes,
   departments,
-  isSubmitting, // Use prop
+  isSubmitting,
   address,
+  addressLabel,
+  isLoadingMenu,
 }: OrderFormProps) => {
   const [shake, setShake] = useState(false);
   const [showNameError, setShowNameError] = useState(false);
   const [showDeptError, setShowDeptError] = useState(false);
-  const nameInputRef = useRef<HTMLInputElement>(null);
+  const [localEmployeeName, setLocalEmployeeName] = useState(currentOrder.employeeName);
+  const [localDepartment, setLocalDepartment] = useState(currentOrder.department);
+  const [localOrderDate, setLocalOrderDate] = useState(currentOrder.orderDate);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    updateCurrentOrderDetails(e.target.name as 'employeeName' | 'department' | 'orderDate', e.target.value);
-    if (e.target.name === 'employeeName') setShowNameError(false);
-    if (e.target.name === 'department') setShowDeptError(false);
+  useEffect(() => {
+    setLocalEmployeeName(currentOrder.employeeName);
+    setLocalDepartment(currentOrder.department);
+    setLocalOrderDate(currentOrder.orderDate);
+  }, [currentOrder.employeeName, currentOrder.department, currentOrder.orderDate]);
+
+  const updateEmployeeName = useCallback((value: string) => {
+    updateCurrentOrderDetails('employeeName', value);
+  }, [updateCurrentOrderDetails]);
+
+  const debouncedUpdateEmployeeName = useCallback(
+    debounce(updateEmployeeName, 300),
+    [updateEmployeeName]
+  );
+
+  const updateOrderDate = useCallback((value: string) => {
+    updateCurrentOrderDetails('orderDate', value);
+  }, [updateCurrentOrderDetails]);
+
+  const debouncedUpdateOrderDate = useCallback(
+    debounce(updateOrderDate, 300),
+    [updateOrderDate]
+  );
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement> | string) => {
+    if (typeof e === 'string') {
+      // Handle direct string value (from Select component)
+      setLocalDepartment(e);
+      updateCurrentOrderDetails('department', e);
+      setShowDeptError(false);
+    } else {
+      // Handle event object
+      if (e.target.name === 'employeeName') {
+        setLocalEmployeeName(e.target.value);
+        debouncedUpdateEmployeeName(e.target.value);
+        setShowNameError(false);
+      } else if (e.target.name === 'orderDate') {
+        setLocalOrderDate(e.target.value);
+        debouncedUpdateOrderDate(e.target.value);
+      } else if (e.target.name === 'department') {
+        setLocalDepartment(e.target.value);
+        updateCurrentOrderDetails('department', e.target.value);
+        setShowDeptError(false);
+      }
+    }
   };
 
   const handleDishSelection = useCallback((dishIdToSelect: string) => {
-    const dish = MENU_ITEMS.find(d => d.id === dishIdToSelect);
+    const dish = menuItems.find(d => d.id === dishIdToSelect);
     if (!dish) return;
 
     const dishCategory = dish.category;
@@ -66,17 +117,17 @@ const OrderForm: React.FC<OrderFormProps> = ({
       if (newItems.length === 1 && newItems[0].dishId === dishIdToSelect) {
         newItems = [];
       } else {
-        newItems = [{ dishId: dishIdToSelect }];
+        newItems = [{ dishId: dishIdToSelect, composition: dish.composition, protein: dish.protein, carbs: dish.carbs, fats: dish.fats, garnishGrams: dish.garnishGrams, sideDishGrams: dish.sideDishGrams }];
       }
     } else {
       const singleDishSelected = newItems.some(item => {
-        const d = MENU_ITEMS.find(dd => dd.id === item.dishId);
+        const d = menuItems.find(dd => dd.id === item.dishId);
         return d?.category === DishCategory.SINGLE_DISH;
       });
       if (singleDishSelected) return;
 
       const existingItemIndexInCategory = newItems.findIndex(item => {
-        const existingDish = MENU_ITEMS.find(d => d.id === item.dishId);
+        const existingDish = menuItems.find(d => d.id === item.dishId);
         return existingDish?.category === dishCategory;
       });
 
@@ -85,16 +136,15 @@ const OrderForm: React.FC<OrderFormProps> = ({
           newItems.splice(existingItemIndexInCategory, 1);
         } else {
           const defaultSideId = (dish.availableSideIds && dish.availableSideIds.length > 0 && dish.category === DishCategory.HOT_DISH) ? dish.availableSideIds[0] : undefined;
-          newItems[existingItemIndexInCategory] = { dishId: dishIdToSelect, selectedSideId: defaultSideId };
+          newItems[existingItemIndexInCategory] = { dishId: dishIdToSelect, selectedSideId: defaultSideId, composition: dish.composition, protein: dish.protein, carbs: dish.carbs, fats: dish.fats, garnishGrams: dish.garnishGrams, sideDishGrams: dish.sideDishGrams };
         }
       } else {
         const defaultSideId = (dish.availableSideIds && dish.availableSideIds.length > 0 && dish.category === DishCategory.HOT_DISH) ? dish.availableSideIds[0] : undefined;
-        newItems.push({ dishId: dishIdToSelect, selectedSideId: defaultSideId });
+        newItems.push({ dishId: dishIdToSelect, selectedSideId: defaultSideId, composition: dish.composition, protein: dish.protein, carbs: dish.carbs, fats: dish.fats, garnishGrams: dish.garnishGrams, sideDishGrams: dish.sideDishGrams });
       }
     }
     updateCurrentOrderItems(newItems);
   }, [currentOrder.items, updateCurrentOrderItems]);
-
 
   const handleSideDishChange = useCallback((dishId: string, sideDishId: string) => {
     const newItems = currentOrder.items.map(item =>
@@ -104,34 +154,33 @@ const OrderForm: React.FC<OrderFormProps> = ({
   }, [currentOrder.items, updateCurrentOrderItems]);
   
   const handleClearOrder = () => {
-     setCurrentOrder(prev => ({
-        ...prev,
-        items: [],
-        employeeName: '', // Also clear name and department on full clear
-        department: '',
-        orderDate: getTodayDateString(), 
-     }));
-  };
+      setLocalEmployeeName('');
+      updateCurrentOrderDetails('employeeName', '');
+      setLocalDepartment('');
+      updateCurrentOrderDetails('department', '');
+      setLocalOrderDate(getTodayDateString());
+      updateCurrentOrderDetails('orderDate', getTodayDateString());
+      setCurrentOrder(prev => ({
+         ...prev,
+         items: [],
+      }));
+      updateCurrentOrderItems([]);
+   };
 
   const handleSubmit = () => {
+    // Update parent state with local values
+    updateCurrentOrderDetails('employeeName', localEmployeeName);
+    updateCurrentOrderDetails('department', localDepartment);
+    updateCurrentOrderDetails('orderDate', localOrderDate);
+
     let hasError = false;
-    if (!currentOrder.employeeName) {
+    if (!localEmployeeName) {
       setShowNameError(true);
       hasError = true;
     }
-    // Для кофейни department подставляется автоматически
-    let departmentValue = currentOrder.department;
+    let departmentValue = localDepartment;
     if (address !== 'office') {
-      departmentValue = 
-        address === 'kamergersky' ? 'Камергерский' : 
-        address === 'gagarina' ? 'Гагарина' : 
-        address === 'drujniy' ? 'Дружный' :
-        address === 'chv' ? 'ЧВ' :
-        address === 'festival' ? 'Фестиваль' :
-        address === 'atlantida' ? 'Атлантида' :
-        address === 'sfera' ? 'Сфера' :
-        address === 'inter' ? 'Интер' :
-        address === 'sibirskie_ogni' ? 'Сибирские Огни' : '';
+      departmentValue = addressLabel || '';
     }
     if (address === 'office' && !departmentValue) {
       setShowDeptError(true);
@@ -140,20 +189,30 @@ const OrderForm: React.FC<OrderFormProps> = ({
     if (hasError) {
       setShake(true);
       setTimeout(() => setShake(false), 600);
-      if (nameInputRef.current) {
-        nameInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        nameInputRef.current.focus();
+      const employeeNameInput = document.getElementById('employeeName') as HTMLInputElement;
+      if (employeeNameInput) {
+        employeeNameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        employeeNameInput.focus();
       }
       return;
     }
-    // Обновляем department для кофейни перед отправкой
-    if (address !== 'office' && currentOrder.department !== departmentValue) {
+    if (address !== 'office' && localDepartment !== departmentValue) {
       setCurrentOrder(prev => ({ ...prev, department: departmentValue }));
-      setTimeout(() => onSubmit(), 0); // вызовем onSubmit после обновления стейта
+      setTimeout(() => onSubmit(), 0);
       return;
     }
     onSubmit();
   };
+
+  if (isLoadingMenu) {
+    return (
+      <section aria-labelledby="order-form-title" className="bg-white p-6 md:p-8 rounded-lg shadow-lg space-y-8 border border-neutral-200">
+        <div className="text-center py-8">
+          <div className="text-gray-500">Загрузка меню...</div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section aria-labelledby="order-form-title" className="bg-white p-6 md:p-8 rounded-lg shadow-lg space-y-8 border border-neutral-200">
@@ -165,13 +224,12 @@ const OrderForm: React.FC<OrderFormProps> = ({
             label="Имя сотрудника"
             id="employeeName"
             name="employeeName"
-            value={currentOrder.employeeName}
+            value={localEmployeeName}
             onChange={handleInputChange}
             placeholder="Например, Иван Иванов"
             required
             aria-required="true"
             disabled={isSubmitting}
-            ref={nameInputRef}
             className={showNameError ? 'border-red-500 ring-2 ring-red-400' : ''}
           />
           {showNameError && (
@@ -184,7 +242,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
               label="Отдел"
               id="department"
               name="department"
-              value={currentOrder.department}
+              value={localDepartment}
               onChange={handleInputChange}
               required
               aria-required="true"
@@ -201,17 +259,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
               label="Кофейня"
               id="department"
               name="department"
-              value={
-                address === 'kamergersky' ? 'Камергерский' : 
-                address === 'gagarina' ? 'Гагарина' : 
-                address === 'drujniy' ? 'Дружный' :
-                address === 'chv' ? 'ЧВ' :
-                address === 'festival' ? 'Фестиваль' :
-                address === 'atlantida' ? 'Атлантида' :
-                address === 'sfera' ? 'Сфера' :
-                address === 'inter' ? 'Интер' :
-                address === 'sibirskie_ogni' ? 'Сибирские Огни' : ''
-              }
+              value={addressLabel || ''}
               disabled
               readOnly
               required
@@ -229,7 +277,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
             id="orderDate"
             name="orderDate"
             type="date"
-            value={currentOrder.orderDate}
+            value={localOrderDate}
             onChange={handleInputChange}
             required
             aria-required="true"
