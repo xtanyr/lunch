@@ -10,7 +10,7 @@ import Select from './ui/Select';
 const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'items' | 'config' | 'orders'>('items');
   const [selectedCity, setSelectedCity] = useState<string>(() => {
-    try { return localStorage.getItem('adminSelectedCity') || Object.keys(CITIES)[0]; } 
+    try { return localStorage.getItem('city') || Object.keys(CITIES)[0]; }
     catch { return Object.keys(CITIES)[0]; }
   });
   const [menuItems, setMenuItems] = useState<Dish[]>([]);
@@ -25,7 +25,7 @@ const AdminPage: React.FC = () => {
 
   const handleCityChange = (newCity: string) => {
     setSelectedCity(newCity);
-    try { localStorage.setItem('adminSelectedCity', newCity); } catch {}
+    try { localStorage.setItem('city', newCity); } catch {}
   };
 
   const loadData = async () => {
@@ -57,7 +57,7 @@ const AdminPage: React.FC = () => {
 
   const handleMenuItemsUpdate = async (updatedItems: Dish[]) => {
     try {
-      await updateMenuItems(updatedItems);
+      await updateMenuItems(updatedItems, selectedCity);
       setMenuItems(updatedItems);
       // Reload to ensure we have the latest data
       await loadData();
@@ -69,7 +69,7 @@ const AdminPage: React.FC = () => {
 
   const handleMenuConfigUpdate = async (updatedConfig: MenuConfig) => {
     try {
-      await updateMenuConfig(updatedConfig);
+      await updateMenuConfig(updatedConfig, selectedCity);
       setMenuConfig(updatedConfig);
       // Reload to ensure we have the latest data
       await loadData();
