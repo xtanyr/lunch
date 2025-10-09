@@ -83,7 +83,7 @@ const IndividualOrdersList: React.FC<IndividualOrdersListProps> = ({ orders, men
                           <span className="font-medium text-gray-700">Состав:</span> {item.composition}
                         </div>
                       )}
-                      {(item.protein !== undefined || item.carbs !== undefined || item.fats !== undefined || item.garnishGrams !== undefined || item.sideDishGrams !== undefined) && (
+                      {(item.protein !== undefined || item.carbs !== undefined || item.fats !== undefined || item.calories !== undefined || item.garnishGrams !== undefined || item.sideDishGrams !== undefined) && (
                         <div className="mt-1 pt-1 border-t border-gray-200">
                           <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                             {item.protein !== undefined && (
@@ -102,6 +102,12 @@ const IndividualOrdersList: React.FC<IndividualOrdersListProps> = ({ orders, men
                               <div className="flex items-center gap-2">
                                 <span className="text-gray-600">Жиры:</span>
                                 <span className="font-medium">{item.fats} г</span>
+                              </div>
+                            )}
+                            {item.calories !== undefined && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-600">Калории:</span>
+                                <span className="font-medium">{item.calories} ккал</span>
                               </div>
                             )}
                             {item.garnishGrams !== undefined && (

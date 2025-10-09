@@ -93,6 +93,12 @@ const CategoryAsList: React.FC<CategoryAsListProps> = ({
                               <span className="font-medium">{dish.fats} г</span>
                             </div>
                           )}
+                          {dish.calories !== undefined && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-600">Калории:</span>
+                              <span className="font-medium">{dish.calories} ккал</span>
+                            </div>
+                          )}
                           {dish.garnishGrams !== undefined && (
                             <div className="flex items-center gap-2">
                               <span className="text-gray-600">Вес основного блюда:</span>
