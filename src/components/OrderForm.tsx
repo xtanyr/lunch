@@ -93,11 +93,6 @@ const OrderForm: React.FC<OrderFormProps> = ({
     updateCurrentOrderDetails('employeeName', value);
   }, [updateCurrentOrderDetails]);
 
-  const debouncedUpdateEmployeeName = useCallback(
-    debounce(updateEmployeeName, 300),
-    [updateEmployeeName]
-  );
-
   const updateOrderDate = useCallback((value: string) => {
     updateCurrentOrderDetails('orderDate', value);
     // Check if date is disabled
@@ -123,7 +118,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
       // Handle event object
       if (e.target.name === 'employeeName') {
         setLocalEmployeeName(e.target.value);
-        debouncedUpdateEmployeeName(e.target.value);
+        updateEmployeeName(e.target.value);
         setShowNameError(false);
       } else if (e.target.name === 'orderDate') {
         setLocalOrderDate(e.target.value);
