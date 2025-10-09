@@ -253,15 +253,12 @@ const OrderForm: React.FC<OrderFormProps> = ({
 
   return (
     <section aria-labelledby="order-form-title" className="bg-white p-6 md:p-8 rounded-lg shadow-lg space-y-8 border border-neutral-200">
-      <div className="flex justify-between items-center mb-6">
+      <div className="mb-6">
         <h2 id="order-form-title" className="text-3xl font-bold text-black">Создать новый заказ</h2>
-        <button
-          type="button"
-          className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded"
-          title="КБЖУ указан на 100г. Для блюд, у которых можно выбрать гарнир, КБЖУ указан только для основного блюда"
-        >
-          КБЖУ
-        </button>
+        <details className="mt-2">
+          <summary className="text-sm text-gray-600 cursor-pointer hover:text-gray-800">Информация о КБЖУ</summary>
+          <p className="text-xs text-gray-600 mt-1">КБЖУ указан на 100г. Для блюд, у которых можно выбрать гарнир, КБЖУ указан только для основного блюда</p>
+        </details>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
