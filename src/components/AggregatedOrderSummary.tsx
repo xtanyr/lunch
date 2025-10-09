@@ -7,6 +7,37 @@ import Input from './ui/Input';
 
 declare var XLSX: any;
 
+let xlsxLoadingPromise: Promise<void> | null = null;
+
+const loadXLSXLibrary = (): Promise<void> => {
+  if (typeof XLSX !== 'undefined') {
+    return Promise.resolve();
+  }
+
+  if (xlsxLoadingPromise) {
+    return xlsxLoadingPromise;
+  }
+
+  xlsxLoadingPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js';
+    script.onload = () => {
+      if (typeof XLSX !== 'undefined') {
+        resolve();
+      } else {
+        reject(new Error('XLSX library loaded but not available'));
+      }
+    };
+    script.onerror = () => {
+      xlsxLoadingPromise = null; // Reset on error to allow retry
+      reject(new Error('Failed to load XLSX library'));
+    };
+    document.head.appendChild(script);
+  });
+
+  return xlsxLoadingPromise;
+};
+
 const formatDateString = (dateStr: string): string => {
   if (!dateStr) return '';
   try {
@@ -169,9 +200,11 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
   };
 
   const handleExportToExcel = useCallback(async () => {
-    if (typeof XLSX === 'undefined') {
-      console.error("XLSX library is not loaded.");
-      alert("Ошибка: Библиотека для экспорта в Excel не загружена. Пожалуйста, проверьте ваше интернет-соединение или обратитесь к администратору.");
+    try {
+      await loadXLSXLibrary();
+    } catch (error) {
+      console.error("Failed to load XLSX library:", error);
+      alert("Ошибка: Не удалось загрузить библиотеку для экспорта в Excel. Пожалуйста, проверьте ваше интернет-соединение и попробуйте еще раз.");
       return;
     }
 
@@ -302,9 +335,11 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
   }, [startDate, endDate]);
 
   const handleSingleDateExport = async () => {
-    if (typeof XLSX === 'undefined') {
-      console.error("XLSX library is not loaded.");
-      alert("Ошибка: Библиотека для экспорта в Excel не загружена. Пожалуйста, проверьте ваше интернет-соединение или обратитесь к администратору.");
+    try {
+      await loadXLSXLibrary();
+    } catch (error) {
+      console.error("Failed to load XLSX library:", error);
+      alert("Ошибка: Не удалось загрузить библиотеку для экспорта в Excel. Пожалуйста, проверьте ваше интернет-соединение и попробуйте еще раз.");
       return;
     }
 
