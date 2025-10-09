@@ -118,7 +118,6 @@ const OrderForm: React.FC<OrderFormProps> = ({
       // Handle event object
       if (e.target.name === 'employeeName') {
         setLocalEmployeeName(e.target.value);
-        updateEmployeeName(e.target.value);
         setShowNameError(false);
       } else if (e.target.name === 'orderDate') {
         setLocalOrderDate(e.target.value);
@@ -130,6 +129,10 @@ const OrderForm: React.FC<OrderFormProps> = ({
         setShowDeptError(false);
       }
     }
+  };
+
+  const handleEmployeeNameBlur = () => {
+    updateEmployeeName(localEmployeeName);
   };
 
   const handleDishSelection = useCallback((dishIdToSelect: string) => {
@@ -264,6 +267,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
             name="employeeName"
             value={localEmployeeName}
             onChange={handleInputChange}
+            onBlur={handleEmployeeNameBlur}
             placeholder="Например, Иван Иванов"
             required
             aria-required="true"
