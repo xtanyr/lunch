@@ -166,3 +166,40 @@ export const updateMenuConfig = async (config: MenuConfig, city?: string): Promi
     throw new Error('Не удалось обновить конфигурацию меню.');
   }
 };
+
+// API functions for disabled dates
+export interface DisabledDateRange {
+  startDate: string;
+  endDate: string;
+  message: string;
+}
+
+export const fetchDisabledDates = async (city?: string): Promise<DisabledDateRange | null> => {
+  try {
+    const cityParam = city ? `city=${encodeURIComponent(city)}` : getCityParam();
+    const res = await fetch(`${API_BASE}/api/disabled-dates?${cityParam}`);
+    if (!res.ok) throw new Error('Failed to fetch disabled dates');
+    return await res.json();
+  } catch (error) {
+    console.error('API Error (fetchDisabledDates):', error);
+    throw new Error('Не удалось получить настройки отключенных дат.');
+  }
+};
+
+export const updateDisabledDates = async (range: DisabledDateRange | null, city?: string): Promise<void> => {
+  try {
+    const cityParam = city ? `city=${encodeURIComponent(city)}` : getCityParam();
+    const res = await fetch(`${API_BASE}/api/disabled-dates?${cityParam}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(range),
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Failed to update disabled dates');
+    }
+  } catch (error) {
+    console.error('API Error (updateDisabledDates):', error);
+    throw new Error('Не удалось обновить настройки отключенных дат.');
+  }
+};

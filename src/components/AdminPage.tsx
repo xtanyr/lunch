@@ -4,10 +4,11 @@ import { MENU_ITEMS, SIDE_DISHES, CITIES } from '../constants';
 import { fetchMenuItems, fetchSideDishes, updateMenuItems, fetchMenuConfig, updateMenuConfig } from '../api';
 import AdminMenuManager from './AdminMenuManager';
 import AdminMenuConfig from './AdminMenuConfig';
+import AdminOrderControl from './AdminOrderControl';
 import Select from './ui/Select';
 
 const AdminPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'items' | 'config'>('items');
+  const [activeTab, setActiveTab] = useState<'items' | 'config' | 'orders'>('items');
   const [selectedCity, setSelectedCity] = useState<string>(() => {
     try { return localStorage.getItem('adminSelectedCity') || Object.keys(CITIES)[0]; } 
     catch { return Object.keys(CITIES)[0]; }
@@ -148,6 +149,12 @@ const AdminPage: React.FC = () => {
             >
               Настройки меню
             </button>
+            <button
+              onClick={() => setActiveTab('orders')}
+              className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'orders' ? 'border-red-500 text-red-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+            >
+              Управление заказами
+            </button>
           </nav>
         </div>
 
@@ -165,6 +172,9 @@ const AdminPage: React.FC = () => {
               menuItems={menuItems}
               onMenuConfigUpdate={handleMenuConfigUpdate}
             />
+          )}
+          {activeTab === 'orders' && (
+            <AdminOrderControl selectedCity={selectedCity} />
           )}
         </div>
       </div>

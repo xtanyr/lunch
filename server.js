@@ -12,6 +12,7 @@ const PORT = 3001;
 const ORDERS_FILE = path.join(__dirname, 'data', 'orders.json');
 const MENU_FILE = path.join(__dirname, 'data', 'menu.json');
 const CONFIG_FILE = path.join(__dirname, 'data', 'config.json');
+const DISABLED_DATES_FILE = path.join(__dirname, 'data', 'disabled_dates.json');
 
 app.use(cors());
 app.use(express.json());
@@ -100,6 +101,11 @@ function getConfigFileByCity(city) {
   return path.join(__dirname, 'data', `config_${safeCity}.json`);
 }
 
+function getDisabledDatesFile(city) {
+  const safeCity = toSafeSegment(city);
+  return path.join(__dirname, 'data', `disabled_dates_${safeCity}.json`);
+}
+
 function getOrdersFile(city, address) {
   const safeCity = toSafeSegment(city);
   const safeAddr = (!address || address === 'office') ? 'office' : toSafeSegment(address);
@@ -172,6 +178,27 @@ function writeConfigData(configData, city) {
   fs.writeFileSync(file, JSON.stringify(configData, null, 2));
 }
 
+// Helper to read disabled dates range
+function readDisabledDates(city) {
+  const file = city ? getDisabledDatesFile(city) : DISABLED_DATES_FILE;
+  if (!fs.existsSync(file)) {
+    return null;
+  }
+  const data = fs.readFileSync(file, 'utf-8');
+  try {
+    const range = JSON.parse(data);
+    return range && range.startDate && range.endDate ? range : null;
+  } catch {
+    return null;
+  }
+}
+
+// Helper to write disabled dates range
+function writeDisabledDates(range, city) {
+  const file = city ? getDisabledDatesFile(city) : DISABLED_DATES_FILE;
+  fs.writeFileSync(file, JSON.stringify(range, null, 2));
+}
+
 // Initialize default data on startup
 initializeDefaultData();
 
@@ -188,6 +215,13 @@ app.post('/api/orders', express.json(), (req, res) => {
   if (!employeeName || !orderDate || !items || typeof address !== 'string') {
     return res.status(400).json({ error: 'Missing required fields' });
   }
+
+  // Check if order date is disabled
+  const disabledRange = readDisabledDates(city);
+  if (disabledRange && orderDate >= disabledRange.startDate && orderDate <= disabledRange.endDate) {
+    return res.status(400).json({ error: disabledRange.message });
+  }
+
   const orders = readOrders(address, city);
   const newOrder = {
     id: `order-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
@@ -333,11 +367,39 @@ app.put('/api/menu/config', (req, res) => {
       lastUpdated: new Date().toISOString()
     };
     writeConfigData(merged, city);
-    
+
     res.json({ success: true, message: 'Menu config updated successfully' });
   } catch (error) {
     console.error('Error updating menu config:', error);
     res.status(500).json({ error: 'Failed to update menu config' });
+  }
+});
+
+// API Routes for Disabled Dates
+app.get('/api/disabled-dates', (req, res) => {
+  try {
+    const { city } = req.query;
+    const range = readDisabledDates(city);
+    res.json(range);
+  } catch (error) {
+    console.error('Error reading disabled dates:', error);
+    res.status(500).json({ error: 'Failed to read disabled dates' });
+  }
+});
+
+app.put('/api/disabled-dates', (req, res) => {
+  try {
+    const { city } = req.query;
+    const range = req.body;
+    if (range && (typeof range !== 'object' || !range.startDate || !range.endDate || !range.message)) {
+      return res.status(400).json({ error: 'Invalid range format' });
+    }
+
+    writeDisabledDates(range, city);
+    res.json({ success: true, message: 'Disabled dates updated successfully' });
+  } catch (error) {
+    console.error('Error updating disabled dates:', error);
+    res.status(500).json({ error: 'Failed to update disabled dates' });
   }
 });
 

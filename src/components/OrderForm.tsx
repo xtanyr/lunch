@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { EmployeeOrder, CurrentOrderItem, Dish, SideDish, DishCategory } from '../types';
+import { fetchDisabledDates, DisabledDateRange } from '../api';
 import Input from './ui/Input';
 import Button from './ui/Button';
 import Select from './ui/Select';
-import CategoryAsList from './CategoryAsList'; 
+import CategoryAsList from './CategoryAsList';
 
 type CurrentOrderFormState = Omit<EmployeeOrder, 'id' | 'timestamp'> & { items: CurrentOrderItem[] };
 
@@ -55,6 +56,8 @@ const OrderForm: React.FC<OrderFormProps> = ({
   const [shake, setShake] = useState(false);
   const [showNameError, setShowNameError] = useState(false);
   const [showDeptError, setShowDeptError] = useState(false);
+  const [showDateError, setShowDateError] = useState(false);
+  const [disabledRange, setDisabledRange] = useState<DisabledDateRange | null>(null);
   const [localEmployeeName, setLocalEmployeeName] = useState(currentOrder.employeeName);
   const [localDepartment, setLocalDepartment] = useState(currentOrder.department);
   const [localOrderDate, setLocalOrderDate] = useState(currentOrder.orderDate);
@@ -64,6 +67,27 @@ const OrderForm: React.FC<OrderFormProps> = ({
     setLocalDepartment(currentOrder.department);
     setLocalOrderDate(currentOrder.orderDate);
   }, [currentOrder.employeeName, currentOrder.department, currentOrder.orderDate]);
+
+  useEffect(() => {
+    const loadDisabledRange = async () => {
+      try {
+        const range = await fetchDisabledDates();
+        setDisabledRange(range);
+      } catch (error) {
+        console.error('Failed to load disabled range:', error);
+      }
+    };
+    loadDisabledRange();
+  }, []);
+
+  useEffect(() => {
+    // Check current date when range changes
+    if (disabledRange && localOrderDate >= disabledRange.startDate && localOrderDate <= disabledRange.endDate) {
+      setShowDateError(true);
+    } else {
+      setShowDateError(false);
+    }
+  }, [disabledRange, localOrderDate]);
 
   const updateEmployeeName = useCallback((value: string) => {
     updateCurrentOrderDetails('employeeName', value);
@@ -76,7 +100,13 @@ const OrderForm: React.FC<OrderFormProps> = ({
 
   const updateOrderDate = useCallback((value: string) => {
     updateCurrentOrderDetails('orderDate', value);
-  }, [updateCurrentOrderDetails]);
+    // Check if date is disabled
+    if (disabledRange && value >= disabledRange.startDate && value <= disabledRange.endDate) {
+      setShowDateError(true);
+    } else {
+      setShowDateError(false);
+    }
+  }, [updateCurrentOrderDetails, disabledRange]);
 
   const debouncedUpdateOrderDate = useCallback(
     debounce(updateOrderDate, 300),
@@ -98,6 +128,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
       } else if (e.target.name === 'orderDate') {
         setLocalOrderDate(e.target.value);
         debouncedUpdateOrderDate(e.target.value);
+        setShowDateError(false);
       } else if (e.target.name === 'department') {
         setLocalDepartment(e.target.value);
         updateCurrentOrderDetails('department', e.target.value);
@@ -185,6 +216,12 @@ const OrderForm: React.FC<OrderFormProps> = ({
     if (address === 'office' && !departmentValue) {
       setShowDeptError(true);
       hasError = true;
+    }
+    if (disabledRange && localOrderDate >= disabledRange.startDate && localOrderDate <= disabledRange.endDate) {
+      setShowDateError(true);
+      hasError = true;
+    } else {
+      setShowDateError(false);
     }
     if (hasError) {
       setShake(true);
@@ -283,7 +320,11 @@ const OrderForm: React.FC<OrderFormProps> = ({
             aria-required="true"
             min={getTodayDateString()}
             disabled={isSubmitting}
+            className={showDateError ? 'border-red-500 ring-2 ring-red-400' : ''}
           />
+          {showDateError && disabledRange && (
+            <div className="text-red-500 text-xs mt-1">{disabledRange.message}</div>
+          )}
         </div>
       </div>
 
