@@ -124,6 +124,8 @@ export const CITY_ADDRESSES: Record<string, { id: string; label: string }[]> = {
     { id: 'mira', label: 'Мира' },
     { id: '22_aprelya', label: '22 апреля' },
     { id: 'tuhachevskogo', label: 'Тухачевского' },
+    { id: 'zavodskaya', label: 'Заводская' },
+    { id: 'dolgireva', label: 'Долгирева' },
   ],
   spb: [
     { id: 'kirova', label: 'Кирова' },
