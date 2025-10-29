@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Button from './ui/Button';
 import Input from './ui/Input';
 
-const ADMIN_CODE = 'lunch20'; // Simple code word
+const ADMIN_CODE = 'lunch20';
 
 const AdminAccess: React.FC = () => {
   const [code, setCode] = useState('');
@@ -12,7 +12,6 @@ const AdminAccess: React.FC = () => {
     e.preventDefault();
     if (code === ADMIN_CODE) {
       localStorage.setItem('adminCodeEntered', 'true');
-      // Use window.location to force a full page reload and ensure proper routing
       window.location.href = '/admin';
     } else {
       setError('Неверный код доступа');

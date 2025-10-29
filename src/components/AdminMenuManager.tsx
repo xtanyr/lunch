@@ -32,6 +32,11 @@ const AdminMenuManager: React.FC<AdminMenuManagerProps> = ({
   const handleEdit = (item: Dish) => {
     setEditingItem({ ...item });
     setShowAddForm(false);
+    // Smooth scroll to the top of the page
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
   };
 
   const handleAdd = () => {
