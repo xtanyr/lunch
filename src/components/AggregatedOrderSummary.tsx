@@ -235,29 +235,34 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
           sides
         )[date] || [];
   
+        // Group by dishName and selectedSideName, summing quantities and using the first price found
+        const dishMap: Record<string, { quantity: number; price: number }> = {};
+        aggregatedItems.forEach(item => {
+          const key = `${item.dishName}|||${item.selectedSideName || '---'}`;
+          if (!dishMap[key]) {
+            dishMap[key] = { quantity: 0, price: item.price || 0 };
+          }
+          dishMap[key].quantity += item.totalQuantity;
+        });
+  
         let locationTotal = 0;
   
-        // Add items by category
-        displayCategories.forEach(category => {
-          const itemsInCategory = aggregatedItems.filter(item => item.category === category);
-          if (itemsInCategory.length === 0) return;
+        // Add items sorted by dish name
+        Object.entries(dishMap)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .forEach(([key, data]) => {
+            const [dishName, sideName] = key.split('|||');
+            const totalPrice = data.price * data.quantity;
+            locationTotal += totalPrice;
   
-          itemsInCategory
-            .sort((a, b) => a.dishName.localeCompare(b.dishName))
-            .forEach(item => {
-              const price = item.price || 0;
-              const totalPrice = price * item.totalQuantity;
-              locationTotal += totalPrice;
-  
-              excelData.push([
-                item.dishName,
-                item.selectedSideName || '---',
-                item.totalQuantity,
-                price,
-                totalPrice
-              ]);
-            });
-        });
+            excelData.push([
+              dishName,
+              sideName,
+              data.quantity,
+              data.price,
+              totalPrice
+            ]);
+          });
   
         // Add location total
         excelData.push(["", "", "", "Итого:", locationTotal]);
@@ -275,14 +280,23 @@ const AggregatedOrderSummary: React.FC<AggregatedOrderSummaryProps> = ({
       excelData.push(["Итого по блюдам за день"]);
       excelData.push(["Блюдо", "Гарнир", "Общее кол-во"]);
   
+      // Group by dishName and selectedSideName, summing quantities
+      const dishTotals: Record<string, number> = {};
       dayAggregated
         .filter(item => displayCategories.includes(item.category))
-        .sort((a, b) => a.dishName.localeCompare(b.dishName))
         .forEach(item => {
+          const key = `${item.dishName}|||${item.selectedSideName || '---'}`;
+          dishTotals[key] = (dishTotals[key] || 0) + item.totalQuantity;
+        });
+  
+      Object.entries(dishTotals)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .forEach(([key, totalQuantity]) => {
+          const [dishName, sideName] = key.split('|||');
           excelData.push([
-            item.dishName,
-            item.selectedSideName || '---',
-            item.totalQuantity
+            dishName,
+            sideName,
+            totalQuantity
           ]);
         });
   
