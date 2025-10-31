@@ -142,6 +142,7 @@ export const CITY_ADDRESSES: Record<string, { id: string; label: string }[]> = {
     { id: 'novo_sadovaya', label: 'Ново-Садовая' },
     { id: 'galaktionovskaya', label: 'Галактионовская' },
     { id: 'volna', label: 'Волна' },
+    { id: 'tren', label: 'Тренировочный' },
   ],
   moscow: [
     { id: 'stoleshnikov', label: 'Столешников' },
