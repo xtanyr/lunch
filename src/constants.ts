@@ -112,6 +112,7 @@ export const CITIES = [
 export const CITY_ADDRESSES: Record<string, { id: string; label: string }[]> = {
   omsk: [
     { id: 'office', label: 'Офис' },
+    { id: 'kamergersky_obz', label: 'Камергерский Обжарка' },   
     { id: 'kamergersky', label: 'Камергерский' },
     { id: 'gagarina', label: 'Гагарина' },
     { id: 'drujniy', label: 'Дружный' },
