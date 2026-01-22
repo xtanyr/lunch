@@ -13,7 +13,7 @@ export const SIDE_DISHES: SideDish[] = [
   { id: 'spaghetti', name: 'Спагетти' },
   { id: 'ptitim', name: 'Паста пти-тим' },
   { id: 'poppy_seeds', name: 'Мак' },
-  { id: 'apple', name: 'Яблоко' },
+  { id: 'apple', name: 'Перловка' },
   { id: 'perlovka', name: 'Перловка'},
 ];
 
