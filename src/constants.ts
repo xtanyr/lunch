@@ -14,6 +14,7 @@ export const SIDE_DISHES: SideDish[] = [
   { id: 'ptitim', name: 'Паста пти-тим' },
   { id: 'poppy_seeds', name: 'Мак' },
   { id: 'apple', name: 'Яблоко' },
+  { id: 'perlovka', name: 'Перловка'},
 ];
 
 export const MENU_ITEMS: Dish[] = [
