@@ -51,6 +51,7 @@ const initializeDefaultData = () => {
         { id: 'ptitim', name: 'Паста пти-тим' },
         { id: 'poppy_seeds', name: 'Мак' },
         { id: 'apple', name: 'Яблоко' },
+        { id: 'perlovka', name: 'Перловка'},
       ]
     };
     fs.writeFileSync(MENU_FILE, JSON.stringify(defaultMenu, null, 2));
