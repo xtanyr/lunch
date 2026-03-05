@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { EmployeeOrder, CurrentOrderItem, AggregatedOrderItem, Dish } from './types';
 import { MENU_ITEMS, SIDE_DISHES, DEPARTMENTS, CITY_ADDRESSES, CITIES } from './constants';
 import OrderForm from './components/OrderForm';
@@ -9,10 +9,52 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import AdminPage from './components/AdminPage';
 import AdminAccess from './components/AdminAccess';
+import CitySelector from './components/CitySelector';
+import OmskApp from './components/OmskApp';
+import OmskAdmin from './components/OmskAdmin';
+import OmskAdminLogin from './components/OmskAdminLogin';
 import { fetchOrdersFromAPI, submitOrderToAPI, deleteOrderFromAPI, fetchMenuItems, fetchSideDishes, fetchMenuConfig } from './api';
 import ConfirmModal from './components/ui/ConfirmModal';
 import Select from './components/ui/Select';
 import Input from './components/ui/Input';
+import { ThemeProvider, useTheme } from './theme/ThemeContext';
+
+// Component to verify admin authentication server-side
+const RequireOmskAdmin: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const code = localStorage.getItem('omskAdminCodeEntered');
+  const [isValid, setIsValid] = useState<boolean | null>(null);
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    if (!code) {
+      navigate('/omsk/admin/login');
+      return;
+    }
+    
+    fetch('/api/omsk/admin/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.valid) {
+          localStorage.removeItem('omskAdminCodeEntered');
+          navigate('/omsk/admin/login');
+        }
+        setIsValid(data.valid);
+      })
+      .catch(() => {
+        setIsValid(false);
+      });
+  }, [code, navigate]);
+  
+  if (isValid === null || isValid === false) {
+    return <div className="min-h-screen flex items-center justify-center">Проверка...</div>;
+  }
+  
+  return <>{children}</>;
+};
 
 const getTodayDateString = (): string => {
   const today = new Date();
@@ -387,20 +429,27 @@ const App: React.FC = () => {
     }
   }, [availableDepartments, selectedDept]);
 
-  const OrderPage = () => (
-    <div className="min-h-screen bg-white flex flex-col">
+  const OrderPage: React.FC = () => {
+    const { palette } = useTheme();
+    return (
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: palette.colors.background }}>
       <Header />
       {/* Force city selection modal */}
       {!city && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm mx-2 animate-fade-in">
-            <h3 className="text-lg font-semibold mb-2 text-black">Выберите город</h3>
-            <p className="text-sm text-neutral-600 mb-4">Пожалуйста, выберите город для загрузки меню и адресов.</p>
+          <div className="rounded-lg shadow-lg p-6 w-full max-w-sm mx-2 animate-fade-in" style={{ backgroundColor: palette.colors.cardBg }}>
+            <h3 className="text-lg font-semibold mb-2" style={{ color: palette.colors.text }}>Выберите город</h3>
+            <p className="text-sm mb-4" style={{ color: palette.colors.textSecondary }}>Пожалуйста, выберите город для загрузки меню и адресов.</p>
             <div className="space-y-2">
               {CITIES.map(c => (
                 <button
                   key={c.id}
-                  className="w-full text-left px-4 py-2 rounded border border-neutral-300 hover:bg-neutral-100"
+                  className="w-full text-left px-4 py-2 rounded border hover:opacity-80"
+                  style={{ 
+                    borderColor: palette.colors.border,
+                    color: palette.colors.text,
+                    backgroundColor: palette.colors.cardBg
+                  }}
                   onClick={() => setCity(c.id)}
                 >
                   {c.label}
@@ -413,37 +462,38 @@ const App: React.FC = () => {
       <div className="flex justify-center gap-4 mt-2 mb-2 flex-col sm:flex-row items-center">
         {(city === 'omsk') && (
           <button
-            className={`px-6 py-2 rounded-lg font-semibold border-2 transition-all duration-150 ${
-              selectedAddress === 'office' 
-                ? 'bg-[#ff4139] text-white border-[#ff4139]' 
-                : 'bg-white text-black border-neutral-300 hover:bg-neutral-100'
-            }`}
+            className={`px-6 py-2 rounded-lg font-semibold border-2 transition-all duration-150`}
+            style={{ 
+              backgroundColor: selectedAddress === 'office' ? palette.colors.primary : palette.colors.cardBg,
+              color: selectedAddress === 'office' ? 'white' : palette.colors.text,
+              borderColor: selectedAddress === 'office' ? palette.colors.primary : palette.colors.border
+            }}
             onClick={() => setSelectedAddress('office')}
           >
             Офис
           </button>
         )}
         <div className="relative group">
-          <button className={`px-6 py-2 rounded-lg font-semibold border-2 transition-all duration-150 flex items-center gap-2 ${
-            selectedAddress !== 'office'
-              ? 'bg-[#ff4139] text-white border-[#ff4139]'
-              : 'bg-white text-black border-neutral-300 hover:bg-neutral-100'
-          }`}>
+          <button className={`px-6 py-2 rounded-lg font-semibold border-2 transition-all duration-150 flex items-center gap-2`}
+          style={{ 
+            backgroundColor: selectedAddress !== 'office' ? palette.colors.primary : palette.colors.cardBg,
+            color: selectedAddress !== 'office' ? 'white' : palette.colors.text,
+            borderColor: selectedAddress !== 'office' ? palette.colors.primary : palette.colors.border
+          }}>
             {selectedAddress === 'office' ? 'Выберите кофейню' : (CITY_ADDRESSES[city] || CITY_ADDRESSES.omsk).find(a => a.id === selectedAddress)?.label}
-            <svg className={`w-4 h-4 ${selectedAddress !== 'office' ? 'text-white' : 'text-black'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <svg className={`w-4 h-4`} style={{ color: selectedAddress !== 'office' ? 'white' : palette.colors.text }} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
-          <div className="absolute right-0 mt-1 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+          <div className="absolute right-0 mt-1 w-56 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10" style={{ backgroundColor: palette.colors.cardBg }}>
             <div className="py-1">
               {(CITY_ADDRESSES[city] || CITY_ADDRESSES.omsk).filter(addr => addr.id !== 'office').map(addr => (
                 <button
                   key={addr.id}
-                  className={`block w-full text-left px-4 py-2 text-sm ${
-                    selectedAddress === addr.id 
-                      ? 'bg-gray-100 text-gray-900' 
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
+                  className={`block w-full text-left px-4 py-2 text-sm hover:opacity-80`}
+                  style={{ 
+                    color: selectedAddress === addr.id ? palette.colors.primary : palette.colors.text 
+                  }}
                   onClick={() => setSelectedAddress(addr.id)}
                 >
                   {addr.label}
@@ -453,19 +503,19 @@ const App: React.FC = () => {
           </div>
         </div>
         <div className="relative group">
-          <button className="px-6 py-2 rounded-lg font-semibold border-2 transition-all duration-150 bg-white text-black border-neutral-300 hover:bg-neutral-100">
+          <button className="px-6 py-2 rounded-lg font-semibold border-2 transition-all duration-150"
+            style={{ backgroundColor: palette.colors.cardBg, color: palette.colors.text, borderColor: palette.colors.border }}>
             {(CITIES.find(c => c.id === city)?.label) || 'Город'}
           </button>
-          <div className="absolute right-0 mt-1 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+          <div className="absolute right-0 mt-1 w-56 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10" style={{ backgroundColor: palette.colors.cardBg }}>
             <div className="py-1">
               {CITIES.map(c => (
                 <button
                   key={c.id}
-                  className={`block w-full text-left px-4 py-2 text-sm ${
-                    city === c.id 
-                      ? 'bg-gray-100 text-gray-900' 
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
+                  className={`block w-full text-left px-4 py-2 text-sm hover:opacity-80`}
+                  style={{ 
+                    color: city === c.id ? palette.colors.primary : palette.colors.text 
+                  }}
                   onClick={() => setCity(c.id)}
                 >
                   {c.label}
@@ -483,7 +533,7 @@ const App: React.FC = () => {
         </div>
       )}
        {fetchError && (
-        <div className="p-4 bg-red-700 text-white text-center fixed top-16 left-0 right-0 z-40 shadow-lg">
+        <div className="p-4 text-white text-center fixed top-16 left-0 right-0 z-40 shadow-lg" style={{ backgroundColor: '#dc2626' }}>
           {fetchError}
         </div>
       )}
@@ -506,7 +556,7 @@ const App: React.FC = () => {
           isLoadingMenu={isLoadingMenu}
         />
         </section>
-        <hr className="my-8 border-t border-neutral-200" />
+        <hr className="my-8" style={{ borderColor: palette.colors.border }} />
         <section className="mb-4">
           <Input
             aria-label="Выберите дату для сводки"
@@ -516,10 +566,15 @@ const App: React.FC = () => {
             value={selectedAggregateDate}
             onChange={e => setSelectedAggregateDate(e.target.value)}
             className="max-w-xs text-lg font-semibold"
+            style={{ 
+              backgroundColor: palette.colors.cardBg,
+              color: palette.colors.text,
+              borderColor: palette.colors.border
+            }}
           />
         </section>
         <section>
-          <h2 className="text-2xl md:text-3xl font-bold text-black mb-6 tracking-tight">Индивидуальные заказы</h2>
+          <h2 className="text-2xl md:text-3xl font-bold mb-6 tracking-tight" style={{ color: palette.colors.text }}>Индивидуальные заказы</h2>
           <div className="mb-4 max-w-xs">
             <Select
               id="department-filter"
@@ -542,9 +597,9 @@ const App: React.FC = () => {
             deletingId={deletingOrderId}
           />
         </section>
-        <hr className="my-8 border-t border-neutral-200" />
+        <hr className="my-8" style={{ borderColor: palette.colors.border }} />
         <section>
-          <h2 className="text-2xl md:text-3xl font-bold text-black mb-6 tracking-tight">Сводный заказ</h2>
+          <h2 className="text-2xl md:text-3xl font-bold mb-6 tracking-tight" style={{ color: palette.colors.text }}>Сводный заказ</h2>
             <AggregatedOrderSummary
               aggregatedItems={aggregatedOrder}
               selectedDate={selectedAggregateDate}
@@ -581,10 +636,37 @@ const App: React.FC = () => {
       <Footer />
     </div>
   );
+};
 
   return (
     <Routes>
-      <Route path="/" element={<OrderPage />} />
+      <Route path="/" element={
+        <ThemeProvider>
+          <CitySelector />
+        </ThemeProvider>
+      } />
+      <Route path="/omsk/admin" element={
+        <ThemeProvider>
+          <RequireOmskAdmin>
+            <OmskAdmin />
+          </RequireOmskAdmin>
+        </ThemeProvider>
+      } />
+      <Route path="/omsk/admin/login" element={
+        <ThemeProvider>
+          <OmskAdminLogin />
+        </ThemeProvider>
+      } />
+      <Route path="/omsk/*" element={
+        <ThemeProvider>
+          <OmskApp />
+        </ThemeProvider>
+      } />
+      <Route path="/:city" element={
+        <ThemeProvider>
+          <OrderPage />
+        </ThemeProvider>
+      } />
       <Route
         path="/admin"
         element={

@@ -4,6 +4,55 @@ import path from 'path';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
 
+// Admin code - should be set via environment variable OMSK_ADMIN_CODE
+// Default fallback provided for development only - remove in production
+const OMSK_ADMIN_CODE = process.env.OMSK_ADMIN_CODE || 'lunch20';
+
+// Admin authentication middleware
+const requireAdmin = (req, res, next) => {
+  const code = req.headers['x-admin-code'];
+  if (code !== OMSK_ADMIN_CODE) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+};
+import { 
+  initOmskDatabase, 
+  getOrdersByDate, 
+  getOrdersByDateRange,
+  createOrder, 
+  deleteOrder,
+  hasUserOrderedToday,
+  getMenuItems, 
+  getMenuSides, 
+  updateMenuItems, 
+  getMenuConfig, 
+  updateMenuConfig,
+  getDisabledDates,
+  setDisabledDates,
+  getActiveWeek,
+  setActiveWeek,
+  getAllWeeks,
+  getWeekMenuItems,
+  updateWeekMenuItems,
+  getVeganItems,
+  updateVeganItems,
+  insertVeganItem,
+  deleteVeganItem,
+  getOtherItems,
+  updateOtherItems,
+  getGarnishes,
+  updateGarnishes,
+  deleteGarnish,
+  getSauces,
+  updateSauces,
+  deleteSauce,
+  getPastries,
+  updatePastries,
+  getSetting,
+  setSetting
+} from './src/database.ts';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -16,6 +65,16 @@ const DISABLED_DATES_FILE = path.join(__dirname, 'data', 'disabled_dates.json');
 
 app.use(cors());
 app.use(express.json());
+
+// Admin login verification endpoint
+app.post('/api/omsk/admin/verify', express.json(), (req, res) => {
+  const { code } = req.body;
+  if (code === OMSK_ADMIN_CODE) {
+    res.json({ valid: true });
+  } else {
+    res.status(401).json({ valid: false, error: 'Invalid code' });
+  }
+});
 
 // Serve static files from the dist directory
 app.use(express.static(path.join(__dirname, 'dist')));
@@ -201,6 +260,772 @@ function writeDisabledDates(range, city) {
 
 // Initialize default data on startup
 initializeDefaultData();
+
+// Initialize Omsk SQLite database
+let omskDbReady = false;
+try {
+  initOmskDatabase();
+  omskDbReady = true;
+  console.log('Omsk SQLite database ready');
+} catch (error) {
+  console.error('Failed to initialize Omsk SQLite database:', error);
+}
+
+// API Routes for Omsk (using SQLite)
+app.get('/api/omsk/orders/:date', (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { address } = req.query;
+  const { date } = req.params;
+  try {
+    const orders = getOrdersByDate(date, address || 'office');
+    res.json(orders);
+  } catch (error) {
+    console.error('Error fetching Omsk orders:', error);
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
+// New endpoint for date range orders (for Excel export)
+app.get('/api/omsk/orders-range', (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { startDate, endDate, address } = req.query;
+  if (!startDate || !endDate) {
+    return res.status(400).json({ error: 'startDate and endDate are required' });
+  }
+  try {
+    const addressParam = address ? String(address) : 'all';
+    const orders = getOrdersByDateRange(String(startDate), String(endDate), addressParam);
+    res.json(orders);
+  } catch (error) {
+    console.error('Error fetching Omsk orders range:', error);
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
+// Check if user can order today
+app.get('/api/omsk/can-order', (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  
+  const { employeeName, department, orderDate, address } = req.query;
+  
+  if (!employeeName || !department || !orderDate || !address) {
+    return res.status(400).json({ error: 'Missing required parameters' });
+  }
+  
+  try {
+    const hasOrderedToday = hasUserOrderedToday(employeeName, department, orderDate, address);
+    res.json({ canOrder: !hasOrderedToday });
+  } catch (error) {
+    console.error('Error checking if user can order:', error);
+    res.status(500).json({ error: 'Failed to check order status' });
+  }
+});
+
+app.post('/api/omsk/orders', express.json(), (req, res) => {
+  console.log('POST /api/omsk/orders received:', req.method, req.url);
+  console.log('Request headers:', req.headers);
+  console.log('Request body:', req.body);
+  
+  if (!omskDbReady) {
+    console.log('Database not ready, returning 503');
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { employeeName, department, orderDate, items, address, totalPrice } = req.body;
+  console.log('Creating order:', { employeeName, department, orderDate, items: items?.length, address, totalPrice });
+  
+  if (!employeeName || !orderDate || !items || typeof address !== 'string') {
+    console.log('Validation failed - missing fields:', { employeeName: !!employeeName, orderDate: !!orderDate, items: !!items, address: typeof address });
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  // Check if user already ordered today
+  const hasOrderedToday = hasUserOrderedToday(employeeName, department, orderDate, address);
+  if (hasOrderedToday) {
+    console.log('Duplicate order attempt:', { employeeName, department, orderDate, address });
+    return res.status(409).json({ error: 'Вы уже сделали заказ на этот день' });
+  }
+
+  // Check if order date is disabled
+  const disabledRange = getDisabledDates();
+  if (disabledRange && orderDate >= disabledRange.startDate && orderDate <= disabledRange.endDate) {
+    return res.status(400).json({ error: disabledRange.message });
+  }
+
+  try {
+    const newOrder = {
+      id: `order-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      employeeName,
+      department: department || '',
+      orderDate,
+      items,
+      address,
+      city: 'omsk',
+      timestamp: new Date().toISOString(),
+      totalPrice
+    };
+    createOrder(newOrder);
+    res.status(201).json(newOrder);
+  } catch (error) {
+    console.error('Error creating Omsk order:', error);
+    res.status(500).json({ error: 'Failed to create order' });
+  }
+});
+
+app.delete('/api/omsk/orders/:id', (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { id } = req.params;
+  try {
+    deleteOrder(id);
+    res.status(204).end();
+  } catch (error) {
+    console.error('Error deleting Omsk order:', error);
+    res.status(500).json({ error: 'Failed to delete order' });
+  }
+});
+
+// Omsk Admin API - Dishes
+// Public endpoint - reading dishes is allowed without auth
+app.get('/api/omsk/dishes', (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  try {
+    const items = getMenuItems();
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching dishes:', error);
+    res.status(500).json({ error: 'Failed to fetch dishes' });
+  }
+});
+
+app.post('/api/omsk/dishes', requireAdmin, express.json(), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { name, category, price, weekNumber, composition, protein, carbs, fats } = req.body;
+  if (!name || !category) {
+    return res.status(400).json({ error: 'name and category are required' });
+  }
+  // Validate price
+  if (price !== undefined && (typeof price !== 'number' || price < 0 || price > 10000)) {
+    return res.status(400).json({ error: 'Invalid price value' });
+  }
+  // Validate weekNumber
+  if (weekNumber !== undefined && (typeof weekNumber !== 'number' || weekNumber < 1 || weekNumber > 5)) {
+    return res.status(400).json({ error: 'Invalid weekNumber (must be 1-5)' });
+  }
+  try {
+    const newDish = {
+      id: `dish-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      name,
+      category,
+      price: price || 0,
+      weekNumber: weekNumber || 1,
+      composition: composition || null,
+      protein: protein !== undefined && protein !== '' ? parseFloat(protein) : null,
+      carbs: carbs !== undefined && carbs !== '' ? parseFloat(carbs) : null,
+      fats: fats !== undefined && fats !== '' ? parseFloat(fats) : null,
+      isActive: true
+    };
+    const items = getMenuItems();
+    items.push(newDish);
+    updateMenuItems(items);
+    res.status(201).json(newDish);
+  } catch (error) {
+    console.error('Error creating dish:', error);
+    res.status(500).json({ error: 'Failed to create dish' });
+  }
+});
+
+app.patch('/api/omsk/dishes/:id', requireAdmin, express.json(), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { id } = req.params;
+  const updates = req.body;
+  try {
+    const items = getMenuItems();
+    const index = items.findIndex((item) => item.id === id);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Dish not found' });
+    }
+    items[index] = { ...items[index], ...updates };
+    updateMenuItems(items);
+    res.json(items[index]);
+  } catch (error) {
+    console.error('Error updating dish:', error);
+    res.status(500).json({ error: 'Failed to update dish' });
+  }
+});
+
+app.delete('/api/omsk/dishes/:id', requireAdmin, (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { id } = req.params;
+  try {
+    const items = getMenuItems();
+    const filtered = items.filter((item) => item.id !== id);
+    updateMenuItems(filtered);
+    res.status(204).end();
+  } catch (error) {
+    console.error('Error deleting dish:', error);
+    res.status(500).json({ error: 'Failed to delete dish' });
+  }
+});
+
+app.get('/api/omsk/menu/items', (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  try {
+    const items = getMenuItems();
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching Omsk menu items:', error);
+    res.status(500).json({ error: 'Failed to fetch menu items' });
+  }
+});
+
+app.get('/api/omsk/menu/sides', (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  try {
+    const sides = getMenuSides();
+    res.json(sides);
+  } catch (error) {
+    console.error('Error fetching Omsk menu sides:', error);
+    res.status(500).json({ error: 'Failed to fetch menu sides' });
+  }
+});
+
+app.put('/api/omsk/menu/items', requireAdmin, express.json(), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const payload = req.body;
+  const items = Array.isArray(payload) ? payload : payload?.items;
+  if (!Array.isArray(items)) {
+    return res.status(400).json({ error: 'Items must be an array' });
+  }
+  try {
+    const result = updateMenuItems(items);
+    res.json(result);
+  } catch (error) {
+    console.error('Error updating Omsk menu items:', error);
+    res.status(500).json({ error: 'Failed to update menu items' });
+  }
+});
+
+app.get('/api/omsk/menu/config', (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  try {
+    const config = getMenuConfig();
+    res.json(config);
+  } catch (error) {
+    console.error('Error fetching Omsk menu config:', error);
+    res.status(500).json({ error: 'Failed to fetch menu config' });
+  }
+});
+
+app.put('/api/omsk/menu/config', requireAdmin, express.json(), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const config = req.body;
+  if (!config.categories || !Array.isArray(config.categories)) {
+    return res.status(400).json({ error: 'Config must have categories array' });
+  }
+  try {
+    const result = updateMenuConfig(config);
+    res.json(result);
+  } catch (error) {
+    console.error('Error updating Omsk menu config:', error);
+    res.status(500).json({ error: 'Failed to update menu config' });
+  }
+});
+
+app.get('/api/omsk/disabled-dates', (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  try {
+    const range = getDisabledDates();
+    res.json(range);
+  } catch (error) {
+    console.error('Error fetching Omsk disabled dates:', error);
+    res.status(500).json({ error: 'Failed to fetch disabled dates' });
+  }
+});
+
+app.put('/api/omsk/disabled-dates', requireAdmin, express.json(), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const range = req.body;
+  if (range && (typeof range !== 'object' || !range.startDate || !range.endDate || !range.message)) {
+    return res.status(400).json({ error: 'Invalid range format' });
+  }
+  try {
+    const result = setDisabledDates(range);
+    res.json(result);
+  } catch (error) {
+    console.error('Error updating Omsk disabled dates:', error);
+    res.status(500).json({ error: 'Failed to update disabled dates' });
+  }
+});
+
+// Add POST and DELETE endpoints for disabled dates
+app.post('/api/omsk/disabled-dates', requireAdmin, express.json(), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const range = req.body;
+  if (!range || !range.startDate || !range.endDate) {
+    return res.status(400).json({ error: 'Start date and end date are required' });
+  }
+  try {
+    const result = setDisabledDates(range);
+    res.json(result);
+  } catch (error) {
+    console.error('Error setting disabled dates:', error);
+    res.status(500).json({ error: 'Failed to set disabled dates' });
+  }
+});
+
+app.delete('/api/omsk/disabled-dates', requireAdmin, (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  try {
+    const result = setDisabledDates(null);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error removing disabled dates:', error);
+    res.status(500).json({ error: 'Failed to remove disabled dates' });
+  }
+});
+
+// New Omsk Week-based Menu API
+// Public endpoint - reading weeks is allowed without auth
+app.get('/api/omsk/weeks', (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  try {
+    const weeks = getAllWeeks();
+    res.json(weeks);
+  } catch (error) {
+    console.error('Error fetching weeks:', error);
+    res.status(500).json({ error: 'Failed to fetch weeks' });
+  }
+});
+
+app.get('/api/omsk/active-week', (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  try {
+    const week = getActiveWeek();
+    res.json(week);
+  } catch (error) {
+    console.error('Error fetching active week:', error);
+    res.status(500).json({ error: 'Failed to fetch active week' });
+  }
+});
+
+app.put('/api/omsk/active-week', requireAdmin, express.json(), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { weekNumber } = req.body;
+  if (!weekNumber) {
+    return res.status(400).json({ error: 'weekNumber is required' });
+  }
+  try {
+    const result = setActiveWeek(weekNumber);
+    res.json(result);
+  } catch (error) {
+    console.error('Error setting active week:', error);
+    res.status(500).json({ error: 'Failed to set active week' });
+  }
+});
+
+app.get('/api/omsk/week-menu/:weekNumber', (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { weekNumber } = req.params;
+  try {
+    const items = getWeekMenuItems(parseInt(weekNumber));
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching week menu:', error);
+    res.status(500).json({ error: 'Failed to fetch week menu' });
+  }
+});
+
+app.put('/api/omsk/week-menu/:weekNumber', requireAdmin, express.json(), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { weekNumber } = req.params;
+  const items = req.body;
+  try {
+    const result = updateWeekMenuItems(parseInt(weekNumber), items);
+    res.json(result);
+  } catch (error) {
+    console.error('Error updating week menu:', error);
+    res.status(500).json({ error: 'Failed to update week menu' });
+  }
+});
+
+app.get('/api/omsk/vegan-items', (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  try {
+    const items = getVeganItems();
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching vegan items:', error);
+    res.status(500).json({ error: 'Failed to fetch vegan items' });
+  }
+});
+
+app.put('/api/omsk/vegan-items', requireAdmin, express.json(), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const items = req.body;
+  try {
+    const result = updateVeganItems(items);
+    res.json(result);
+  } catch (error) {
+    console.error('Error updating vegan items:', error);
+    res.status(500).json({ error: 'Failed to update vegan items' });
+  }
+});
+
+// Add individual vegan item endpoints
+app.post('/api/omsk/vegan-items', requireAdmin, express.json(), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { name, price, composition, protein, carbs, fats } = req.body;
+  if (!name || !price) {
+    return res.status(400).json({ error: 'Name and price are required' });
+  }
+  
+  try {
+    const newItem = insertVeganItem({
+      name,
+      price: parseFloat(price),
+      composition,
+      protein: protein ? parseFloat(protein) : undefined,
+      carbs: carbs ? parseFloat(carbs) : undefined,
+      fats: fats ? parseFloat(fats) : undefined
+    });
+    res.json(newItem);
+  } catch (error) {
+    console.error('Error adding vegan item:', error.message);
+    console.error('Full error:', error);
+    res.status(500).json({ error: 'Failed to add vegan item', details: error.message });
+  }
+});
+
+app.patch('/api/omsk/vegan-items/:id', requireAdmin, express.json(), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { id } = req.params;
+  const { isActive } = req.body;
+  
+  try {
+    const stmt = db.prepare('UPDATE vegan_items SET isActive = ? WHERE id = ?');
+    stmt.run(isActive ? 1 : 0, id);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating vegan item:', error);
+    res.status(500).json({ error: 'Failed to update vegan item' });
+  }
+});
+
+app.delete('/api/omsk/vegan-items/:id', requireAdmin, (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { id } = req.params;
+  
+  try {
+    const result = deleteVeganItem(id);
+    console.log(`Deleted vegan item ${id}, changes: ${result.changes}`);
+    res.json({ success: true, changes: result.changes });
+  } catch (error) {
+    console.error('Error deleting vegan item:', error.message);
+    console.error('Full error:', error);
+    res.status(500).json({ error: 'Failed to delete vegan item', details: error.message });
+  }
+});
+
+app.get('/api/omsk/other-items', (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  try {
+    const items = getOtherItems();
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching other items:', error);
+    res.status(500).json({ error: 'Failed to fetch other items' });
+  }
+});
+
+app.put('/api/omsk/other-items', requireAdmin, express.json(), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const items = req.body;
+  try {
+    const result = updateOtherItems(items);
+    res.json(result);
+  } catch (error) {
+    console.error('Error updating other items:', error);
+    res.status(500).json({ error: 'Failed to update other items' });
+  }
+});
+
+app.get('/api/omsk/garnishes', (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  try {
+    const items = getGarnishes();
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching garnishes:', error);
+    res.status(500).json({ error: 'Failed to fetch garnishes' });
+  }
+});
+
+app.put('/api/omsk/garnishes', requireAdmin, express.json(), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const items = req.body;
+  try {
+    const result = updateGarnishes(items);
+    res.json(result);
+  } catch (error) {
+    console.error('Error updating garnishes:', error);
+    res.status(500).json({ error: 'Failed to update garnishes' });
+  }
+});
+
+// Add individual garnish endpoints
+app.post('/api/omsk/garnishes', requireAdmin, express.json(), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { name } = req.body;
+  if (!name) {
+    return res.status(400).json({ error: 'Name is required' });
+  }
+  
+  try {
+    const id = `garnish_${Date.now()}`;
+    const stmt = db.prepare('INSERT INTO garnishes (id, name) VALUES (?, ?)');
+    stmt.run(id, name);
+    res.json({ id, name, isActive: 1 });
+  } catch (error) {
+    console.error('Error adding garnish:', error);
+    res.status(500).json({ error: 'Failed to add garnish' });
+  }
+});
+
+app.patch('/api/omsk/garnishes/:id', requireAdmin, express.json(), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { id } = req.params;
+  const { isActive } = req.body;
+  
+  try {
+    const stmt = db.prepare('UPDATE garnishes SET isActive = ? WHERE id = ?');
+    stmt.run(isActive ? 1 : 0, id);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating garnish:', error);
+    res.status(500).json({ error: 'Failed to update garnish' });
+  }
+});
+
+app.delete('/api/omsk/garnishes/:id', requireAdmin, (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { id } = req.params;
+  
+  try {
+    const result = deleteGarnish(id);
+    console.log(`Deleted garnish ${id}, changes: ${result.changes}`);
+    res.json({ success: true, changes: result.changes });
+  } catch (error) {
+    console.error('Error deleting garnish:', error.message);
+    console.error('Full error:', error);
+    res.status(500).json({ error: 'Failed to delete garnish', details: error.message });
+  }
+});
+
+app.get('/api/omsk/sauces', (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  try {
+    const items = getSauces();
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching sauces:', error);
+    res.status(500).json({ error: 'Failed to fetch sauces' });
+  }
+});
+
+app.put('/api/omsk/sauces', requireAdmin, express.json(), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const items = req.body;
+  try {
+    const result = updateSauces(items);
+    res.json(result);
+  } catch (error) {
+    console.error('Error updating sauces:', error);
+    res.status(500).json({ error: 'Failed to update sauces' });
+  }
+});
+
+// Add individual sauce endpoints
+app.post('/api/omsk/sauces', requireAdmin, express.json(), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { name } = req.body;
+  if (!name) {
+    return res.status(400).json({ error: 'Name is required' });
+  }
+  
+  try {
+    const id = `sauce_${Date.now()}`;
+    const stmt = db.prepare('INSERT INTO sauces (id, name) VALUES (?, ?)');
+    stmt.run(id, name);
+    res.json({ id, name, isActive: 1 });
+  } catch (error) {
+    console.error('Error adding sauce:', error);
+    res.status(500).json({ error: 'Failed to add sauce' });
+  }
+});
+
+app.patch('/api/omsk/sauces/:id', requireAdmin, express.json(), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { id } = req.params;
+  const { isActive } = req.body;
+  
+  try {
+    const stmt = db.prepare('UPDATE sauces SET isActive = ? WHERE id = ?');
+    stmt.run(isActive ? 1 : 0, id);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating sauce:', error);
+    res.status(500).json({ error: 'Failed to update sauce' });
+  }
+});
+
+app.delete('/api/omsk/sauces/:id', requireAdmin, (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { id } = req.params;
+  
+  try {
+    const result = deleteSauce(id);
+    console.log(`Deleted sauce ${id}, changes: ${result.changes}`);
+    res.json({ success: true, changes: result.changes });
+  } catch (error) {
+    console.error('Error deleting sauce:', error.message);
+    console.error('Full error:', error);
+    res.status(500).json({ error: 'Failed to delete sauce', details: error.message });
+  }
+});
+
+// Pastries API
+app.get('/api/omsk/pastries', (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  try {
+    const items = getPastries();
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching pastries:', error);
+    res.status(500).json({ error: 'Failed to fetch pastries' });
+  }
+});
+
+app.put('/api/omsk/pastries', requireAdmin, express.json(), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const items = req.body;
+  try {
+    const result = updatePastries(items);
+    res.json(result);
+  } catch (error) {
+    console.error('Error updating pastries:', error);
+    res.status(500).json({ error: 'Failed to update pastries' });
+  }
+});
+
+app.get('/api/omsk/settings/:key', (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { key } = req.params;
+  try {
+    const value = getSetting(key);
+    res.json({ key, value });
+  } catch (error) {
+    console.error('Error fetching setting:', error);
+    res.status(500).json({ error: 'Failed to fetch setting' });
+  }
+});
+
+app.put('/api/omsk/settings/:key', requireAdmin, express.json(), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { key } = req.params;
+  const { value } = req.body;
+  try {
+    const result = setSetting(key, value);
+    res.json(result);
+  } catch (error) {
+    console.error('Error updating setting:', error);
+    res.status(500).json({ error: 'Failed to update setting' });
+  }
+});
 
 // API Routes for Orders (existing functionality)
 app.get('/api/orders/:date', (req, res) => {

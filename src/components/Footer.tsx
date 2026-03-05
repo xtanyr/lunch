@@ -1,6 +1,9 @@
 import React from 'react';
+import { useTheme } from '../theme/ThemeContext';
 
 const Footer: React.FC = () => {
+  const { palette } = useTheme();
+  
   const images = [
     'March 7th.png',
     'March 7th_1.png',
@@ -33,13 +36,13 @@ const Footer: React.FC = () => {
     <footer
       className="p-4 text-center mt-auto border-t-2"
       style={{
-        backgroundColor: '#FDE7F0', // Very soft, light March 7th pink
-        borderColor: '#A0D8F0',    // Clear, light blue for top border
+        backgroundColor: palette.colors.background,
+        borderColor: palette.colors.border,
       }}
     >
       <div className="container mx-auto flex flex-col items-center justify-center gap-2 sm:flex-row sm:justify-center">
         <p
-          style={{ color: '#fea2ba' }}
+          style={{ color: palette.colors.primary }}
           className="font-semibold mb-2 sm:mb-0"
         >
           xtany
@@ -51,7 +54,7 @@ const Footer: React.FC = () => {
           loading="lazy"
         />
         <p
-          style={{ color: '#1adee6' }}
+          style={{ color: palette.colors.secondary }}
           className="font-semibold mb-2 sm:mb-0"
         >
           dev
