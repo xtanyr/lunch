@@ -2,8 +2,8 @@ module.exports = {
   apps: [
     {
       name: 'lunch-backend',
-      script: 'npx',
-      args: 'tsx server.js',
+      script: './node_modules/.bin/tsx',
+      args: 'server.js',
       instances: 1,
       exec_mode: 'fork',
       env: {

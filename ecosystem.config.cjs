@@ -2,12 +2,13 @@ module.exports = {
   apps: [
     {
       name: 'lunch-backend',
-      script: 'server.js',
-      instances: 'max',
-      exec_mode: 'cluster',
+      script: './node_modules/.bin/tsx',
+      args: 'server.js',
+      instances: 1,
+      exec_mode: 'fork',
       env: {
         NODE_ENV: 'production',
-        PORT: 3001
+        PORT: 3000
       },
       error_file: './logs/err.log',
       out_file: './logs/out.log',
@@ -15,13 +16,12 @@ module.exports = {
       time: true,
       autorestart: true,
       watch: false,
-      max_memory_restart: '1G',
-      node_args: '--loader tsx'
+      max_memory_restart: '1G'
     },
     {
       name: 'lunch-frontend',
       script: 'npx',
-      args: 'vite preview',
+      args: 'vite preview --port 3001 --host',
       cwd: './',
       env: {
         NODE_ENV: 'production'
