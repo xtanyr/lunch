@@ -20,8 +20,8 @@ module.exports = {
     },
     {
       name: 'lunch-frontend',
-      script: 'npm',
-      args: 'run build && npm run preview',
+      script: 'npx',
+      args: 'vite preview',
       cwd: './',
       env: {
         NODE_ENV: 'production'
