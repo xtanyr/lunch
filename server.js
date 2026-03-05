@@ -306,6 +306,130 @@ app.get('/api/omsk/orders-range', (req, res) => {
   }
 });
 
+// Excel export endpoint
+app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  
+  const { startDate, endDate, address } = req.query;
+  
+  if (!startDate || !endDate) {
+    return res.status(400).json({ error: 'Start date and end date are required' });
+  }
+  
+  try {
+    const XLSX = require('xlsx');
+    const orders = getOrdersByDateRange(startDate, endDate, address || 'all');
+    
+    // Group orders by date
+    const ordersByDate = {};
+    orders.forEach(order => {
+      if (!ordersByDate[order.orderDate]) {
+        ordersByDate[order.orderDate] = [];
+      }
+      ordersByDate[order.orderDate].push(order);
+    });
+    
+    // Create workbook
+    const workbook = XLSX.utils.book_new();
+    
+    // For each date, create a sheet
+    Object.keys(ordersByDate).sort().forEach(date => {
+      const dayOrders = ordersByDate[date];
+      const addressTotals = {};
+      
+      // Create Excel data
+      const excelData = [
+        ['Имя', 'Отдел', 'Адрес', 'Блюда', 'Цена', 'Время']
+      ];
+      
+      dayOrders.forEach(order => {
+        const items = order.items.map(item => 
+          `${item.dishName}${item.garnishName ? ` + ${item.garnishName}` : ''}${item.sauceName ? ` + ${item.sauceName}` : ''}`
+        ).join(', ');
+        
+        const totalPrice = order.totalPrice || 0;
+        const time = new Date(order.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        
+        excelData.push([
+          order.employeeName,
+          order.department,
+          order.address,
+          items,
+          totalPrice,
+          time
+        ]);
+        
+        // Calculate address totals
+        if (!addressTotals[order.address]) {
+          addressTotals[order.address] = 0;
+        }
+        addressTotals[order.address] += totalPrice;
+      });
+      
+      // Add totals
+      excelData.push(['', '', '', '', '', '']);
+      excelData.push(['', '', 'Итого по адресам:', '', '', '']);
+      Object.entries(addressTotals).forEach(([addr, total]) => {
+        excelData.push(['', '', addr, '', total, '']);
+      });
+      
+      // Create worksheet
+      const sheetName = date.replace(/-/g, '').slice(2);
+      const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+      worksheet['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 20 }, { wch: 8 }, { wch: 10 }, { wch: 10 }];
+      XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+    });
+    
+    // Create summary sheet
+    const summaryData = [['Отдел']];
+    const sortedDates = Object.keys(ordersByDate).sort();
+    sortedDates.forEach(date => summaryData.push([date]));
+    summaryData[0].push('Всего');
+    
+    // Calculate department totals for each date
+    const deptTotals = {};
+    orders.forEach(order => {
+      if (!deptTotals[order.department]) {
+        deptTotals[order.department] = {};
+      }
+      if (!deptTotals[order.department][order.orderDate]) {
+        deptTotals[order.department][order.orderDate] = 0;
+      }
+      deptTotals[order.department][order.orderDate] += order.totalPrice || 0;
+    });
+    
+    // Add department data
+    Object.keys(deptTotals).sort().forEach(dept => {
+      const row = [dept];
+      let total = 0;
+      sortedDates.forEach(date => {
+        const amount = deptTotals[dept][date] || 0;
+        row.push(amount);
+        total += amount;
+      });
+      row.push(total);
+      summaryData.push(row);
+    });
+    
+    // Create summary worksheet
+    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+    summarySheet['!cols'] = [{ wch: 20 }, ...sortedDates.map(() => ({ wch: 12 })), { wch: 15 }];
+    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Сводка');
+    
+    // Send Excel file
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=omsk_orders_${startDate}_${endDate}.xlsx`);
+    res.send(buffer);
+    
+  } catch (error) {
+    console.error('Export failed:', error);
+    res.status(500).json({ error: 'Export failed' });
+  }
+});
+
 // Check if user can order today
 app.get('/api/omsk/can-order', (req, res) => {
   if (!omskDbReady) {

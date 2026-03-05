@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../theme/ThemeContext';
-import { CITY_ADDRESSES } from '../constants';
-import * as XLSX from 'xlsx';
 
 interface Dish {
   id: string;
@@ -103,6 +101,8 @@ const OmskAdmin: React.FC = () => {
     const today = new Date();
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   });
+  
+  const [selectedExportAddress, setSelectedExportAddress] = useState('all');
   
   const [isExporting, setIsExporting] = useState(false);
 
@@ -509,170 +509,33 @@ const OmskAdmin: React.FC = () => {
   const exportToExcel = async () => {
     setIsExporting(true);
     try {
-      // Fetch orders for date range and menu data
-      const [ordersRes, garnishesRes, saucesRes] = await Promise.all([
-        fetch(`/api/omsk/orders-range?startDate=${exportStartDate}&endDate=${exportEndDate}`),
-        fetch('/api/omsk/garnishes'),
-        fetch('/api/omsk/sauces')
-      ]);
+      const params = new URLSearchParams({
+        startDate: exportStartDate,
+        endDate: exportEndDate,
+        address: selectedExportAddress || 'all'
+      });
       
-      if (!ordersRes.ok) throw new Error('Failed to fetch orders');
-      const ordersData = await ordersRes.json();
-      const garnishesData = await garnishesRes.json();
-      const saucesData = await saucesRes.json();
+      const response = await fetch(`/api/omsk/export/excel?${params}`, {
+        headers: {
+          'x-admin-code': getAdminCode()
+        }
+      });
       
-      if (!ordersData || ordersData.length === 0) {
-        alert('Нет заказов за выбранный период');
-        return;
+      if (!response.ok) {
+        throw new Error('Export failed');
       }
       
-      // Create mapping for garnish/sauce IDs to names
-      const garnishMap: Record<string, string> = {};
-      (garnishesData || []).forEach((g: any) => { garnishMap[g.id] = g.name; });
-      const sauceMap: Record<string, string> = {};
-      (saucesData || []).forEach((s: any) => { sauceMap[s.id] = s.name; });
+      // Create blob from response and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `omsk_orders_${exportStartDate}_${exportEndDate}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
       
-      // Group orders by date
-      const ordersByDate: Record<string, any[]> = {};
-      ordersData.forEach((order: any) => {
-        const date = order.orderDate;
-        if (!ordersByDate[date]) ordersByDate[date] = [];
-        ordersByDate[date].push(order);
-      });
-      
-      // Track totals for summary
-      const dateAddressTotals: Record<string, Record<string, number>> = {}; // date -> address -> total
-      const addressTotals: Record<string, number> = {}; // address -> total for all dates
-      
-      // Create workbook
-      const workbook = XLSX.utils.book_new();
-      
-      // For each date, create a sheet
-      Object.keys(ordersByDate).sort().forEach(date => {
-        const dateOrders = ordersByDate[date];
-        
-        // Group orders by address
-        const ordersByAddress: Record<string, any[]> = {};
-        dateOrders.forEach((order: any) => {
-          const addr = order.address || 'office';
-          if (!ordersByAddress[addr]) ordersByAddress[addr] = [];
-          ordersByAddress[addr].push(order);
-        });
-        
-        // Build Excel data for this date
-        const excelData: (string | number)[][] = [];
-        
-        // Add date as title
-        excelData.push([`Заказы за ${date}`]);
-        excelData.push([]);
-        
-        let dateTotal = 0;
-        
-        // For each address
-        Object.keys(ordersByAddress).sort().forEach(addr => {
-          const addrOrders = ordersByAddress[addr];
-          const addrLabel = addr === 'office' ? 'Офис' : (CITY_ADDRESSES.omsk?.find(a => a.id === addr)?.label || addr);
-          
-          // Add address header
-          excelData.push([addrLabel]);
-          excelData.push(['Блюдо', 'Гарнир', 'Соусы', 'Кол-во', 'Цена', 'Сумма']);
-          
-          // Aggregate items by dish name + garnish + sauce
-          const itemMap: Record<string, { quantity: number; price: number }> = {};
-          
-          addrOrders.forEach((order: any) => {
-            (order.items || []).forEach((item: any) => {
-              const garnishes = item.garnish ? (garnishMap[item.garnish] || item.garnish) : '';
-              const sauces = item.sauce ? (sauceMap[item.sauce] || item.sauce) : '';
-              const key = `${item.dishName}||${garnishes}||${sauces}`;
-              
-              if (!itemMap[key]) {
-                itemMap[key] = { quantity: 0, price: item.price || 0 };
-              }
-              itemMap[key].quantity++;
-            });
-          });
-          
-          // Add aggregated items
-          Object.entries(itemMap).forEach(([key, data]) => {
-            const [dishName, garnish, sauce] = key.split('||');
-            const total = data.price * data.quantity;
-            dateTotal += total;
-            excelData.push([dishName, garnish, sauce, data.quantity, data.price, total]);
-          });
-          
-          // Add address total
-          const addrTotal = Object.values(itemMap).reduce((sum, d) => sum + (d.price * d.quantity), 0);
-          excelData.push(['', '', 'Итого:', '', '', addrTotal]);
-          
-          // Track totals for summary
-          if (!dateAddressTotals[date]) dateAddressTotals[date] = {};
-          dateAddressTotals[date][addr] = addrTotal;
-          addressTotals[addr] = (addressTotals[addr] || 0) + addrTotal;
-          
-          excelData.push([]);
-        });
-        
-        // Add date total
-        excelData.push(['', '', 'Всего за день:', '', '', dateTotal]);
-        
-        // Create worksheet
-        const sheetName = date.replace(/-/g, '').slice(2); // e.g., 2026-03-05 -> 260305
-        const worksheet = XLSX.utils.aoa_to_sheet(excelData);
-        worksheet['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 20 }, { wch: 8 }, { wch: 10 }, { wch: 10 }];
-        XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-      });
-      
-      // Create summary sheet
-      const summaryData: (string | number)[][] = [];
-      summaryData.push(['Сводка по заказам']);
-      summaryData.push([]);
-      
-      // Get all unique dates and addresses
-      const sortedDates = Object.keys(ordersByDate).sort();
-      const allAddresses = new Set<string>();
-      Object.values(ordersByDate).forEach(orders => {
-        orders.forEach((o: any) => allAddresses.add(o.address || 'office'));
-      });
-      const sortedAddresses = Array.from(allAddresses).sort();
-      
-      // Build header row: Адрес, date1, date2, ..., Итого
-      const headerRow: (string | number)[] = ['Адрес'];
-      sortedDates.forEach(d => headerRow.push(d));
-      headerRow.push('Всего');
-      summaryData.push(headerRow);
-      
-      // Add row for each address
-      sortedAddresses.forEach(addr => {
-        const row: (string | number)[] = [addr === 'office' ? 'Офис' : (CITY_ADDRESSES.omsk?.find(a => a.id === addr)?.label || addr)];
-        let addrSum = 0;
-        sortedDates.forEach(date => {
-          const total = dateAddressTotals[date]?.[addr] || 0;
-          row.push(total);
-          addrSum += total;
-        });
-        row.push(addrSum);
-        summaryData.push(row);
-      });
-      
-      // Add total row
-      const totalRow: (string | number)[] = ['Всего'];
-      let grandTotal = 0;
-      sortedDates.forEach(date => {
-        const dayTotal = Object.values(dateAddressTotals[date] || {}).reduce((a, b) => a + b, 0);
-        totalRow.push(dayTotal);
-        grandTotal += dayTotal;
-      });
-      totalRow.push(grandTotal);
-      summaryData.push(totalRow);
-      
-      // Create summary worksheet
-      const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-      summarySheet['!cols'] = [{ wch: 20 }, ...sortedDates.map(() => ({ wch: 12 })), { wch: 15 }];
-      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Сводка');
-      
-      // Download Excel file
-      XLSX.writeFile(workbook, `omsk_orders_${exportStartDate}_${exportEndDate}.xlsx`);
     } catch (error) {
       console.error('Export failed:', error);
       alert('Ошибка экспорта');
@@ -1334,6 +1197,16 @@ const OmskAdmin: React.FC = () => {
                     className="px-3 py-2 rounded border"
                     style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.cardBg, color: palette.colors.text }}
                   />
+                  <select
+                    value={selectedExportAddress}
+                    onChange={e => setSelectedExportAddress(e.target.value)}
+                    className="px-3 py-2 rounded border"
+                    style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.cardBg, color: palette.colors.text }}
+                  >
+                    <option value="all">Все адреса</option>
+                    <option value="office">Офис</option>
+                    <option value="coffee-shop">Кофейня</option>
+                  </select>
                   <button
                     onClick={exportToExcel}
                     disabled={isExporting}
