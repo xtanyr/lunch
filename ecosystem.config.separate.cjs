@@ -2,9 +2,10 @@ module.exports = {
   apps: [
     {
       name: 'lunch-backend',
-      script: 'server.js',
-      instances: 2,
-      exec_mode: 'cluster',
+      script: 'npx',
+      args: 'tsx server.js',
+      instances: 1,
+      exec_mode: 'fork',
       env: {
         NODE_ENV: 'production',
         PORT: 3001
@@ -15,8 +16,7 @@ module.exports = {
       time: true,
       autorestart: true,
       watch: false,
-      max_memory_restart: '1G',
-      node_args: '--loader tsx'
+      max_memory_restart: '1G'
     }
   ]
 };
