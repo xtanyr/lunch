@@ -11,7 +11,7 @@
     "start": "concurrently \"npm run server\" \"npm run dev\"",
     "start:win": "npm run server & npm run dev",
     "prod:build": "npm run build",
-    "prod:start": "pm2 start ecosystem.config.js",
+    "prod:start": "pm2 start ecosystem.config.cjs",
     "prod:restart": "pm2 restart all",
     "prod:stop": "pm2 stop all",
     "prod:logs": "pm2 logs"
