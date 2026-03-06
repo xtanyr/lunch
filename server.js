@@ -622,7 +622,7 @@ app.post('/api/omsk/dishes', requireAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
-  const { name, category, price, weekNumber, composition, protein, carbs, fats } = req.body;
+  const { name, category, price, weekNumber, composition, protein, carbs, fats, grams, calories } = req.body;
   if (!name || !category) {
     return res.status(400).json({ error: 'name and category are required' });
   }
@@ -645,6 +645,8 @@ app.post('/api/omsk/dishes', requireAdmin, express.json(), (req, res) => {
       protein: protein !== undefined && protein !== '' ? parseFloat(protein) : null,
       carbs: carbs !== undefined && carbs !== '' ? parseFloat(carbs) : null,
       fats: fats !== undefined && fats !== '' ? parseFloat(fats) : null,
+      grams: grams !== undefined && grams !== '' ? parseInt(grams) : null,
+      calories: calories !== undefined && calories !== '' ? parseInt(calories) : null,
       isActive: true
     };
     const items = getMenuItems();
@@ -935,7 +937,7 @@ app.post('/api/omsk/vegan-items', requireAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
-  const { name, price, composition, protein, carbs, fats } = req.body;
+  const { name, price, composition, protein, carbs, fats, grams, calories } = req.body;
   if (!name || !price) {
     return res.status(400).json({ error: 'Name and price are required' });
   }
@@ -947,7 +949,9 @@ app.post('/api/omsk/vegan-items', requireAdmin, express.json(), (req, res) => {
       composition,
       protein: protein ? parseFloat(protein) : undefined,
       carbs: carbs ? parseFloat(carbs) : undefined,
-      fats: fats ? parseFloat(fats) : undefined
+      fats: fats ? parseFloat(fats) : undefined,
+      grams: grams ? parseInt(grams) : undefined,
+      calories: calories ? parseInt(calories) : undefined
     });
     res.json(newItem);
   } catch (error) {

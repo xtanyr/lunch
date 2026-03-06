@@ -313,14 +313,15 @@ export function updateWeekMenuItems(weekNumber: number, items: any[]) {
   const transaction = db.transaction(() => {
     db.prepare('DELETE FROM week_menu_items WHERE weekNumber = ?').run(weekNumber);
     const insertStmt = db.prepare(`
-      INSERT INTO week_menu_items (id, weekNumber, name, category, price, composition, protein, carbs, fats, isActive)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO week_menu_items (id, weekNumber, name, category, price, composition, protein, carbs, fats, grams, calories, isActive)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const item of items) {
       insertStmt.run(
         item.id, weekNumber, item.name, item.category, item.price || 0,
         item.composition || null, item.protein || null, item.carbs || null,
-        item.fats || null, item.isActive !== false ? 1 : 0
+        item.fats || null, item.grams || null, item.calories || null,
+        item.isActive !== false ? 1 : 0
       );
     }
   });
@@ -353,10 +354,10 @@ export function updateVeganItems(items: any[]) {
   return { success: true };
 }
 
-export function insertVeganItem(item: { name: string; price: number; composition?: string; protein?: number; carbs?: number; fats?: number }) {
+export function insertVeganItem(item: { name: string; price: number; composition?: string; protein?: number; carbs?: number; fats?: number; grams?: number; calories?: number }) {
   const id = `vegan_${Date.now()}`;
-  const stmt = db.prepare('INSERT INTO vegan_items (id, name, price, composition, protein, carbs, fats, isActive) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-  stmt.run(id, item.name, item.price, item.composition || null, item.protein || null, item.carbs || null, item.fats || null, 1);
+  const stmt = db.prepare('INSERT INTO vegan_items (id, name, price, composition, protein, carbs, fats, grams, calories, isActive) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  stmt.run(id, item.name, item.price, item.composition || null, item.protein || null, item.carbs || null, item.fats || null, item.grams || null, item.calories || null, 1);
   return { id, ...item, isActive: 1 };
 }
 

@@ -249,6 +249,18 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
 
   const validationError = validateCombination();
 
+  // Reset all selections
+  const resetSelections = () => {
+    setSelectedSoup(null);
+    setSelectedPastry('');
+    setSelectedHotDish(null);
+    setSelectedSalad(null);
+    setSelectedVegan(null);
+    setSelectedOther(null);
+    setSelectedGarnish('');
+    setSelectedSauce('');
+  };
+
   const handleSubmit = () => {
     // Build order items
     const items: OrderItem[] = [];
@@ -334,6 +346,10 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
       ...currentOrder,
       items,
     });
+    
+    // Reset all selections after order submission
+    resetSelections();
+    
     onSubmit();
   };
 
@@ -464,11 +480,13 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                       {dish.composition}
                     </div>
                   )}
-                  {(dish.protein || dish.carbs || dish.fats) && (
+                  {(dish.protein || dish.carbs || dish.fats || dish.grams || dish.calories) && (
                     <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
                       {dish.protein && <span>Б: {dish.protein}г </span>}
                       {dish.carbs && <span>У: {dish.carbs}г </span>}
                       {dish.fats && <span>Ж: {dish.fats}г</span>}
+                      {dish.grams && <span> | {dish.grams}г</span>}
+                      {dish.calories && <span> | {dish.calories}ккал</span>}
                     </div>
                   )}
                 </button>
@@ -534,11 +552,13 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                       {dish.composition}
                     </div>
                   )}
-                  {(dish.protein || dish.carbs || dish.fats) && (
+                  {(dish.protein || dish.carbs || dish.fats || dish.grams || dish.calories) && (
                     <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
                       {dish.protein && <span>Б: {dish.protein}г </span>}
                       {dish.carbs && <span>У: {dish.carbs}г </span>}
                       {dish.fats && <span>Ж: {dish.fats}г</span>}
+                      {dish.grams && <span> | {dish.grams}г</span>}
+                      {dish.calories && <span> | {dish.calories}ккал</span>}
                     </div>
                   )}
                 </button>
@@ -605,11 +625,13 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                       {dish.composition}
                     </div>
                   )}
-                  {(dish.protein || dish.carbs || dish.fats) && (
+                  {(dish.protein || dish.carbs || dish.fats || dish.grams || dish.calories) && (
                     <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
                       {dish.protein && <span>Б: {dish.protein}г </span>}
                       {dish.carbs && <span>У: {dish.carbs}г </span>}
                       {dish.fats && <span>Ж: {dish.fats}г</span>}
+                      {dish.grams && <span> | {dish.grams}г</span>}
+                      {dish.calories && <span> | {dish.calories}ккал</span>}
                     </div>
                   )}
                 </button>
@@ -695,11 +717,13 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                       {dish.composition}
                     </div>
                   )}
-                  {(dish.protein || dish.carbs || dish.fats) && (
+                  {(dish.protein || dish.carbs || dish.fats || dish.grams || dish.calories) && (
                     <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
                       {dish.protein && <span>Б: {dish.protein}г </span>}
                       {dish.carbs && <span>У: {dish.carbs}г </span>}
                       {dish.fats && <span>Ж: {dish.fats}г</span>}
+                      {dish.grams && <span> | {dish.grams}г</span>}
+                      {dish.calories && <span> | {dish.calories}ккал</span>}
                     </div>
                   )}
                 </button>
@@ -736,11 +760,13 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                       {dish.composition}
                     </div>
                   )}
-                  {(dish.protein || dish.carbs || dish.fats) && (
+                  {(dish.protein || dish.carbs || dish.fats || dish.grams || dish.calories) && (
                     <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
                       {dish.protein && <span>Б: {dish.protein}г </span>}
                       {dish.carbs && <span>У: {dish.carbs}г </span>}
                       {dish.fats && <span>Ж: {dish.fats}г</span>}
+                      {dish.grams && <span> | {dish.grams}г</span>}
+                      {dish.calories && <span> | {dish.calories}ккал</span>}
                     </div>
                   )}
                 </button>
@@ -777,11 +803,13 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                       {dish.composition}
                     </div>
                   )}
-                  {(dish.protein || dish.carbs || dish.fats) && (
+                  {(dish.protein || dish.carbs || dish.fats || dish.grams || dish.calories) && (
                     <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
                       {dish.protein && <span>Б: {dish.protein}г </span>}
                       {dish.carbs && <span>У: {dish.carbs}г </span>}
                       {dish.fats && <span>Ж: {dish.fats}г</span>}
+                      {dish.grams && <span> | {dish.grams}г</span>}
+                      {dish.calories && <span> | {dish.calories}ккал</span>}
                     </div>
                   )}
                 </button>
