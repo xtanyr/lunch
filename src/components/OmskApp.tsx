@@ -365,8 +365,8 @@ const OmskApp: React.FC = () => {
 
         {/* Orders List */}
         <section className="flex-1 overflow-visible" style={{ minHeight: '400px' }}>
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
               <h2 className="text-2xl font-bold" style={{ color: palette.colors.text }}>Заказы</h2>
               <select
                 value={selectedDepartment}
@@ -390,7 +390,7 @@ const OmskApp: React.FC = () => {
               type="date"
               value={selectedAggregateDate}
               onChange={(e) => setSelectedAggregateDate(e.target.value)}
-              className="px-4 py-2 rounded-lg border"
+              className="px-4 py-2 rounded-lg border w-full sm:w-auto"
               style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.cardBg, color: palette.colors.text }}
             />
           </div>
