@@ -452,6 +452,60 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
       XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
     });
     
+    // Create summary sheet with daily totals by address
+    const summaryData = [['Наименование']];
+    const allDates = Object.keys(ordersByDate).sort();
+    allDates.forEach(date => summaryData[0].push(date));
+    summaryData[0].push('ИТОГО');
+
+    const addressDailyTotals = {}; // { address: { date: total, date: total, ... }, ... }
+    const addressGrandTotals = {}; // { address: grandTotal, ... }
+    const dailyGrandTotals = {}; // { date: total, ... }
+    let overallGrandTotal = 0;
+
+    // Initialize dailyGrandTotals
+    allDates.forEach(date => dailyGrandTotals[date] = 0);
+
+    // Populate addressDailyTotals and addressGrandTotals
+    orders.forEach(order => {
+      const addr = order.address || 'unknown';
+      const orderDate = order.orderDate;
+      const totalPrice = order.totalPrice || 0;
+
+      if (!addressDailyTotals[addr]) {
+        addressDailyTotals[addr] = {};
+        allDates.forEach(date => addressDailyTotals[addr][date] = 0);
+      }
+      addressDailyTotals[addr][orderDate] += totalPrice;
+
+      addressGrandTotals[addr] = (addressGrandTotals[addr] || 0) + totalPrice;
+      dailyGrandTotals[orderDate] += totalPrice;
+      overallGrandTotal += totalPrice;
+    });
+
+    // Add address rows to summaryData
+    Object.keys(addressDailyTotals).sort().forEach(addr => {
+      const row = [addr];
+      allDates.forEach(date => row.push(addressDailyTotals[addr][date]));
+      row.push(addressGrandTotals[addr]);
+      summaryData.push(row);
+    });
+
+    // Add "ИТОГО ПО ДНЯМ" row
+    const dailyTotalRow = ['ИТОГО ПО ДНЯМ'];
+    allDates.forEach(date => dailyTotalRow.push(dailyGrandTotals[date]));
+    dailyTotalRow.push(overallGrandTotal);
+    summaryData.push(dailyTotalRow);
+
+    // Create summary worksheet
+    const summaryWorksheet = XLSX.utils.aoa_to_sheet(summaryData);
+    const summaryCols = [{ wch: 25 }]; // Width for 'Наименование' column
+    for (let i = 0; i < allDates.length + 1; i++) { // +1 for 'ИТОГО' column
+      summaryCols.push({ wch: 15 }); // Width for date and total columns
+    }
+    summaryWorksheet['!cols'] = summaryCols;
+    XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Сводка');
+    
     // Send Excel file
     const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
