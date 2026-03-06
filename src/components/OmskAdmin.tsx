@@ -53,17 +53,23 @@ const OmskAdmin: React.FC = () => {
     composition: '',
     protein: '',
     carbs: '',
-    fats: ''
+    fats: '',
+    grams: '',
+    calories: ''
   });
   
   // Form state for adding garnishes
   const [newGarnish, setNewGarnish] = useState({
-    name: ''
+    name: '',
+    grams: '',
+    calories: ''
   });
   
   // Form state for adding sauces
   const [newSauce, setNewSauce] = useState({
-    name: ''
+    name: '',
+    grams: '',
+    calories: ''
   });
   
   // Form state for adding vegan items
@@ -73,7 +79,9 @@ const OmskAdmin: React.FC = () => {
     composition: '',
     protein: '',
     carbs: '',
-    fats: ''
+    fats: '',
+    grams: '',
+    calories: ''
   });
   
   // Form state for disabled dates
@@ -191,7 +199,7 @@ const OmskAdmin: React.FC = () => {
       if (response.ok) {
         const savedDish = await response.json();
         setDishes([...dishes, savedDish]);
-        setNewDish({ name: '', category: 'hot', weekNumber: 1, composition: '', protein: '', carbs: '', fats: '' });
+        setNewDish({ name: '', category: 'hot', weekNumber: 1, composition: '', protein: '', carbs: '', fats: '', grams: '', calories: '' });
       }
     } catch (error) {
       console.error('Failed to save dish:', error);
@@ -226,13 +234,17 @@ const OmskAdmin: React.FC = () => {
           'Content-Type': 'application/json',
           'x-admin-code': getAdminCode()
         },
-        body: JSON.stringify({ name: newGarnish.name })
+        body: JSON.stringify({ 
+          name: newGarnish.name,
+          grams: parseInt(newGarnish.grams) || 50,
+          calories: parseInt(newGarnish.calories) || 0
+        })
       });
       
       if (response.ok) {
         const newGarnishData = await response.json();
         setGarnishes([...garnishes, newGarnishData]);
-        setNewGarnish({ name: '' });
+        setNewGarnish({ name: '', grams: '', calories: '' });
       }
     } catch (error) {
       console.error('Failed to add garnish:', error);
@@ -290,13 +302,17 @@ const OmskAdmin: React.FC = () => {
           'Content-Type': 'application/json',
           'x-admin-code': getAdminCode()
         },
-        body: JSON.stringify({ name: newSauce.name })
+        body: JSON.stringify({ 
+          name: newSauce.name,
+          grams: parseInt(newSauce.grams) || 30,
+          calories: parseInt(newSauce.calories) || 0
+        })
       });
       
       if (response.ok) {
         const newSauceData = await response.json();
         setSauces([...sauces, newSauceData]);
-        setNewSauce({ name: '' });
+        setNewSauce({ name: '', grams: '', calories: '' });
       }
     } catch (error) {
       console.error('Failed to add sauce:', error);
@@ -363,7 +379,9 @@ const OmskAdmin: React.FC = () => {
           composition: newVeganItem.composition,
           protein: parseFloat(newVeganItem.protein) || 0,
           carbs: parseFloat(newVeganItem.carbs) || 0,
-          fats: parseFloat(newVeganItem.fats) || 0
+          fats: parseFloat(newVeganItem.fats) || 0,
+          grams: parseInt(newVeganItem.grams) || 100,
+          calories: parseInt(newVeganItem.calories) || 0
         })
       });
       
@@ -376,7 +394,9 @@ const OmskAdmin: React.FC = () => {
           composition: '',
           protein: '',
           carbs: '',
-          fats: ''
+          fats: '',
+          grams: '',
+          calories: ''
         });
       }
     } catch (error) {
@@ -761,6 +781,22 @@ const OmskAdmin: React.FC = () => {
                       className="px-3 py-2 rounded border"
                       style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
                     />
+                    <input
+                      type="number"
+                      placeholder="Вес (г)"
+                      value={newDish.grams}
+                      onChange={e => setNewDish({ ...newDish, grams: e.target.value })}
+                      className="px-3 py-2 rounded border"
+                      style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Калории (ккал)"
+                      value={newDish.calories}
+                      onChange={e => setNewDish({ ...newDish, calories: e.target.value })}
+                      className="px-3 py-2 rounded border"
+                      style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                    />
                   </div>
                   <button
                     onClick={handleSaveDish}
@@ -851,6 +887,22 @@ const OmskAdmin: React.FC = () => {
                       className="flex-1 px-3 py-2 rounded border"
                       style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
                     />
+                    <input
+                      type="number"
+                      placeholder="Вес (г)"
+                      value={newGarnish.grams}
+                      onChange={e => setNewGarnish({ ...newGarnish, grams: e.target.value })}
+                      className="w-24 px-3 py-2 rounded border"
+                      style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Калории (ккал)"
+                      value={newGarnish.calories}
+                      onChange={e => setNewGarnish({ ...newGarnish, calories: e.target.value })}
+                      className="w-28 px-3 py-2 rounded border"
+                      style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                    />
                     <button
                       onClick={handleAddGarnish}
                       className="px-4 py-2 rounded text-white"
@@ -907,6 +959,22 @@ const OmskAdmin: React.FC = () => {
                       value={newSauce.name}
                       onChange={e => setNewSauce({ ...newSauce, name: e.target.value })}
                       className="flex-1 px-3 py-2 rounded border"
+                      style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Вес (г)"
+                      value={newSauce.grams}
+                      onChange={e => setNewSauce({ ...newSauce, grams: e.target.value })}
+                      className="w-24 px-3 py-2 rounded border"
+                      style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Калории (ккал)"
+                      value={newSauce.calories}
+                      onChange={e => setNewSauce({ ...newSauce, calories: e.target.value })}
+                      className="w-28 px-3 py-2 rounded border"
                       style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
                     />
                     <button
@@ -1004,6 +1072,22 @@ const OmskAdmin: React.FC = () => {
                       placeholder="Жиры (г)"
                       value={newVeganItem.fats}
                       onChange={e => setNewVeganItem({ ...newVeganItem, fats: e.target.value })}
+                      className="px-3 py-2 rounded border"
+                      style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Вес (г)"
+                      value={newVeganItem.grams}
+                      onChange={e => setNewVeganItem({ ...newVeganItem, grams: e.target.value })}
+                      className="px-3 py-2 rounded border"
+                      style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Калории (ккал)"
+                      value={newVeganItem.calories}
+                      onChange={e => setNewVeganItem({ ...newVeganItem, calories: e.target.value })}
                       className="px-3 py-2 rounded border"
                       style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
                     />

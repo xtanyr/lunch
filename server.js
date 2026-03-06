@@ -962,16 +962,16 @@ app.post('/api/omsk/garnishes', requireAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
-  const { name } = req.body;
+  const { name, grams, calories } = req.body;
   if (!name) {
     return res.status(400).json({ error: 'Name is required' });
   }
   
   try {
     const id = `garnish_${Date.now()}`;
-    const stmt = db.prepare('INSERT INTO garnishes (id, name) VALUES (?, ?)');
-    stmt.run(id, name);
-    res.json({ id, name, isActive: 1 });
+    const stmt = db.prepare('INSERT INTO garnishes (id, name, grams, calories) VALUES (?, ?, ?, ?)');
+    stmt.run(id, name, grams || 50, calories || 0);
+    res.json({ id, name, grams: grams || 50, calories: calories || 0, isActive: 1 });
   } catch (error) {
     console.error('Error adding garnish:', error);
     res.status(500).json({ error: 'Failed to add garnish' });
@@ -1044,16 +1044,16 @@ app.post('/api/omsk/sauces', requireAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
-  const { name } = req.body;
+  const { name, grams, calories } = req.body;
   if (!name) {
     return res.status(400).json({ error: 'Name is required' });
   }
   
   try {
     const id = `sauce_${Date.now()}`;
-    const stmt = db.prepare('INSERT INTO sauces (id, name) VALUES (?, ?)');
-    stmt.run(id, name);
-    res.json({ id, name, isActive: 1 });
+    const stmt = db.prepare('INSERT INTO sauces (id, name, grams, calories) VALUES (?, ?, ?, ?)');
+    stmt.run(id, name, grams || 30, calories || 0);
+    res.json({ id, name, grams: grams || 30, calories: calories || 0, isActive: 1 });
   } catch (error) {
     console.error('Error adding sauce:', error);
     res.status(500).json({ error: 'Failed to add sauce' });

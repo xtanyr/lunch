@@ -20,6 +20,7 @@ export interface Dish {
   protein?: number; // Белки (г)
   carbs?: number;   // Углеводы (г)
   fats?: number;    // Жиры (г)
+  grams?: number;   // Вес порции (г)
   calories?: number; // Калории (ккал)
   garnishGrams?: number;  // Вес гарнира (г)
   sideDishGrams?: number; // Вес гарнира (г)
@@ -33,6 +34,7 @@ export interface CurrentOrderItem {
   protein?: number;
   carbs?: number;
   fats?: number;
+  grams?: number;
   calories?: number;
   garnishGrams?: number;
   sideDishGrams?: number;

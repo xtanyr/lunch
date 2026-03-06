@@ -48,6 +48,8 @@ export function initOmskDatabase() {
         protein REAL,
         carbs REAL,
         fats REAL,
+        grams INTEGER DEFAULT 100,
+        calories INTEGER DEFAULT 0,
         isActive INTEGER DEFAULT 1
       );
 
@@ -60,6 +62,8 @@ export function initOmskDatabase() {
         protein REAL,
         carbs REAL,
         fats REAL,
+        grams INTEGER DEFAULT 100,
+        calories INTEGER DEFAULT 0,
         isActive INTEGER DEFAULT 1
       );
 
@@ -72,6 +76,8 @@ export function initOmskDatabase() {
         protein REAL,
         carbs REAL,
         fats REAL,
+        grams INTEGER DEFAULT 100,
+        calories INTEGER DEFAULT 0,
         isActive INTEGER DEFAULT 1
       );
 
@@ -79,6 +85,8 @@ export function initOmskDatabase() {
       CREATE TABLE IF NOT EXISTS garnishes (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
+        grams INTEGER DEFAULT 50,
+        calories INTEGER DEFAULT 0,
         isActive INTEGER DEFAULT 1
       );
 
@@ -86,6 +94,8 @@ export function initOmskDatabase() {
       CREATE TABLE IF NOT EXISTS sauces (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
+        grams INTEGER DEFAULT 30,
+        calories INTEGER DEFAULT 0,
         isActive INTEGER DEFAULT 1
       );
 
@@ -94,6 +104,8 @@ export function initOmskDatabase() {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         isVegan INTEGER DEFAULT 0,
+        grams INTEGER DEFAULT 80,
+        calories INTEGER DEFAULT 0,
         isActive INTEGER DEFAULT 1
       );
 
@@ -320,9 +332,9 @@ export function getGarnishes() {
 export function updateGarnishes(items: any[]) {
   const transaction = db.transaction(() => {
     db.prepare('DELETE FROM garnishes').run();
-    const insertStmt = db.prepare('INSERT INTO garnishes (id, name, isActive) VALUES (?, ?, ?)');
+    const insertStmt = db.prepare('INSERT INTO garnishes (id, name, grams, calories, isActive) VALUES (?, ?, ?, ?, ?)');
     for (const item of items) {
-      insertStmt.run(item.id, item.name, item.isActive !== false ? 1 : 0);
+      insertStmt.run(item.id, item.name, item.grams || 50, item.calories || 0, item.isActive !== false ? 1 : 0);
     }
   });
   transaction();
@@ -338,9 +350,9 @@ export function getSauces() {
 export function updateSauces(items: any[]) {
   const transaction = db.transaction(() => {
     db.prepare('DELETE FROM sauces').run();
-    const insertStmt = db.prepare('INSERT INTO sauces (id, name, isActive) VALUES (?, ?, ?)');
+    const insertStmt = db.prepare('INSERT INTO sauces (id, name, grams, calories, isActive) VALUES (?, ?, ?, ?, ?)');
     for (const item of items) {
-      insertStmt.run(item.id, item.name, item.isActive !== false ? 1 : 0);
+      insertStmt.run(item.id, item.name, item.grams || 30, item.calories || 0, item.isActive !== false ? 1 : 0);
     }
   });
   transaction();
