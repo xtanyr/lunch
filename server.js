@@ -321,6 +321,17 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
   }
   
   try {
+    // Get garnishes and sauces for name lookup
+    const garnishes = getGarnishes();
+    const sauces = getSauces();
+    
+    // Create lookup maps
+    const garnishMap = {};
+    garnishes.forEach(g => garnishMap[g.id] = g.name);
+    
+    const sauceMap = {};
+    sauces.forEach(s => sauceMap[s.id] = s.name);
+    
     let orders;
     try {
       orders = getOrdersByDateRange(startDate, endDate, address || 'all');
@@ -376,14 +387,18 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
           if (!order.items || !Array.isArray(order.items)) return;
           
           order.items.forEach(item => {
-            const key = `${item.dishName}|||${item.garnish || '---'}|||${item.sauce || '---'}`;
+            // Look up garnish and sauce names
+            const garnishName = item.garnish ? (garnishMap[item.garnish] || item.garnish) : '';
+            const sauceName = item.sauce ? (sauceMap[item.sauce] || item.sauce) : '';
+            
+            const key = `${item.dishName}|||${garnishName || '---'}|||${sauceName || '---'}`;
             if (!dishMap[key]) {
               dishMap[key] = { 
                 quantity: 0, 
                 price: item.price || 0,
                 dishName: item.dishName,
-                garnish: item.garnish || '',
-                sauce: item.sauce || ''
+                garnish: garnishName || '',
+                sauce: sauceName || ''
               };
             }
             dishMap[key].quantity += 1;
