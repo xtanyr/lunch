@@ -52,9 +52,9 @@ import {
   updatePastries,
   getSetting,
   setSetting,
-  omskDb,
-  CITY_ADDRESSES
+  omskDb
 } from './src/database.ts';
+import { CITY_ADDRESSES } from './src/constants.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
