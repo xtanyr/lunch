@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
+import XLSX from 'xlsx';
 
 // Admin code - should be set via environment variable OMSK_ADMIN_CODE
 // Default fallback provided for development only - remove in production
@@ -320,8 +321,6 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
   }
   
   try {
-    const XLSX = require('xlsx');
-    
     let orders;
     try {
       orders = getOrdersByDateRange(startDate, endDate, address || 'all');
@@ -347,102 +346,96 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
     // For each date, create a sheet
     Object.keys(ordersByDate).sort().forEach(date => {
       const dayOrders = ordersByDate[date];
-      const addressTotals = {};
       
-      // Create Excel data
-      const excelData = [
-        ['Имя', 'Отдел', 'Адрес', 'Блюда', 'Цена', 'Время']
-      ];
-      
+      // Group orders by address
+      const ordersByAddress = {};
       dayOrders.forEach(order => {
-        try {
-          // Skip orders with missing critical data
-          if (!order.items || !Array.isArray(order.items)) {
-            console.warn('Skipping order with invalid items:', order.id);
-            return;
-          }
-          
-          const items = order.items.map(item => 
-            `${item.dishName}${item.garnishName ? ` + ${item.garnishName}` : ''}${item.sauceName ? ` + ${item.sauceName}` : ''}`
-          ).join(', ');
-          
-          const totalPrice = order.totalPrice || 0;
-          let time = '';
-          try {
-            time = order.timestamp ? new Date(order.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
-          } catch (timeError) {
-            console.warn('Invalid timestamp for order:', order.id, order.timestamp);
-            time = '';
-          }
-          
-          excelData.push([
-            order.employeeName,
-            order.department,
-            order.address,
-            items,
-            totalPrice,
-            time
-          ]);
-        
-          // Calculate address totals
-        if (!addressTotals[order.address]) {
-          addressTotals[order.address] = 0;
+        const addr = order.address || 'unknown';
+        if (!ordersByAddress[addr]) {
+          ordersByAddress[addr] = [];
         }
-        addressTotals[order.address] += totalPrice;
-        } catch (orderError) {
-          console.error('Error processing order for Excel:', order.id, orderError);
-        }
+        ordersByAddress[addr].push(order);
       });
       
-      // Add totals
-      excelData.push(['', '', '', '', '', '']);
-      excelData.push(['', '', 'Итого по адресам:', '', '', '']);
-      Object.entries(addressTotals).forEach(([addr, total]) => {
-        excelData.push(['', '', addr, '', total, '']);
+      const excelData = [];
+      
+      // Track dish totals for the day
+      const dishDayTotals = {};
+      
+      // Process each address
+      Object.keys(ordersByAddress).sort().forEach(addr => {
+        const addressOrders = ordersByAddress[addr];
+        
+        // Add address header
+        excelData.push([addr]);
+        excelData.push(['Блюдо', 'Гарнир', 'Кол-во', 'Цена', 'Сумма']);
+        
+        // Aggregate dishes for this address
+        const dishMap = {};
+        addressOrders.forEach(order => {
+          if (!order.items || !Array.isArray(order.items)) return;
+          
+          order.items.forEach(item => {
+            const key = `${item.dishName}|||${item.garnish || '---'}|||${item.sauce || '---'}`;
+            if (!dishMap[key]) {
+              dishMap[key] = { 
+                quantity: 0, 
+                price: item.price || 0,
+                dishName: item.dishName,
+                garnish: item.garnish || '',
+                sauce: item.sauce || ''
+              };
+            }
+            dishMap[key].quantity += 1;
+          });
+        });
+        
+        let addressTotal = 0;
+        
+        // Add dishes sorted by name
+        Object.values(dishMap)
+          .sort((a, b) => a.dishName.localeCompare(b.dishName))
+          .forEach((data) => {
+            const totalPrice = data.price * data.quantity;
+            addressTotal += totalPrice;
+            
+            excelData.push([
+              data.dishName,
+              data.garnish + (data.sauce ? ' + ' + data.sauce : ''),
+              data.quantity,
+              data.price,
+              totalPrice
+            ]);
+            
+            // Track day totals
+            const dayKey = `${data.dishName}|||${data.garnish}`;
+            if (!dishDayTotals[dayKey]) {
+              dishDayTotals[dayKey] = { dishName: data.dishName, garnish: data.garnish, quantity: 0 };
+            }
+            dishDayTotals[dayKey].quantity += data.quantity;
+          });
+        
+        // Add address total
+        excelData.push(['', '', '', 'Итого:', addressTotal]);
+        excelData.push([]); // Empty row
       });
+      
+      // Add dish totals for the day at the bottom
+      excelData.push(['Итого по блюдам за день']);
+      excelData.push(['Блюдо', 'Гарнир', 'Общее кол-во']);
+      
+      Object.values(dishDayTotals)
+        .sort((a, b) => a.dishName.localeCompare(b.dishName))
+        .forEach((data) => {
+          excelData.push([data.dishName, data.garnish, data.quantity]);
+        });
       
       // Create worksheet
       const sheetName = date.replace(/-/g, '').slice(2);
       const worksheet = XLSX.utils.aoa_to_sheet(excelData);
-      worksheet['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 20 }, { wch: 8 }, { wch: 10 }, { wch: 10 }];
+      worksheet['!cols'] = [{ wch: 25 }, { wch: 20 }, { wch: 8 }, { wch: 10 }, { wch: 10 }];
       XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
     });
-    
-    // Create summary sheet
-    const summaryData = [['Отдел']];
-    const sortedDates = Object.keys(ordersByDate).sort();
-    sortedDates.forEach(date => summaryData.push([date]));
-    summaryData[0].push('Всего');
-    
-    // Calculate department totals for each date
-    const deptTotals = {};
-    orders.forEach(order => {
-      if (!deptTotals[order.department]) {
-        deptTotals[order.department] = {};
-      }
-      if (!deptTotals[order.department][order.orderDate]) {
-        deptTotals[order.department][order.orderDate] = 0;
-      }
-      deptTotals[order.department][order.orderDate] += order.totalPrice || 0;
-    });
-    
-    // Add department data
-    Object.keys(deptTotals).sort().forEach(dept => {
-      const row = [dept];
-      let total = 0;
-      sortedDates.forEach(date => {
-        const amount = deptTotals[dept][date] || 0;
-        row.push(amount);
-        total += amount;
-      });
-      row.push(total);
-      summaryData.push(row);
-    });
-    
-    // Create summary worksheet
-    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-    summarySheet['!cols'] = [{ wch: 20 }, ...sortedDates.map(() => ({ wch: 12 })), { wch: 15 }];
-    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Сводка');
     
     // Send Excel file
     const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
