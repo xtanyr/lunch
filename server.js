@@ -52,7 +52,8 @@ import {
   updatePastries,
   getSetting,
   setSetting,
-  omskDb
+  omskDb,
+  CITY_ADDRESSES
 } from './src/database.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -333,7 +334,6 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
     sauces.forEach(s => sauceMap[s.id] = s.name);
     
     // Import CITY_ADDRESSES for address name lookup
-    const { CITY_ADDRESSES } = require('./src/constants.ts');
     const addressMap = {};
     Object.values(CITY_ADDRESSES).flat().forEach(addr => {
       addressMap[addr.id] = addr.label;
