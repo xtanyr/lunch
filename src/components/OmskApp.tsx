@@ -287,9 +287,9 @@ const OmskApp: React.FC = () => {
       </Header>
       
       {/* Address Selection */}
-      <div className="flex justify-center gap-4 mt-4 mb-4 flex-col sm:flex-row items-center">
+      <div className="flex justify-center gap-3 mt-4 mb-6 flex-col sm:flex-row items-stretch sm:items-center w-full sm:w-auto">
         <button
-          className={`px-6 py-2 rounded-lg font-semibold border-2 transition-all duration-150 ${
+          className={`px-6 py-3 rounded-lg font-semibold border-2 transition-all duration-150 w-full sm:w-auto ${
             selectedAddress === 'office' ? 'text-white border-transparent' : ''
           }`}
           style={{ 
@@ -300,9 +300,9 @@ const OmskApp: React.FC = () => {
         >
           Офис
         </button>
-        <div className="relative group">
+        <div className="relative group w-full sm:w-auto">
           <button 
-            className={`px-6 py-2 rounded-lg font-semibold border-2 transition-all duration-150 flex items-center gap-2`}
+            className={`px-6 py-3 rounded-lg font-semibold border-2 transition-all duration-150 flex items-center justify-between sm:justify-center gap-2 w-full`}
             style={{ 
               backgroundColor: selectedAddress !== 'office' ? palette.colors.primary : 'transparent',
               borderColor: palette.colors.border,
@@ -314,14 +314,18 @@ const OmskApp: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
-          <div className="absolute right-0 mt-1 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
-            <div className="py-1">
+          <div className="absolute right-0 sm:left-0 sm:right-auto mt-1 w-full sm:w-56 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10" style={{ backgroundColor: palette.colors.cardBg }}>
+            <div className="py-1 max-h-48 overflow-y-auto">
               {(CITY_ADDRESSES[city] || CITY_ADDRESSES.omsk).filter(addr => addr.id !== 'office').map(addr => (
                 <button
                   key={addr.id}
                   className={`block w-full text-left px-4 py-2 text-sm ${
-                    selectedAddress === addr.id ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-100'
+                    selectedAddress === addr.id ? 'opacity-80' : 'hover:opacity-80'
                   }`}
+                  style={{ 
+                    color: selectedAddress === addr.id ? palette.colors.primary : palette.colors.text,
+                    backgroundColor: selectedAddress === addr.id ? palette.colors.primary + '20' : 'transparent'
+                  }}
                   onClick={() => setSelectedAddress(addr.id)}
                 >
                   {addr.label}

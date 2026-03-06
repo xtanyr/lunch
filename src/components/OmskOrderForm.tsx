@@ -455,7 +455,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
             <h3 className="text-lg font-semibold mb-2" style={{ color: palette.colors.text }}>
               Суп
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {soupDishes.map(dish => (
                 <button
                   key={dish.id}
@@ -527,7 +527,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
             <h3 className="text-lg font-semibold mb-2" style={{ color: palette.colors.text }}>
               Бульон
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {brothDishes.map(dish => (
                 <button
                   key={dish.id}
@@ -599,7 +599,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
             <h3 className="text-lg font-semibold mb-2" style={{ color: palette.colors.text }}>
               Горячее
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {hotDishes.map(dish => (
                 <button
                   key={dish.id}
@@ -644,7 +644,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                 <h3 className="text-lg font-semibold mb-2" style={{ color: palette.colors.text }}>
                   Гарнир (бесплатно)
                 </h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   {garnishes.map(garnish => (
                     <button
                       key={garnish.id}
@@ -666,7 +666,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                 <h3 className="text-lg font-semibold mb-2 mt-4" style={{ color: palette.colors.text }}>
                   Соусы (бесплатно)
                 </h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   {sauces.map(sauce => (
                     <button
                       key={sauce.id}
@@ -695,7 +695,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
             <h3 className="text-lg font-semibold mb-2" style={{ color: palette.colors.text }}>
               Салат
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {saladDishes.map(dish => (
                 <button
                   key={dish.id}
@@ -738,7 +738,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
             <h3 className="text-lg font-semibold mb-2" style={{ color: palette.colors.text }}>
               Дополнительные блюда
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {veganItems.map(dish => (
                 <button
                   key={dish.id}
@@ -781,7 +781,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
             <h3 className="text-lg font-semibold mb-2" style={{ color: palette.colors.text }}>
               Дополнительно
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {otherItems.map(dish => (
                 <button
                   key={dish.id}
