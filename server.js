@@ -50,7 +50,8 @@ import {
   getPastries,
   updatePastries,
   getSetting,
-  setSetting
+  setSetting,
+  omskDb
 } from './src/database.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -877,7 +878,7 @@ app.patch('/api/omsk/vegan-items/:id', requireAdmin, express.json(), (req, res) 
   const { isActive } = req.body;
   
   try {
-    const stmt = db.prepare('UPDATE vegan_items SET isActive = ? WHERE id = ?');
+    const stmt = omskDb.prepare('UPDATE vegan_items SET isActive = ? WHERE id = ?');
     stmt.run(isActive ? 1 : 0, id);
     res.json({ success: true });
   } catch (error) {
@@ -969,7 +970,7 @@ app.post('/api/omsk/garnishes', requireAdmin, express.json(), (req, res) => {
   
   try {
     const id = `garnish_${Date.now()}`;
-    const stmt = db.prepare('INSERT INTO garnishes (id, name, grams, calories) VALUES (?, ?, ?, ?)');
+    const stmt = omskDb.prepare('INSERT INTO garnishes (id, name, grams, calories) VALUES (?, ?, ?, ?)');
     stmt.run(id, name, grams || 50, calories || 0);
     res.json({ id, name, grams: grams || 50, calories: calories || 0, isActive: 1 });
   } catch (error) {
@@ -986,7 +987,7 @@ app.patch('/api/omsk/garnishes/:id', requireAdmin, express.json(), (req, res) =>
   const { isActive } = req.body;
   
   try {
-    const stmt = db.prepare('UPDATE garnishes SET isActive = ? WHERE id = ?');
+    const stmt = omskDb.prepare('UPDATE garnishes SET isActive = ? WHERE id = ?');
     stmt.run(isActive ? 1 : 0, id);
     res.json({ success: true });
   } catch (error) {
@@ -1051,7 +1052,7 @@ app.post('/api/omsk/sauces', requireAdmin, express.json(), (req, res) => {
   
   try {
     const id = `sauce_${Date.now()}`;
-    const stmt = db.prepare('INSERT INTO sauces (id, name, grams, calories) VALUES (?, ?, ?, ?)');
+    const stmt = omskDb.prepare('INSERT INTO sauces (id, name, grams, calories) VALUES (?, ?, ?, ?)');
     stmt.run(id, name, grams || 30, calories || 0);
     res.json({ id, name, grams: grams || 30, calories: calories || 0, isActive: 1 });
   } catch (error) {
@@ -1068,7 +1069,7 @@ app.patch('/api/omsk/sauces/:id', requireAdmin, express.json(), (req, res) => {
   const { isActive } = req.body;
   
   try {
-    const stmt = db.prepare('UPDATE sauces SET isActive = ? WHERE id = ?');
+    const stmt = omskDb.prepare('UPDATE sauces SET isActive = ? WHERE id = ?');
     stmt.run(isActive ? 1 : 0, id);
     res.json({ success: true });
   } catch (error) {

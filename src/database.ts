@@ -17,6 +17,8 @@ const DB_PATH = path.join(dataDir, 'omsk.db');
 // Initialize database
 let db: Database.Database;
 
+export { db as omskDb };
+
 export function initOmskDatabase() {
   try {
     db = new Database(DB_PATH);
@@ -130,6 +132,9 @@ export function initOmskDatabase() {
       seedDefaultData();
     }
 
+    // Run migrations to add new columns
+    migrateDatabase();
+
     console.log('Omsk database initialized successfully');
     return db;
   } catch (error) {
@@ -199,6 +204,69 @@ function seedDefaultData() {
   insertSetting.run('max_order_price', '400');
 
   console.log('Default data seeded successfully');
+}
+
+// Migration: Add grams and calories columns to existing tables
+export function migrateDatabase() {
+  try {
+    // Check and add grams/calories columns to garnishes
+    try {
+      db.prepare('SELECT grams FROM garnishes LIMIT 1').get();
+    } catch (error) {
+      console.log('Adding grams and calories columns to garnishes table...');
+      db.prepare('ALTER TABLE garnishes ADD COLUMN grams INTEGER DEFAULT 50').run();
+      db.prepare('ALTER TABLE garnishes ADD COLUMN calories INTEGER DEFAULT 0').run();
+    }
+
+    // Check and add grams/calories columns to sauces
+    try {
+      db.prepare('SELECT grams FROM sauces LIMIT 1').get();
+    } catch (error) {
+      console.log('Adding grams and calories columns to sauces table...');
+      db.prepare('ALTER TABLE sauces ADD COLUMN grams INTEGER DEFAULT 30').run();
+      db.prepare('ALTER TABLE sauces ADD COLUMN calories INTEGER DEFAULT 0').run();
+    }
+
+    // Check and add grams/calories columns to pastries
+    try {
+      db.prepare('SELECT grams FROM pastries LIMIT 1').get();
+    } catch (error) {
+      console.log('Adding grams and calories columns to pastries table...');
+      db.prepare('ALTER TABLE pastries ADD COLUMN grams INTEGER DEFAULT 80').run();
+      db.prepare('ALTER TABLE pastries ADD COLUMN calories INTEGER DEFAULT 0').run();
+    }
+
+    // Check and add grams/calories columns to week_menu_items
+    try {
+      db.prepare('SELECT grams FROM week_menu_items LIMIT 1').get();
+    } catch (error) {
+      console.log('Adding grams and calories columns to week_menu_items table...');
+      db.prepare('ALTER TABLE week_menu_items ADD COLUMN grams INTEGER DEFAULT 100').run();
+      db.prepare('ALTER TABLE week_menu_items ADD COLUMN calories INTEGER DEFAULT 0').run();
+    }
+
+    // Check and add grams/calories columns to vegan_items
+    try {
+      db.prepare('SELECT grams FROM vegan_items LIMIT 1').get();
+    } catch (error) {
+      console.log('Adding grams and calories columns to vegan_items table...');
+      db.prepare('ALTER TABLE vegan_items ADD COLUMN grams INTEGER DEFAULT 100').run();
+      db.prepare('ALTER TABLE vegan_items ADD COLUMN calories INTEGER DEFAULT 0').run();
+    }
+
+    // Check and add grams/calories columns to other_items
+    try {
+      db.prepare('SELECT grams FROM other_items LIMIT 1').get();
+    } catch (error) {
+      console.log('Adding grams and calories columns to other_items table...');
+      db.prepare('ALTER TABLE other_items ADD COLUMN grams INTEGER DEFAULT 100').run();
+      db.prepare('ALTER TABLE other_items ADD COLUMN calories INTEGER DEFAULT 0').run();
+    }
+
+    console.log('Database migration completed successfully');
+  } catch (error) {
+    console.error('Database migration failed:', error);
+  }
 }
 
 // Week-based menu operations
