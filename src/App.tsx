@@ -671,13 +671,19 @@ const App: React.FC = () => {
         path="/admin"
         element={
           localStorage.getItem('adminCodeEntered') ? (
-            <AdminPage />
+            <ThemeProvider>
+              <AdminPage />
+            </ThemeProvider>
           ) : (
             <Navigate to="/admin/login" replace />
           )
         }
       />
-      <Route path="/admin/login" element={<AdminAccess />} />
+      <Route path="/admin/login" element={
+        <ThemeProvider>
+          <AdminAccess />
+        </ThemeProvider>
+      } />
     </Routes>
   );
 };
