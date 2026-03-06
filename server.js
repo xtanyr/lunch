@@ -332,6 +332,13 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
     const sauceMap = {};
     sauces.forEach(s => sauceMap[s.id] = s.name);
     
+    // Import CITY_ADDRESSES for address name lookup
+    const { CITY_ADDRESSES } = require('./src/constants.ts');
+    const addressMap = {};
+    Object.values(CITY_ADDRESSES).flat().forEach(addr => {
+      addressMap[addr.id] = addr.label;
+    });
+    
     let orders;
     try {
       orders = getOrdersByDateRange(startDate, endDate, address || 'all');
@@ -378,7 +385,8 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
         const addressOrders = ordersByAddress[addr];
         
         // Add address header
-        excelData.push([addr]);
+        const addressName = addressMap[addr] || addr;
+        excelData.push([addressName]);
         excelData.push(['Блюдо', 'Гарнир', 'Кол-во', 'Цена', 'Сумма']);
         
         // Aggregate dishes for this address
@@ -485,7 +493,8 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
 
     // Add address rows to summaryData
     Object.keys(addressDailyTotals).sort().forEach(addr => {
-      const row = [addr];
+      const addressName = addressMap[addr] || addr;
+      const row = [addressName];
       allDates.forEach(date => row.push(addressDailyTotals[addr][date]));
       row.push(addressGrandTotals[addr]);
       summaryData.push(row);
