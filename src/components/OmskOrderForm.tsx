@@ -12,6 +12,8 @@ interface DishItem {
   protein?: number;
   carbs?: number;
   fats?: number;
+  grams?: number;
+  calories?: number;
 }
 
 interface OrderItem {
@@ -24,6 +26,8 @@ interface OrderItem {
   protein?: number;
   carbs?: number;
   fats?: number;
+  grams?: number;
+  calories?: number;
 }
 
 interface OmskOrderFormProps {
@@ -278,6 +282,8 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
         protein: selectedHotDish.protein,
         carbs: selectedHotDish.carbs,
         fats: selectedHotDish.fats,
+        grams: selectedHotDish.grams,
+        calories: selectedHotDish.calories,
         ...(selectedGarnish ? { garnish: selectedGarnish } : {}),
         ...(selectedSauce ? { sauce: selectedSauce } : {}),
       });
@@ -291,6 +297,8 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
         protein: selectedSalad.protein,
         carbs: selectedSalad.carbs,
         fats: selectedSalad.fats,
+        grams: selectedSalad.grams,
+        calories: selectedSalad.calories,
       });
     }
     if (selectedVegan) {
@@ -302,6 +310,8 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
         protein: selectedVegan.protein,
         carbs: selectedVegan.carbs,
         fats: selectedVegan.fats,
+        grams: selectedVegan.grams,
+        calories: selectedVegan.calories,
       });
     }
     if (selectedOther) {
@@ -313,6 +323,8 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
         protein: selectedOther.protein,
         carbs: selectedOther.carbs,
         fats: selectedOther.fats,
+        grams: selectedOther.grams,
+        calories: selectedOther.calories,
       });
     }
 

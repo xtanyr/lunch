@@ -339,7 +339,7 @@ const OmskApp: React.FC = () => {
         </section>
 
         {/* Orders List */}
-        <section>
+        <section className="flex-1 overflow-visible" style={{ minHeight: '400px' }}>
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-4">
               <h2 className="text-2xl font-bold" style={{ color: palette.colors.text }}>Заказы</h2>
@@ -375,7 +375,10 @@ const OmskApp: React.FC = () => {
           ) : ordersForSelectedDate.length === 0 ? (
             <div className="text-center p-4" style={{ color: palette.colors.textSecondary }}>Нет заказов на эту дату</div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 overflow-visible" style={{ maxHeight: 'none' }}>
+              <div className="text-xs p-2 bg-gray-100 rounded" style={{ color: palette.colors.textSecondary }}>
+                Показано {ordersForSelectedDate.length} из {allOrders.length} заказов
+              </div>
               {ordersForSelectedDate.map((order: EmployeeOrder) => (
                 <div
                   key={order.id}
@@ -398,11 +401,13 @@ const OmskApp: React.FC = () => {
                       {order.items?.map((item: any, idx: number) => (
                         <div key={item.dishId || idx} className="mb-2">
                           <div className="font-medium">{item.dishName}</div>
-                          {(item.protein || item.carbs || item.fats) && (
+                          {(item.protein || item.carbs || item.fats || item.grams || item.calories) && (
                             <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
                               {item.protein && <span>Б: {item.protein}г </span>}
                               {item.carbs && <span>У: {item.carbs}г </span>}
                               {item.fats && <span>Ж: {item.fats}г</span>}
+                              {item.grams && <span> | {item.grams}г</span>}
+                              {item.calories && <span> | {item.calories}ккал</span>}
                             </div>
                           )}
                         </div>
