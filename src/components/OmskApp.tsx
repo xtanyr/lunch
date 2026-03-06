@@ -80,6 +80,8 @@ const OmskApp: React.FC = () => {
   const [isSubmittingOrder, setIsSubmittingOrder] = useState<boolean>(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
+  const [garnishes, setGarnishes] = useState<any[]>([]);
+  const [sauces, setSauces] = useState<any[]>([]);
   
   const [selectedAddress, setSelectedAddress] = useState<string>('office');
   const [addressLoaded, setAddressLoaded] = useState(false);
@@ -146,6 +148,25 @@ const OmskApp: React.FC = () => {
   useEffect(() => {
     loadOrders(selectedAggregateDate, selectedAddress);
   }, [selectedAggregateDate, selectedAddress, loadOrders]);
+
+  // Load garnishes and sauces for display
+  useEffect(() => {
+    const loadGarnishesSauces = async () => {
+      try {
+        const [garnishesRes, saucesRes] = await Promise.all([
+          fetch('/api/omsk/garnishes'),
+          fetch('/api/omsk/sauces')
+        ]);
+        const garnishesData = await garnishesRes.json();
+        const saucesData = await saucesRes.json();
+        setGarnishes(garnishesData);
+        setSauces(saucesData);
+      } catch (error) {
+        console.error('Failed to load garnishes/sauces:', error);
+      }
+    };
+    loadGarnishesSauces();
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -398,24 +419,28 @@ const OmskApp: React.FC = () => {
                       }) : ''}
                     </div>
                     <div className="text-sm mt-1" style={{ color: palette.colors.textSecondary }}>
-                      {order.items?.map((item: any, idx: number) => (
-                        <div key={item.dishId || idx} className="mb-2">
-                          <div className="font-medium">
-                            {item.dishName}
-                            {item.garnish && <span className="font-normal"> + {item.garnish}</span>}
-                            {item.sauce && <span className="font-normal"> + {item.sauce}</span>}
-                          </div>
-                          {(item.protein || item.carbs || item.fats || item.grams || item.calories) && (
-                            <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
-                              {item.protein && <span>Б: {item.protein}г </span>}
-                              {item.carbs && <span>У: {item.carbs}г </span>}
-                              {item.fats && <span>Ж: {item.fats}г</span>}
-                              {item.grams && <span> | {item.grams}г</span>}
-                              {item.calories && <span> | {item.calories}ккал</span>}
+                      {order.items?.map((item: any, idx: number) => {
+                        const garnishName = item.garnish ? (garnishes.find(g => g.id === item.garnish)?.name || item.garnish) : null;
+                        const sauceName = item.sauce ? (sauces.find(s => s.id === item.sauce)?.name || item.sauce) : null;
+                        return (
+                          <div key={item.dishId || idx} className="mb-2">
+                            <div className="font-medium">
+                              {item.dishName}
+                              {garnishName && <span className="font-normal"> + {garnishName}</span>}
+                              {sauceName && <span className="font-normal"> + {sauceName}</span>}
                             </div>
-                          )}
-                        </div>
-                      ))}
+                            {(item.protein || item.carbs || item.fats || item.grams || item.calories) && (
+                              <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
+                                {item.protein && <span>Б: {item.protein}г </span>}
+                                {item.carbs && <span>У: {item.carbs}г </span>}
+                                {item.fats && <span>Ж: {item.fats}г</span>}
+                                {item.grams && <span> | {item.grams}г</span>}
+                                {item.calories && <span> | {item.calories}ккал</span>}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                   <button
