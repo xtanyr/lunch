@@ -400,7 +400,11 @@ const OmskApp: React.FC = () => {
                     <div className="text-sm mt-1" style={{ color: palette.colors.textSecondary }}>
                       {order.items?.map((item: any, idx: number) => (
                         <div key={item.dishId || idx} className="mb-2">
-                          <div className="font-medium">{item.dishName}</div>
+                          <div className="font-medium">
+                            {item.dishName}
+                            {item.garnish && <span className="font-normal"> + {item.garnish}</span>}
+                            {item.sauce && <span className="font-normal"> + {item.sauce}</span>}
+                          </div>
                           {(item.protein || item.carbs || item.fats || item.grams || item.calories) && (
                             <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
                               {item.protein && <span>Б: {item.protein}г </span>}

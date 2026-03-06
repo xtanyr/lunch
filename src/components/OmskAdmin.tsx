@@ -1329,7 +1329,12 @@ const OmskAdmin: React.FC = () => {
                             <div className="font-bold">{order.employeeName}</div>
                             <div className="text-sm" style={{ color: palette.colors.textSecondary }}>{order.department}</div>
                             <div className="text-sm mt-1">
-                              {(order.items || []).map((i: any) => i.dishName).join(', ')}
+                              {(order.items || []).map((i: any) => {
+                                const parts = [i.dishName];
+                                if (i.garnish) parts.push(`+ ${i.garnish}`);
+                                if (i.sauce) parts.push(`+ ${i.sauce}`);
+                                return parts.join(' ');
+                              }).join(', ')}
                             </div>
                             <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
                               {order.address} • {order.orderDate}

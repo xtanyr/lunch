@@ -321,7 +321,16 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
   
   try {
     const XLSX = require('xlsx');
-    const orders = getOrdersByDateRange(startDate, endDate, address || 'all');
+    
+    let orders;
+    try {
+      orders = getOrdersByDateRange(startDate, endDate, address || 'all');
+    } catch (dbError) {
+      console.error('Database error in getOrdersByDateRange:', dbError);
+      return res.status(500).json({ error: 'Failed to fetch orders from database' });
+    }
+    
+    console.log('Export: Found', orders.length, 'orders for date range', startDate, 'to', endDate);
     
     // Group orders by date
     const ordersByDate = {};
@@ -346,27 +355,43 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
       ];
       
       dayOrders.forEach(order => {
-        const items = order.items.map(item => 
-          `${item.dishName}${item.garnishName ? ` + ${item.garnishName}` : ''}${item.sauceName ? ` + ${item.sauceName}` : ''}`
-        ).join(', ');
+        try {
+          // Skip orders with missing critical data
+          if (!order.items || !Array.isArray(order.items)) {
+            console.warn('Skipping order with invalid items:', order.id);
+            return;
+          }
+          
+          const items = order.items.map(item => 
+            `${item.dishName}${item.garnishName ? ` + ${item.garnishName}` : ''}${item.sauceName ? ` + ${item.sauceName}` : ''}`
+          ).join(', ');
+          
+          const totalPrice = order.totalPrice || 0;
+          let time = '';
+          try {
+            time = order.timestamp ? new Date(order.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
+          } catch (timeError) {
+            console.warn('Invalid timestamp for order:', order.id, order.timestamp);
+            time = '';
+          }
+          
+          excelData.push([
+            order.employeeName,
+            order.department,
+            order.address,
+            items,
+            totalPrice,
+            time
+          ]);
         
-        const totalPrice = order.totalPrice || 0;
-        const time = new Date(order.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-        
-        excelData.push([
-          order.employeeName,
-          order.department,
-          order.address,
-          items,
-          totalPrice,
-          time
-        ]);
-        
-        // Calculate address totals
+          // Calculate address totals
         if (!addressTotals[order.address]) {
           addressTotals[order.address] = 0;
         }
         addressTotals[order.address] += totalPrice;
+        } catch (orderError) {
+          console.error('Error processing order for Excel:', order.id, orderError);
+        }
       });
       
       // Add totals

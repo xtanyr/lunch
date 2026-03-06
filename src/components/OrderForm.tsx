@@ -371,6 +371,25 @@ const OrderForm: React.FC<OrderFormProps> = ({
         </div>
       </div>
 
+      {/* Order Summary */}
+      {currentOrder.items.length > 0 && (
+        <div className="mt-6 p-4 rounded-lg bg-neutral-100 border border-neutral-300">
+          <div className="font-semibold mb-2 text-black">Ваш заказ:</div>
+          <div className="space-y-1 text-sm text-neutral-600">
+            {currentOrder.items.map((item, idx) => {
+              const dish = menuItems.find(d => d.id === item.dishId);
+              const side = item.selectedSideId ? sideDishes.find(s => s.id === item.selectedSideId) : null;
+              return (
+                <div key={idx}>
+                  • {dish?.name || 'Блюдо'}
+                  {side && <span className="text-neutral-500"> + {side.name}</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row gap-4 mt-8 pt-4">
         <Button 
           onClick={handleSubmit} 

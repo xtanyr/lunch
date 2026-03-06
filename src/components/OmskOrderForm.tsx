@@ -274,6 +274,8 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
       });
     }
     if (selectedHotDish) {
+      const garnishItem = garnishes.find(g => g.id === selectedGarnish);
+      const sauceItem = sauces.find(s => s.id === selectedSauce);
       items.push({
         dishId: selectedHotDish.id,
         dishName: selectedHotDish.name,
@@ -284,8 +286,8 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
         fats: selectedHotDish.fats,
         grams: selectedHotDish.grams,
         calories: selectedHotDish.calories,
-        ...(selectedGarnish ? { garnish: selectedGarnish } : {}),
-        ...(selectedSauce ? { sauce: selectedSauce } : {}),
+        ...(selectedGarnish && garnishItem ? { garnish: garnishItem.name } : {}),
+        ...(selectedSauce && sauceItem ? { sauce: sauceItem.name } : {}),
       });
     }
     if (selectedSalad) {
@@ -787,6 +789,33 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
             </div>
           </div>
         )}
+
+      {/* Order Summary */}
+      {hasAnySelection && (
+        <div 
+          className="p-4 rounded-lg"
+          style={{ 
+            backgroundColor: palette.colors.cardBg,
+            border: `2px solid ${palette.colors.border}`
+          }}
+        >
+          <div className="font-semibold mb-2" style={{ color: palette.colors.text }}>Ваш заказ:</div>
+          <div className="space-y-1 text-sm" style={{ color: palette.colors.textSecondary }}>
+            {selectedSoup && <div>• Суп: {selectedSoup.name}</div>}
+            {selectedPastry && <div>• Выпечка: {pastries.find(p => p.id === selectedPastry)?.name}</div>}
+            {selectedHotDish && (
+              <div>
+                • Горячее: {selectedHotDish.name}
+                {selectedGarnish && <span> + {garnishes.find(g => g.id === selectedGarnish)?.name}</span>}
+                {selectedSauce && <span> + {sauces.find(s => s.id === selectedSauce)?.name}</span>}
+              </div>
+            )}
+            {selectedSalad && <div>• Салат: {selectedSalad.name}</div>}
+            {selectedVegan && <div>• Веган: {selectedVegan.name}</div>}
+            {selectedOther && <div>• Другое: {selectedOther.name}</div>}
+          </div>
+        </div>
+      )}
 
       {/* Price Summary */}
       <div 
