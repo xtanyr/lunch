@@ -99,6 +99,29 @@ export const DEPARTMENTS: string[] = [
   'Отдел напитки',
 ];
 
+// Office floor-based departments
+export const FLOOR_10_DEPARTMENTS: string[] = [
+  'Маркетинг',
+  'Дизайнеры',
+  'R&D',
+  'Аренда',
+  'Лаборатория Кухня',
+];
+
+export const FLOOR_14_DEPARTMENTS: string[] = [
+  'HR + Университет',
+  'Финансовый отдел',
+  'Тренеры по кофе',
+  'Снабжение',
+];
+
+// Office address labels for Excel export
+export const OMSK_OFFICE_ADDRESSES: Record<string, string> = {
+  'office': 'Офис',
+  'office_10': 'Офис 10 этаж',
+  'office_14': 'Офис 14 этаж',
+};
+
 // Города
 export const CITIES = [
   { id: 'omsk', label: 'Омск' },

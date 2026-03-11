@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../theme/ThemeContext';
-import { CITY_ADDRESSES } from '../constants';
+import { CITY_ADDRESSES, FLOOR_10_DEPARTMENTS, FLOOR_14_DEPARTMENTS } from '../constants';
 
 // Types for the new Omsk ordering system
 interface DishItem {
@@ -14,6 +14,8 @@ interface DishItem {
   fats?: number;
   grams?: number;
   calories?: number;
+  isVegan?: boolean | number;
+  isVegetarian?: boolean | number;
 }
 
 interface OrderItem {
@@ -22,12 +24,22 @@ interface OrderItem {
   category: string;
   price: number;
   garnish?: string;
+  garnishName?: string;
+  garnishComposition?: string;
+  garnishGrams?: number;
+  garnishCalories?: number;
   sauce?: string;
+  sauceName?: string;
+  sauceComposition?: string;
+  sauceGrams?: number;
+  sauceCalories?: number;
   protein?: number;
   carbs?: number;
   fats?: number;
   grams?: number;
   calories?: number;
+  isVegan?: boolean | number;
+  isVegetarian?: boolean | number;
 }
 
 interface OmskOrderFormProps {
@@ -81,18 +93,14 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
   selectedAddress = 'office',
 }) => {
   const { palette } = useTheme();
-  
-  // Department options for office
-  const OFFICE_DEPARTMENTS = [
-    'HR+Университет',
-    'Маркетинг',
-    'Финансовый отдел',
-    'Снабжение',
-    'Тренеры по кофе',
-    'IT Отдел',
-    'Отдел Напитки',
-    'Развитие Сети',
-  ];
+
+  // Floor selection state
+  const [selectedFloor, setSelectedFloor] = useState<string>('10');
+
+  // Get departments based on selected floor
+  const getFloorDepartments = () => {
+    return selectedFloor === '10' ? FLOOR_10_DEPARTMENTS : FLOOR_14_DEPARTMENTS;
+  };
   
   // Get coffee shop name for the selected address
   const coffeeShop = selectedAddress !== 'office' 
@@ -106,7 +114,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
     } else if (selectedAddress === 'office') {
       setCurrentOrder((prev: any) => ({ ...prev, address: selectedAddress }));
     }
-  }, [selectedAddress]);
+  }, [selectedAddress, setCurrentOrder]);
   
   const isCoffeeShop = selectedAddress !== 'office';
   
@@ -218,6 +226,84 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
   const hasAnySelection = selectedSoup || selectedHotDish || selectedSalad || selectedVegan || selectedOther || !!selectedPastry || selectedGarnish || selectedSauce;
   const canSubmit = hasAnySelection && totalPrice <= MAX_ORDER_PRICE;
 
+  // Helper functions to check if adding items would exceed limit
+  const wouldExceedLimit = (category: string, currentItemPrice?: number) => {
+    let newTotal = totalPrice;
+    
+    // Add price for the item we're considering
+    if (currentItemPrice) {
+      newTotal += currentItemPrice;
+    } else {
+      // Use category price if no specific item price provided
+      newTotal += CATEGORY_PRICES[category] || 0;
+    }
+    
+    return newTotal > MAX_ORDER_PRICE;
+  };
+
+  const wouldExceedLimitWithSoup = (soup: DishItem) => {
+    let newTotal = totalPrice;
+    // Remove current soup price if selected
+    if (selectedSoup) {
+      newTotal -= CATEGORY_PRICES[selectedSoup.category] || 0;
+    }
+    // Add new soup price
+    newTotal += CATEGORY_PRICES[soup.category] || 0;
+    return newTotal > MAX_ORDER_PRICE;
+  };
+
+  const wouldExceedLimitWithHot = (_hot: DishItem) => {
+    let newTotal = totalPrice;
+    // Remove current hot dish price if selected
+    if (selectedHotDish) {
+      newTotal -= CATEGORY_PRICES.hot || 0;
+    }
+    // Add new hot dish price
+    newTotal += CATEGORY_PRICES.hot || 0;
+    return newTotal > MAX_ORDER_PRICE;
+  };
+
+  const wouldExceedLimitWithSalad = (_salad: DishItem) => {
+    let newTotal = totalPrice;
+    // Remove current salad price if selected
+    if (selectedSalad) {
+      newTotal -= CATEGORY_PRICES.salad || 0;
+    }
+    // Add new salad price
+    newTotal += CATEGORY_PRICES.salad || 0;
+    return newTotal > MAX_ORDER_PRICE;
+  };
+
+  const wouldExceedLimitWithVegan = (_vegan: DishItem) => {
+    let newTotal = totalPrice;
+    // Remove current vegan price if selected
+    if (selectedVegan) {
+      newTotal -= CATEGORY_PRICES.vegan || 0;
+    }
+    // Add new vegan price
+    newTotal += CATEGORY_PRICES.vegan || 0;
+    return newTotal > MAX_ORDER_PRICE;
+  };
+
+  const wouldExceedLimitWithOther = (_other: DishItem) => {
+    let newTotal = totalPrice;
+    // Remove current other price if selected
+    if (selectedOther) {
+      newTotal -= CATEGORY_PRICES.other || 0;
+    }
+    // Add new other price
+    newTotal += CATEGORY_PRICES.other || 0;
+    return newTotal > MAX_ORDER_PRICE;
+  };
+
+  const wouldExceedLimitWithGarnish = () => {
+    return wouldExceedLimit('garnish');
+  };
+
+  const wouldExceedLimitWithSauce = () => {
+    return wouldExceedLimit('sauce');
+  };
+
   // Validate combination
   const validateCombination = (): string | null => {
     const hasSoup = !!selectedSoup;
@@ -298,8 +384,20 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
         fats: selectedHotDish.fats,
         grams: selectedHotDish.grams,
         calories: selectedHotDish.calories,
-        ...(selectedGarnish && garnishItem ? { garnish: garnishItem.name } : {}),
-        ...(selectedSauce && sauceItem ? { sauce: sauceItem.name } : {}),
+        ...(selectedGarnish && garnishItem ? { 
+          garnish: garnishItem.id,
+          garnishName: garnishItem.name,
+          garnishComposition: garnishItem.composition,
+          garnishGrams: garnishItem.grams,
+          garnishCalories: garnishItem.calories
+        } : {}),
+        ...(selectedSauce && sauceItem ? { 
+          sauce: sauceItem.id,
+          sauceName: sauceItem.name,
+          sauceComposition: sauceItem.composition,
+          sauceGrams: sauceItem.grams,
+          sauceCalories: sauceItem.calories
+        } : {}),
       });
     }
     if (selectedSalad) {
@@ -345,6 +443,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
     setCurrentOrder({
       ...currentOrder,
       items,
+      address: selectedAddress === 'office' ? `office_${selectedFloor}` : selectedAddress,
     });
     
     // Reset all selections after order submission
@@ -408,22 +507,41 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
               }}
             />
           ) : (
-            <select
-              value={currentOrder.department}
-              onChange={(e) => setCurrentOrder({ ...currentOrder, department: e.target.value })}
-              className="w-full px-4 py-2 rounded-lg border"
-              style={{ 
-                borderColor: palette.colors.border,
-                backgroundColor: palette.colors.cardBg,
-                color: palette.colors.text
-              }}
-              required
-            >
-              <option value="">Выберите отдел</option>
-              {OFFICE_DEPARTMENTS.map(dept => (
-                <option key={dept} value={dept}>{dept}</option>
-              ))}
-            </select>
+            <>
+              <select
+                value={selectedFloor}
+                onChange={(e) => {
+                  setSelectedFloor(e.target.value);
+                  setCurrentOrder((prev: any) => ({ ...prev, department: '' }));
+                }}
+                className="w-full px-4 py-2 rounded-lg border mb-2"
+                style={{ 
+                  borderColor: palette.colors.border,
+                  backgroundColor: palette.colors.cardBg,
+                  color: palette.colors.text
+                }}
+                required
+              >
+                <option value="10">10 этаж</option>
+                <option value="14">14 этаж</option>
+              </select>
+              <select
+                value={currentOrder.department}
+                onChange={(e) => setCurrentOrder({ ...currentOrder, department: e.target.value })}
+                className="w-full px-4 py-2 rounded-lg border"
+                style={{ 
+                  borderColor: palette.colors.border,
+                  backgroundColor: palette.colors.cardBg,
+                  color: palette.colors.text
+                }}
+                required
+              >
+                <option value="">Выберите отдел</option>
+                {getFloorDepartments().map(dept => (
+                  <option key={dept} value={dept}>{dept}</option>
+                ))}
+              </select>
+            </>
           )}
         </div>
       </div>
@@ -456,25 +574,39 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
               Суп
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {soupDishes.map(dish => (
+              {soupDishes.map(dish => {
+                const wouldExceed = wouldExceedLimitWithSoup(dish);
+                const isSelected = selectedSoup?.id === dish.id;
+                return (
                 <button
                   key={dish.id}
                   onClick={() => {
-                    setSelectedSoup(selectedSoup?.id === dish.id ? null : dish);
-                    if (selectedSoup?.id !== dish.id) {
-                      setSelectedPastry('');
+                    if (!wouldExceed || isSelected) {
+                      setSelectedSoup(isSelected ? null : dish);
+                      if (!isSelected) {
+                        setSelectedPastry('');
+                      }
                     }
                   }}
+                  disabled={wouldExceed && !isSelected}
                   className={`p-3 rounded-lg border-2 text-left transition-all ${
-                    selectedSoup?.id === dish.id ? 'border-current' : ''
-                  }`}
+                    isSelected ? 'border-current' : ''
+                  } ${wouldExceed && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}`}
                   style={{ 
-                    borderColor: selectedSoup?.id === dish.id ? palette.colors.primary : palette.colors.border,
-                    backgroundColor: selectedSoup?.id === dish.id ? palette.colors.primary + '20' : palette.colors.cardBg,
-                    color: palette.colors.text
+                    borderColor: isSelected ? palette.colors.primary : palette.colors.border,
+                    backgroundColor: isSelected ? palette.colors.primary + '20' : palette.colors.cardBg,
+                    color: wouldExceed && !isSelected ? palette.colors.textSecondary : palette.colors.text
                   }}
                 >
-                  <div className="font-medium">{dish.name}</div>
+                  <div className="font-medium">
+                    {dish.name}
+                    {(dish.isVegan || dish.isVegetarian) ? (
+                      <span className="ml-2">
+                        {dish.isVegan ? <span className="text-green-600">🌱</span> : null}
+                        {!dish.isVegan && dish.isVegetarian ? <span className="text-green-500">🥬</span> : null}
+                      </span>
+                    ) : null}
+                  </div>
                   {dish.composition && (
                     <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
                       {dish.composition}
@@ -490,7 +622,8 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                     </div>
                   )}
                 </button>
-              ))}
+              );
+              })}
             </div>
             
             {/* Pastry option - appears when soup/broth is selected */}
@@ -512,7 +645,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   <option value="">— Не нужно —</option>
                   {pastries.map(p => (
                     <option key={p.id} value={p.id}>
-                      {p.name} {p.isVegan ? '🌱' : ''}
+                      {p.name} {p.isVegan ? '🌱' : p.isVegetarian ? '🥬' : ''}
                     </option>
                   ))}
                 </select>
@@ -528,25 +661,39 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
               Бульон
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {brothDishes.map(dish => (
+              {brothDishes.map(dish => {
+                const wouldExceed = wouldExceedLimitWithSoup(dish);
+                const isSelected = selectedSoup?.id === dish.id;
+                return (
                 <button
                   key={dish.id}
                   onClick={() => {
-                    setSelectedSoup(selectedSoup?.id === dish.id ? null : dish);
-                    if (selectedSoup?.id !== dish.id) {
-                      setSelectedPastry('');
+                    if (!wouldExceed || isSelected) {
+                      setSelectedSoup(isSelected ? null : dish);
+                      if (!isSelected) {
+                        setSelectedPastry('');
+                      }
                     }
                   }}
+                  disabled={wouldExceed && !isSelected}
                   className={`p-3 rounded-lg border-2 text-left transition-all ${
-                    selectedSoup?.id === dish.id ? 'border-current' : ''
-                  }`}
+                    isSelected ? 'border-current' : ''
+                  } ${wouldExceed && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}`}
                   style={{ 
-                    borderColor: selectedSoup?.id === dish.id ? palette.colors.primary : palette.colors.border,
-                    backgroundColor: selectedSoup?.id === dish.id ? palette.colors.primary + '20' : palette.colors.cardBg,
-                    color: palette.colors.text
+                    borderColor: isSelected ? palette.colors.primary : palette.colors.border,
+                    backgroundColor: isSelected ? palette.colors.primary + '20' : palette.colors.cardBg,
+                    color: wouldExceed && !isSelected ? palette.colors.textSecondary : palette.colors.text
                   }}
                 >
-                  <div className="font-medium">{dish.name}</div>
+                  <div className="font-medium">
+                    {dish.name}
+                    {(dish.isVegan || dish.isVegetarian) ? (
+                      <span className="ml-2">
+                        {dish.isVegan ? <span className="text-green-600">🌱</span> : null}
+                        {!dish.isVegan && dish.isVegetarian ? <span className="text-green-500">🥬</span> : null}
+                      </span>
+                    ) : null}
+                  </div>
                   {dish.composition && (
                     <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
                       {dish.composition}
@@ -562,34 +709,9 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                     </div>
                   )}
                 </button>
-              ))}
+              );
+              })}
             </div>
-            
-            {/* Pastry option - appears when broth is selected */}
-            {selectedSoup && pastries.length > 0 && (
-              <div className="mt-3">
-                <label className="text-sm font-medium" style={{ color: palette.colors.text }}>
-                  Выберите выпечку (бесплатно):
-                </label>
-                <select
-                  value={selectedPastry}
-                  onChange={(e) => setSelectedPastry(e.target.value)}
-                  className="mt-1 w-full px-3 py-2 rounded-lg border"
-                  style={{ 
-                    borderColor: palette.colors.border,
-                    backgroundColor: palette.colors.cardBg,
-                    color: palette.colors.text
-                  }}
-                >
-                  <option value="">— Не нужно —</option>
-                  {pastries.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} {p.isVegan ? '🌱' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
           </div>
         )}
 
@@ -600,26 +722,38 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
               Горячее
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {hotDishes.map(dish => (
+              {hotDishes.map(dish => {
+                const wouldExceed = wouldExceedLimitWithHot(dish);
+                const isSelected = selectedHotDish?.id === dish.id;
+                return (
                 <button
                   key={dish.id}
                   onClick={() => {
-                    setSelectedHotDish(selectedHotDish?.id === dish.id ? null : dish);
-                    if (selectedHotDish?.id === dish.id) {
+                    if (!wouldExceed || isSelected) {
+                      setSelectedHotDish(isSelected ? null : dish);
                       setSelectedGarnish('');
                       setSelectedSauce('');
                     }
                   }}
+                  disabled={wouldExceed && !isSelected}
                   className={`p-3 rounded-lg border-2 text-left transition-all ${
-                    selectedHotDish?.id === dish.id ? 'border-current' : ''
-                  }`}
+                    isSelected ? 'border-current' : ''
+                  } ${wouldExceed && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}`}
                   style={{ 
-                    borderColor: selectedHotDish?.id === dish.id ? palette.colors.primary : palette.colors.border,
-                    backgroundColor: selectedHotDish?.id === dish.id ? palette.colors.primary + '20' : palette.colors.cardBg,
-                    color: palette.colors.text
+                    borderColor: isSelected ? palette.colors.primary : palette.colors.border,
+                    backgroundColor: isSelected ? palette.colors.primary + '20' : palette.colors.cardBg,
+                    color: wouldExceed && !isSelected ? palette.colors.textSecondary : palette.colors.text
                   }}
                 >
-                  <div className="font-medium">{dish.name}</div>
+                  <div className="font-medium">
+                    {dish.name}
+                    {(dish.isVegan || dish.isVegetarian) ? (
+                      <span className="ml-2">
+                        {dish.isVegan ? <span className="text-green-600">🌱</span> : null}
+                        {!dish.isVegan && dish.isVegetarian ? <span className="text-green-500">🥬</span> : null}
+                      </span>
+                    ) : null}
+                  </div>
                   {dish.composition && (
                     <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
                       {dish.composition}
@@ -635,7 +769,8 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                     </div>
                   )}
                 </button>
-              ))}
+              );
+              })}
             </div>
             
             {/* Garnish and Sauce - only show when hot dish is selected */}
@@ -645,44 +780,98 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   Гарнир (бесплатно)
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {garnishes.map(garnish => (
+                  {garnishes.map(garnish => {
+                    const wouldExceed = wouldExceedLimitWithGarnish();
+                    const isSelected = selectedGarnish === garnish.id;
+                    return (
                     <button
                       key={garnish.id}
-                      onClick={() => setSelectedGarnish(selectedGarnish === garnish.id ? '' : garnish.id)}
+                      onClick={() => {
+                        if (!wouldExceed || isSelected) {
+                          setSelectedGarnish(isSelected ? '' : garnish.id);
+                        }
+                      }}
+                      disabled={wouldExceed && !isSelected}
                       className={`p-3 rounded-lg border-2 text-left transition-all ${
-                        selectedGarnish === garnish.id ? 'border-current' : ''
-                      }`}
+                        isSelected ? 'border-current' : ''
+                      } ${wouldExceed && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}`}
                       style={{ 
-                        borderColor: selectedGarnish === garnish.id ? palette.colors.primary : palette.colors.border,
-                        backgroundColor: selectedGarnish === garnish.id ? palette.colors.primary + '20' : palette.colors.cardBg,
-                        color: palette.colors.text
+                        borderColor: isSelected ? palette.colors.primary : palette.colors.border,
+                        backgroundColor: isSelected ? palette.colors.primary + '20' : palette.colors.cardBg,
+                        color: wouldExceed && !isSelected ? palette.colors.textSecondary : palette.colors.text
                       }}
                     >
-                      <div className="font-medium">{garnish.name}</div>
+                      <div className="font-medium">
+                        {garnish.name}
+                        {(garnish.isVegan || garnish.isVegetarian) ? (
+                          <span className="ml-2">
+                            {garnish.isVegan ? <span className="text-green-600">🌱</span> : null}
+                            {!garnish.isVegan && garnish.isVegetarian ? <span className="text-green-500">🥬</span> : null}
+                          </span>
+                        ) : null}
+                      </div>
+                      {garnish.composition && (
+                        <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
+                          {garnish.composition}
+                        </div>
+                      )}
+                      {(garnish.grams || garnish.calories) && (
+                        <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
+                          {garnish.grams && `${garnish.grams}г`}{garnish.grams && garnish.calories && ' / '}{garnish.calories && `${garnish.calories}ккал`}
+                        </div>
+                      )}
                     </button>
-                  ))}
+                  );
+                  })}
                 </div>
                 
                 <h3 className="text-lg font-semibold mb-2 mt-4" style={{ color: palette.colors.text }}>
                   Соусы (бесплатно)
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {sauces.map(sauce => (
+                  {sauces.map(sauce => {
+                    const wouldExceed = wouldExceedLimitWithSauce();
+                    const isSelected = selectedSauce === sauce.id;
+                    return (
                     <button
                       key={sauce.id}
-                      onClick={() => setSelectedSauce(selectedSauce === sauce.id ? '' : sauce.id)}
+                      onClick={() => {
+                        if (!wouldExceed || isSelected) {
+                          setSelectedSauce(isSelected ? '' : sauce.id);
+                        }
+                      }}
+                      disabled={wouldExceed && !isSelected}
                       className={`p-3 rounded-lg border-2 text-left transition-all ${
-                        selectedSauce === sauce.id ? 'border-current' : ''
-                      }`}
+                        isSelected ? 'border-current' : ''
+                      } ${wouldExceed && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}`}
                       style={{ 
-                        borderColor: selectedSauce === sauce.id ? palette.colors.primary : palette.colors.border,
-                        backgroundColor: selectedSauce === sauce.id ? palette.colors.primary + '20' : palette.colors.cardBg,
-                        color: palette.colors.text
+                        borderColor: isSelected ? palette.colors.primary : palette.colors.border,
+                        backgroundColor: isSelected ? palette.colors.primary + '20' : palette.colors.cardBg,
+                        color: wouldExceed && !isSelected ? palette.colors.textSecondary : palette.colors.text
                       }}
                     >
-                      <div className="font-medium">{sauce.name}</div>
+                      <div className="font-medium">
+                        {sauce.name}
+                        {(sauce.isVegan || sauce.isVegetarian) ? (
+                          <span className="ml-2">
+                            {sauce.isVegan ? <span className="text-green-600">🌱</span> : null}
+                            {!sauce.isVegan && sauce.isVegetarian ? <span className="text-green-500">🥬</span> : null}
+                          </span>
+                        ) : null}
+                      </div>
+                      {sauce.composition && (
+                        <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
+                          {sauce.composition}
+                        </div>
+                      )}
+                      {(sauce.grams || sauce.calories) && (
+                        <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
+                          {sauce.grams && `${sauce.grams}г`}{sauce.grams && sauce.calories && ' / '}{sauce.calories && `${sauce.calories}ккал`}
+                        </div>
+                      )}
                     </button>
-                  ))}
+                  );
+                  })}
                 </div>
               </div>
             )}
@@ -696,22 +885,36 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
               Салат
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {saladDishes.map(dish => (
+              {saladDishes.map(dish => {
+                const wouldExceed = wouldExceedLimitWithSalad(dish);
+                const isSelected = selectedSalad?.id === dish.id;
+                return (
                 <button
                   key={dish.id}
                   onClick={() => {
-                    setSelectedSalad(selectedSalad?.id === dish.id ? null : dish);
+                    if (!wouldExceed || isSelected) {
+                      setSelectedSalad(isSelected ? null : dish);
+                    }
                   }}
+                  disabled={wouldExceed && !isSelected}
                   className={`p-3 rounded-lg border-2 text-left transition-all ${
-                    selectedSalad?.id === dish.id ? 'border-current' : ''
-                  }`}
+                    isSelected ? 'border-current' : ''
+                  } ${wouldExceed && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}`}
                   style={{ 
-                    borderColor: selectedSalad?.id === dish.id ? palette.colors.primary : palette.colors.border,
-                    backgroundColor: selectedSalad?.id === dish.id ? palette.colors.primary + '20' : palette.colors.cardBg,
-                    color: palette.colors.text
+                    borderColor: isSelected ? palette.colors.primary : palette.colors.border,
+                    backgroundColor: isSelected ? palette.colors.primary + '20' : palette.colors.cardBg,
+                    color: wouldExceed && !isSelected ? palette.colors.textSecondary : palette.colors.text
                   }}
                 >
-                  <div className="font-medium">{dish.name}</div>
+                  <div className="font-medium">
+                    {dish.name}
+                    {(dish.isVegan || dish.isVegetarian) ? (
+                      <span className="ml-2">
+                        {dish.isVegan ? <span className="text-green-600">🌱</span> : null}
+                        {!dish.isVegan && dish.isVegetarian ? <span className="text-green-500">🥬</span> : null}
+                      </span>
+                    ) : null}
+                  </div>
                   {dish.composition && (
                     <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
                       {dish.composition}
@@ -727,7 +930,8 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                     </div>
                   )}
                 </button>
-              ))}
+              );
+              })}
             </div>
           </div>
         )}
@@ -739,22 +943,36 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
               Дополнительные блюда
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {veganItems.map(dish => (
+              {veganItems.map(dish => {
+                const wouldExceed = wouldExceedLimitWithVegan(dish);
+                const isSelected = selectedVegan?.id === dish.id;
+                return (
                 <button
                   key={dish.id}
                   onClick={() => {
-                    setSelectedVegan(selectedVegan?.id === dish.id ? null : dish);
+                    if (!wouldExceed || isSelected) {
+                      setSelectedVegan(isSelected ? null : dish);
+                    }
                   }}
+                  disabled={wouldExceed && !isSelected}
                   className={`p-3 rounded-lg border-2 text-left transition-all ${
-                    selectedVegan?.id === dish.id ? 'border-current' : ''
-                  }`}
+                    isSelected ? 'border-current' : ''
+                  } ${wouldExceed && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}`}
                   style={{ 
-                    borderColor: selectedVegan?.id === dish.id ? palette.colors.primary : palette.colors.border,
-                    backgroundColor: selectedVegan?.id === dish.id ? palette.colors.primary + '20' : palette.colors.cardBg,
-                    color: palette.colors.text
+                    borderColor: isSelected ? palette.colors.primary : palette.colors.border,
+                    backgroundColor: isSelected ? palette.colors.primary + '20' : palette.colors.cardBg,
+                    color: wouldExceed && !isSelected ? palette.colors.textSecondary : palette.colors.text
                   }}
                 >
-                  <div className="font-medium">{dish.name}</div>
+                  <div className="font-medium">
+                    {dish.name}
+                    {(dish.isVegan || dish.isVegetarian) ? (
+                      <span className="ml-2">
+                        {dish.isVegan ? <span className="text-green-600">🌱</span> : null}
+                        {!dish.isVegan && dish.isVegetarian ? <span className="text-green-500">🥬</span> : null}
+                      </span>
+                    ) : null}
+                  </div>
                   {dish.composition && (
                     <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
                       {dish.composition}
@@ -770,7 +988,8 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                     </div>
                   )}
                 </button>
-              ))}
+              );
+              })}
             </div>
           </div>
         )}
@@ -782,22 +1001,36 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
               Дополнительно
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {otherItems.map(dish => (
+              {otherItems.map(dish => {
+                const wouldExceed = wouldExceedLimitWithOther(dish);
+                const isSelected = selectedOther?.id === dish.id;
+                return (
                 <button
                   key={dish.id}
                   onClick={() => {
-                    setSelectedOther(selectedOther?.id === dish.id ? null : dish);
+                    if (!wouldExceed || isSelected) {
+                      setSelectedOther(isSelected ? null : dish);
+                    }
                   }}
+                  disabled={wouldExceed && !isSelected}
                   className={`p-3 rounded-lg border-2 text-left transition-all ${
-                    selectedOther?.id === dish.id ? 'border-current' : ''
-                  }`}
+                    isSelected ? 'border-current' : ''
+                  } ${wouldExceed && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}`}
                   style={{ 
-                    borderColor: selectedOther?.id === dish.id ? palette.colors.primary : palette.colors.border,
-                    backgroundColor: selectedOther?.id === dish.id ? palette.colors.primary + '20' : palette.colors.cardBg,
-                    color: palette.colors.text
+                    borderColor: isSelected ? palette.colors.primary : palette.colors.border,
+                    backgroundColor: isSelected ? palette.colors.primary + '20' : palette.colors.cardBg,
+                    color: wouldExceed && !isSelected ? palette.colors.textSecondary : palette.colors.text
                   }}
                 >
-                  <div className="font-medium">{dish.name}</div>
+                  <div className="font-medium">
+                    {dish.name}
+                    {(dish.isVegan || dish.isVegetarian) ? (
+                      <span className="ml-2">
+                        {dish.isVegan ? <span className="text-green-600">🌱</span> : null}
+                        {!dish.isVegan && dish.isVegetarian ? <span className="text-green-500">🥬</span> : null}
+                      </span>
+                    ) : null}
+                  </div>
                   {dish.composition && (
                     <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
                       {dish.composition}
@@ -813,7 +1046,8 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                     </div>
                   )}
                 </button>
-              ))}
+              );
+              })}
             </div>
           </div>
         )}

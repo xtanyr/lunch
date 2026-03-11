@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { EmployeeOrder, CurrentOrderItem, Dish, SideDish, DishCategory } from '../types';
 import { fetchDisabledDates, DisabledDateRange } from '../api';
+import { FLOOR_10_DEPARTMENTS, FLOOR_14_DEPARTMENTS } from '../constants';
 import Input from './ui/Input';
 import Button from './ui/Button';
 import Select from './ui/Select';
@@ -58,6 +59,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
   const [showDeptError, setShowDeptError] = useState(false);
   const [showDateError, setShowDateError] = useState(false);
   const [disabledRange, setDisabledRange] = useState<DisabledDateRange | null>(null);
+  const [selectedFloor, setSelectedFloor] = useState<string>('10');
   const [localEmployeeName, setLocalEmployeeName] = useState(currentOrder.employeeName);
   const [localDepartment, setLocalDepartment] = useState(currentOrder.department);
   const [localOrderDate, setLocalOrderDate] = useState(currentOrder.orderDate);
@@ -280,22 +282,40 @@ const OrderForm: React.FC<OrderFormProps> = ({
         </div>
         <div className="flex flex-col">
           {address === 'office' ? (
-            <Select
-              label="Отдел"
-              id="department"
-              name="department"
-              value={localDepartment}
-              onChange={handleInputChange}
-              required
-              aria-required="true"
-              disabled={isSubmitting}
-              className={showDeptError ? 'border-red-500 ring-2 ring-red-400' : ''}
-            >
-              <option value="" disabled>Выберите отдел...</option>
-              {departments.map(dept => (
-                <option key={dept} value={dept}>{dept}</option>
-              ))}
-            </Select>
+            <>
+              <Select
+                label="Этаж"
+                id="floor"
+                name="floor"
+                value={selectedFloor}
+                onChange={(value) => {
+                  setSelectedFloor(value);
+                  setCurrentOrder(prev => ({ ...prev, department: '' }));
+                  updateCurrentOrderDetails('department', '');
+                }}
+                required
+                disabled={isSubmitting}
+              >
+                <option value="10">10 этаж</option>
+                <option value="14">14 этаж</option>
+              </Select>
+              <Select
+                label="Отдел"
+                id="department"
+                name="department"
+                value={localDepartment}
+                onChange={handleInputChange}
+                required
+                aria-required="true"
+                disabled={isSubmitting}
+                className={showDeptError ? 'border-red-500 ring-2 ring-red-400' : ''}
+              >
+                <option value="" disabled>Выберите отдел...</option>
+                {(selectedFloor === '10' ? FLOOR_10_DEPARTMENTS : FLOOR_14_DEPARTMENTS).map(dept => (
+                  <option key={dept} value={dept}>{dept}</option>
+                ))}
+              </Select>
+            </>
           ) : (
             <Input
               label="Кофейня"

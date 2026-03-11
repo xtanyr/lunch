@@ -54,7 +54,7 @@ import {
   setSetting,
   omskDb
 } from './src/database.ts';
-import { CITY_ADDRESSES } from './src/constants.js';
+import { CITY_ADDRESSES, OMSK_OFFICE_ADDRESSES } from './src/constants.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -339,6 +339,9 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
       addressMap[addr.id] = addr.label;
     });
     
+    // Add office floor addresses
+    addressMap = { ...addressMap, ...OMSK_OFFICE_ADDRESSES };
+    
     let orders;
     try {
       orders = getOrdersByDateRange(startDate, endDate, address || 'all');
@@ -387,7 +390,7 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
         // Add address header
         const addressName = addressMap[addr] || addr;
         excelData.push([addressName]);
-        excelData.push(['Блюдо', 'Гарнир', 'Кол-во', 'Цена', 'Сумма']);
+        excelData.push(['Блюдо', 'Гарнир', 'Соусы', 'Кол-во', 'Цена', 'Сумма']);
         
         // Aggregate dishes for this address
         const dishMap = {};
@@ -424,39 +427,40 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
             
             excelData.push([
               data.dishName,
-              data.garnish + (data.sauce ? ' + ' + data.sauce : ''),
+              data.garnish,
+              data.sauce,
               data.quantity,
               data.price,
               totalPrice
             ]);
             
             // Track day totals
-            const dayKey = `${data.dishName}|||${data.garnish}`;
+            const dayKey = `${data.dishName}|||${data.garnish}|||${data.sauce || ''}`;
             if (!dishDayTotals[dayKey]) {
-              dishDayTotals[dayKey] = { dishName: data.dishName, garnish: data.garnish, quantity: 0 };
+              dishDayTotals[dayKey] = { dishName: data.dishName, garnish: data.garnish, sauce: data.sauce || '', quantity: 0 };
             }
             dishDayTotals[dayKey].quantity += data.quantity;
           });
         
         // Add address total
-        excelData.push(['', '', '', 'Итого:', addressTotal]);
+        excelData.push(['', '', '', '', 'Итого:', addressTotal]);
         excelData.push([]); // Empty row
       });
       
       // Add dish totals for the day at the bottom
       excelData.push(['Итого по блюдам за день']);
-      excelData.push(['Блюдо', 'Гарнир', 'Общее кол-во']);
+      excelData.push(['Блюдо', 'Гарнир', 'Соусы', 'Общее кол-во']);
       
       Object.values(dishDayTotals)
         .sort((a, b) => a.dishName.localeCompare(b.dishName))
         .forEach((data) => {
-          excelData.push([data.dishName, data.garnish, data.quantity]);
+          excelData.push([data.dishName, data.garnish, data.sauce || '', data.quantity]);
         });
       
       // Create worksheet
       const sheetName = date.replace(/-/g, '').slice(2);
       const worksheet = XLSX.utils.aoa_to_sheet(excelData);
-      worksheet['!cols'] = [{ wch: 25 }, { wch: 20 }, { wch: 8 }, { wch: 10 }, { wch: 10 }];
+      worksheet['!cols'] = [{ wch: 25 }, { wch: 20 }, { wch: 20 }, { wch: 8 }, { wch: 10 }, { wch: 10 }];
       XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
     });
     
@@ -540,7 +544,9 @@ app.get('/api/omsk/can-order', (req, res) => {
   }
   
   try {
-    const hasOrderedToday = hasUserOrderedToday(employeeName, department, orderDate, address);
+    // Normalize office addresses for duplicate check
+    const normalizedAddress = (address === 'office_10' || address === 'office_14') ? 'office' : address;
+    const hasOrderedToday = hasUserOrderedToday(employeeName, department, orderDate, normalizedAddress);
     res.json({ canOrder: !hasOrderedToday });
   } catch (error) {
     console.error('Error checking if user can order:', error);
@@ -557,8 +563,8 @@ app.post('/api/omsk/orders', express.json(), (req, res) => {
     console.log('Database not ready, returning 503');
     return res.status(503).json({ error: 'Omsk database not available' });
   }
-  const { employeeName, department, orderDate, items, address, totalPrice } = req.body;
-  console.log('Creating order:', { employeeName, department, orderDate, items: items?.length, address, totalPrice });
+  const { employeeName, department, orderDate, items, address, totalPrice, floor } = req.body;
+  console.log('Creating order:', { employeeName, department, orderDate, items: items?.length, address, totalPrice, floor });
   
   if (!employeeName || !orderDate || !items || typeof address !== 'string') {
     console.log('Validation failed - missing fields:', { employeeName: !!employeeName, orderDate: !!orderDate, items: !!items, address: typeof address });
@@ -566,7 +572,9 @@ app.post('/api/omsk/orders', express.json(), (req, res) => {
   }
 
   // Check if user already ordered today
-  const hasOrderedToday = hasUserOrderedToday(employeeName, department, orderDate, address);
+  // Normalize office addresses for duplicate check (office_10, office_14 should be treated as 'office')
+  const normalizedAddress = (address === 'office_10' || address === 'office_14') ? 'office' : address;
+  const hasOrderedToday = hasUserOrderedToday(employeeName, department, orderDate, normalizedAddress);
   if (hasOrderedToday) {
     console.log('Duplicate order attempt:', { employeeName, department, orderDate, address });
     return res.status(409).json({ error: 'Вы уже сделали заказ на этот день' });
@@ -588,7 +596,8 @@ app.post('/api/omsk/orders', express.json(), (req, res) => {
       address,
       city: 'omsk',
       timestamp: new Date().toISOString(),
-      totalPrice
+      totalPrice,
+      floor: floor || ''
     };
     createOrder(newOrder);
     res.status(201).json(newOrder);
@@ -631,7 +640,7 @@ app.post('/api/omsk/dishes', requireAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
-  const { name, category, price, weekNumber, composition, protein, carbs, fats, grams, calories } = req.body;
+  const { name, category, price, weekNumber, composition, protein, carbs, fats, grams, calories, isVegan, isVegetarian } = req.body;
   if (!name || !category) {
     return res.status(400).json({ error: 'name and category are required' });
   }
@@ -656,6 +665,8 @@ app.post('/api/omsk/dishes', requireAdmin, express.json(), (req, res) => {
       fats: fats !== undefined && fats !== '' ? parseFloat(fats) : null,
       grams: grams !== undefined && grams !== '' ? parseInt(grams) : null,
       calories: calories !== undefined && calories !== '' ? parseInt(calories) : null,
+      isVegan: isVegan || false,
+      isVegetarian: isVegetarian || false,
       isActive: true
     };
     const items = getMenuItems();
@@ -946,7 +957,7 @@ app.post('/api/omsk/vegan-items', requireAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
-  const { name, price, composition, protein, carbs, fats, grams, calories } = req.body;
+  const { name, price, composition, protein, carbs, fats, grams, calories, isVegan, isVegetarian } = req.body;
   if (!name || !price) {
     return res.status(400).json({ error: 'Name and price are required' });
   }
@@ -960,7 +971,9 @@ app.post('/api/omsk/vegan-items', requireAdmin, express.json(), (req, res) => {
       carbs: carbs ? parseFloat(carbs) : undefined,
       fats: fats ? parseFloat(fats) : undefined,
       grams: grams ? parseInt(grams) : undefined,
-      calories: calories ? parseInt(calories) : undefined
+      calories: calories ? parseInt(calories) : undefined,
+      isVegan,
+      isVegetarian
     });
     res.json(newItem);
   } catch (error) {
@@ -1063,16 +1076,16 @@ app.post('/api/omsk/garnishes', requireAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
-  const { name, grams, calories } = req.body;
+  const { name, grams, calories, composition, isVegan, isVegetarian } = req.body;
   if (!name) {
     return res.status(400).json({ error: 'Name is required' });
   }
   
   try {
     const id = `garnish_${Date.now()}`;
-    const stmt = omskDb.prepare('INSERT INTO garnishes (id, name, grams, calories) VALUES (?, ?, ?, ?)');
-    stmt.run(id, name, grams || 50, calories || 0);
-    res.json({ id, name, grams: grams || 50, calories: calories || 0, isActive: 1 });
+    const stmt = omskDb.prepare('INSERT INTO garnishes (id, name, composition, grams, calories, isVegan, isVegetarian) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    stmt.run(id, name, composition || null, grams || 50, calories || 0, isVegan ? 1 : 0, isVegetarian ? 1 : 0);
+    res.json({ id, name, composition, grams: grams || 50, calories: calories || 0, isVegan: isVegan || false, isVegetarian: isVegetarian || false, isActive: 1 });
   } catch (error) {
     console.error('Error adding garnish:', error);
     res.status(500).json({ error: 'Failed to add garnish' });
@@ -1145,16 +1158,16 @@ app.post('/api/omsk/sauces', requireAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
-  const { name, grams, calories } = req.body;
+  const { name, grams, calories, composition, isVegan, isVegetarian } = req.body;
   if (!name) {
     return res.status(400).json({ error: 'Name is required' });
   }
   
   try {
     const id = `sauce_${Date.now()}`;
-    const stmt = omskDb.prepare('INSERT INTO sauces (id, name, grams, calories) VALUES (?, ?, ?, ?)');
-    stmt.run(id, name, grams || 30, calories || 0);
-    res.json({ id, name, grams: grams || 30, calories: calories || 0, isActive: 1 });
+    const stmt = omskDb.prepare('INSERT INTO sauces (id, name, composition, grams, calories, isVegan, isVegetarian) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    stmt.run(id, name, composition || null, grams || 30, calories || 0, isVegan ? 1 : 0, isVegetarian ? 1 : 0);
+    res.json({ id, name, composition, grams: grams || 30, calories: calories || 0, isVegan: isVegan || false, isVegetarian: isVegetarian || false, isActive: 1 });
   } catch (error) {
     console.error('Error adding sauce:', error);
     res.status(500).json({ error: 'Failed to add sauce' });
@@ -1192,6 +1205,120 @@ app.delete('/api/omsk/sauces/:id', requireAdmin, (req, res) => {
     console.error('Error deleting sauce:', error.message);
     console.error('Full error:', error);
     res.status(500).json({ error: 'Failed to delete sauce', details: error.message });
+  }
+});
+
+// Excel import for garnishes and sauces
+app.post('/api/omsk/import/garnishes-sauces', requireAdmin, express.raw({ type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', limit: '10mb' }), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+
+  try {
+    const buffer = req.body;
+    const workbook = XLSX.read(buffer, { type: 'buffer' });
+    const result = { garnishes: [], sauces: [], errors: [] };
+
+    // Parse garnishes sheet (Гарниры)
+    const garnishesSheet = workbook.SheetNames.find(name => 
+      name.toLowerCase().includes('гарнир') || name.toLowerCase().includes('garnish')
+    );
+    
+    if (garnishesSheet) {
+      const garnishesData = XLSX.utils.sheet_to_json(workbook.Sheets[garnishesSheet]);
+      const garnishes = garnishesData.map((row, index) => ({
+        id: row.id || `garnish_imported_${Date.now()}_${index}`,
+        name: row.name || row['Название'] || row['Наименование'] || '',
+        composition: row.composition || row['Состав'] || '',
+        grams: parseInt(row.grams || row['Вес'] || row['грамм'] || 50),
+        calories: parseInt(row.calories || row['Калории'] || row['ккал'] || 0),
+        isActive: row.isActive !== false && row['Активно'] !== 'нет' ? 1 : 0
+      })).filter(g => g.name);
+
+      if (garnishes.length > 0) {
+        updateGarnishes(garnishes);
+        result.garnishes = garnishes;
+      }
+    }
+
+    // Parse sauces sheet (Соусы)
+    const saucesSheet = workbook.SheetNames.find(name => 
+      name.toLowerCase().includes('соус') || name.toLowerCase().includes('sauce')
+    );
+    
+    if (saucesSheet) {
+      const saucesData = XLSX.utils.sheet_to_json(workbook.Sheets[saucesSheet]);
+      const sauces = saucesData.map((row, index) => ({
+        id: row.id || `sauce_imported_${Date.now()}_${index}`,
+        name: row.name || row['Название'] || row['Наименование'] || '',
+        composition: row.composition || row['Состав'] || '',
+        grams: parseInt(row.grams || row['Вес'] || row['грамм'] || 30),
+        calories: parseInt(row.calories || row['Калории'] || row['ккал'] || 0),
+        isActive: row.isActive !== false && row['Активно'] !== 'нет' ? 1 : 0
+      })).filter(s => s.name);
+
+      if (sauces.length > 0) {
+        updateSauces(sauces);
+        result.sauces = sauces;
+      }
+    }
+
+    if (result.garnishes.length === 0 && result.sauces.length === 0) {
+      return res.status(400).json({ error: 'No valid data found. Expected sheets: "Гарниры" (Garnishes) and/or "Соусы" (Sauces)' });
+    }
+
+    res.json({ success: true, message: `Imported ${result.garnishes.length} garnishes and ${result.sauces.length} sauces`, ...result });
+  } catch (error) {
+    console.error('Error importing garnishes/sauces:', error);
+    res.status(500).json({ error: 'Failed to import garnishes/sauces', details: String(error) });
+  }
+});
+
+// Export garnishes and sauces to Excel template
+app.get('/api/omsk/export/garnishes-sauces-template', requireAdmin, (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+
+  try {
+    const garnishes = getGarnishes();
+    const sauces = getSauces();
+
+    const workbook = XLSX.utils.book_new();
+
+    // Create garnishes sheet
+    const garnishesData = garnishes.map(g => ({
+      id: g.id,
+      name: g.name,
+      composition: g.composition || '',
+      grams: g.grams || 50,
+      calories: g.calories || 0,
+      isActive: g.isActive ? 'да' : 'нет'
+    }));
+    const garnishesSheet = XLSX.utils.json_to_sheet(garnishesData);
+    garnishesSheet['!cols'] = [{ wch: 30 }, { wch: 40 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
+    XLSX.utils.book_append_sheet(workbook, garnishesSheet, 'Гарниры');
+
+    // Create sauces sheet
+    const saucesData = sauces.map(s => ({
+      id: s.id,
+      name: s.name,
+      composition: s.composition || '',
+      grams: s.grams || 30,
+      calories: s.calories || 0,
+      isActive: s.isActive ? 'да' : 'нет'
+    }));
+    const saucesSheet = XLSX.utils.json_to_sheet(saucesData);
+    saucesSheet['!cols'] = [{ wch: 30 }, { wch: 40 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
+    XLSX.utils.book_append_sheet(workbook, saucesSheet, 'Соусы');
+
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=garnishes_sauces_template.xlsx');
+    res.send(buffer);
+  } catch (error) {
+    console.error('Error exporting garnishes/sauces template:', error);
+    res.status(500).json({ error: 'Failed to export template', details: String(error) });
   }
 });
 

@@ -52,6 +52,8 @@ export function initOmskDatabase() {
         fats REAL,
         grams INTEGER DEFAULT 100,
         calories INTEGER DEFAULT 0,
+        isVegan INTEGER DEFAULT 0,
+        isVegetarian INTEGER DEFAULT 0,
         isActive INTEGER DEFAULT 1
       );
 
@@ -66,6 +68,8 @@ export function initOmskDatabase() {
         fats REAL,
         grams INTEGER DEFAULT 100,
         calories INTEGER DEFAULT 0,
+        isVegan INTEGER DEFAULT 0,
+        isVegetarian INTEGER DEFAULT 0,
         isActive INTEGER DEFAULT 1
       );
 
@@ -80,6 +84,8 @@ export function initOmskDatabase() {
         fats REAL,
         grams INTEGER DEFAULT 100,
         calories INTEGER DEFAULT 0,
+        isVegan INTEGER DEFAULT 0,
+        isVegetarian INTEGER DEFAULT 0,
         isActive INTEGER DEFAULT 1
       );
 
@@ -87,8 +93,11 @@ export function initOmskDatabase() {
       CREATE TABLE IF NOT EXISTS garnishes (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
+        composition TEXT,
         grams INTEGER DEFAULT 50,
         calories INTEGER DEFAULT 0,
+        isVegan INTEGER DEFAULT 0,
+        isVegetarian INTEGER DEFAULT 0,
         isActive INTEGER DEFAULT 1
       );
 
@@ -96,8 +105,11 @@ export function initOmskDatabase() {
       CREATE TABLE IF NOT EXISTS sauces (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
+        composition TEXT,
         grams INTEGER DEFAULT 30,
         calories INTEGER DEFAULT 0,
+        isVegan INTEGER DEFAULT 0,
+        isVegetarian INTEGER DEFAULT 0,
         isActive INTEGER DEFAULT 1
       );
 
@@ -106,6 +118,7 @@ export function initOmskDatabase() {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         isVegan INTEGER DEFAULT 0,
+        isVegetarian INTEGER DEFAULT 0,
         grams INTEGER DEFAULT 80,
         calories INTEGER DEFAULT 0,
         isActive INTEGER DEFAULT 1
@@ -124,6 +137,63 @@ export function initOmskDatabase() {
         value TEXT
       );
     `);
+
+    // Migration: Add isVegan and isVegetarian columns if they don't exist
+    try {
+      db.exec(`ALTER TABLE week_menu_items ADD COLUMN isVegan INTEGER DEFAULT 0`);
+    } catch (e) {
+      // Column already exists
+    }
+    try {
+      db.exec(`ALTER TABLE week_menu_items ADD COLUMN isVegetarian INTEGER DEFAULT 0`);
+    } catch (e) {
+      // Column already exists
+    }
+    try {
+      db.exec(`ALTER TABLE vegan_items ADD COLUMN isVegan INTEGER DEFAULT 0`);
+    } catch (e) {
+      // Column already exists
+    }
+    try {
+      db.exec(`ALTER TABLE vegan_items ADD COLUMN isVegetarian INTEGER DEFAULT 0`);
+    } catch (e) {
+      // Column already exists
+    }
+    try {
+      db.exec(`ALTER TABLE other_items ADD COLUMN isVegan INTEGER DEFAULT 0`);
+    } catch (e) {
+      // Column already exists
+    }
+    try {
+      db.exec(`ALTER TABLE other_items ADD COLUMN isVegetarian INTEGER DEFAULT 0`);
+    } catch (e) {
+      // Column already exists
+    }
+    try {
+      db.exec(`ALTER TABLE garnishes ADD COLUMN isVegan INTEGER DEFAULT 0`);
+    } catch (e) {
+      // Column already exists
+    }
+    try {
+      db.exec(`ALTER TABLE garnishes ADD COLUMN isVegetarian INTEGER DEFAULT 0`);
+    } catch (e) {
+      // Column already exists
+    }
+    try {
+      db.exec(`ALTER TABLE sauces ADD COLUMN isVegan INTEGER DEFAULT 0`);
+    } catch (e) {
+      // Column already exists
+    }
+    try {
+      db.exec(`ALTER TABLE sauces ADD COLUMN isVegetarian INTEGER DEFAULT 0`);
+    } catch (e) {
+      // Column already exists
+    }
+    try {
+      db.exec(`ALTER TABLE pastries ADD COLUMN isVegetarian INTEGER DEFAULT 0`);
+    } catch (e) {
+      // Column already exists
+    }
 
     // Check if we need to seed default data
     const weeksCount = db.prepare('SELECT COUNT(*) as count FROM weeks').get() as { count: number };
@@ -218,6 +288,14 @@ export function migrateDatabase() {
       db.prepare('ALTER TABLE garnishes ADD COLUMN calories INTEGER DEFAULT 0').run();
     }
 
+    // Check and add composition column to garnishes
+    try {
+      db.prepare('SELECT composition FROM garnishes LIMIT 1').get();
+    } catch (error) {
+      console.log('Adding composition column to garnishes table...');
+      db.prepare('ALTER TABLE garnishes ADD COLUMN composition TEXT').run();
+    }
+
     // Check and add grams/calories columns to sauces
     try {
       db.prepare('SELECT grams FROM sauces LIMIT 1').get();
@@ -225,6 +303,14 @@ export function migrateDatabase() {
       console.log('Adding grams and calories columns to sauces table...');
       db.prepare('ALTER TABLE sauces ADD COLUMN grams INTEGER DEFAULT 30').run();
       db.prepare('ALTER TABLE sauces ADD COLUMN calories INTEGER DEFAULT 0').run();
+    }
+
+    // Check and add composition column to sauces
+    try {
+      db.prepare('SELECT composition FROM sauces LIMIT 1').get();
+    } catch (error) {
+      console.log('Adding composition column to sauces table...');
+      db.prepare('ALTER TABLE sauces ADD COLUMN composition TEXT').run();
     }
 
     // Check and add grams/calories columns to pastries
@@ -261,6 +347,14 @@ export function migrateDatabase() {
       console.log('Adding grams and calories columns to other_items table...');
       db.prepare('ALTER TABLE other_items ADD COLUMN grams INTEGER DEFAULT 100').run();
       db.prepare('ALTER TABLE other_items ADD COLUMN calories INTEGER DEFAULT 0').run();
+    }
+
+    // Check and add totalPrice column to orders
+    try {
+      db.prepare('SELECT totalPrice FROM orders LIMIT 1').get();
+    } catch (error) {
+      console.log('Adding totalPrice column to orders table...');
+      db.prepare('ALTER TABLE orders ADD COLUMN totalPrice REAL DEFAULT 0').run();
     }
 
     console.log('Database migration completed successfully');
@@ -313,14 +407,15 @@ export function updateWeekMenuItems(weekNumber: number, items: any[]) {
   const transaction = db.transaction(() => {
     db.prepare('DELETE FROM week_menu_items WHERE weekNumber = ?').run(weekNumber);
     const insertStmt = db.prepare(`
-      INSERT INTO week_menu_items (id, weekNumber, name, category, price, composition, protein, carbs, fats, grams, calories, isActive)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO week_menu_items (id, weekNumber, name, category, price, composition, protein, carbs, fats, grams, calories, isVegan, isVegetarian, isActive)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const item of items) {
       insertStmt.run(
         item.id, weekNumber, item.name, item.category, item.price || 0,
         item.composition || null, item.protein || null, item.carbs || null,
         item.fats || null, item.grams || null, item.calories || null,
+        item.isVegan ? 1 : 0, item.isVegetarian ? 1 : 0,
         item.isActive !== false ? 1 : 0
       );
     }
@@ -339,13 +434,15 @@ export function updateVeganItems(items: any[]) {
   const transaction = db.transaction(() => {
     db.prepare('DELETE FROM vegan_items').run();
     const insertStmt = db.prepare(`
-      INSERT INTO vegan_items (id, name, price, composition, protein, carbs, fats, isActive)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO vegan_items (id, name, price, composition, protein, carbs, fats, grams, calories, isVegan, isVegetarian, isActive)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const item of items) {
       insertStmt.run(
         item.id, item.name, item.price || 150, item.composition || null,
         item.protein || null, item.carbs || null, item.fats || null,
+        item.grams || null, item.calories || null,
+        item.isVegan ? 1 : 0, item.isVegetarian ? 1 : 0,
         item.isActive !== false ? 1 : 0
       );
     }
@@ -354,10 +451,10 @@ export function updateVeganItems(items: any[]) {
   return { success: true };
 }
 
-export function insertVeganItem(item: { name: string; price: number; composition?: string; protein?: number; carbs?: number; fats?: number; grams?: number; calories?: number }) {
+export function insertVeganItem(item: { name: string; price: number; composition?: string; protein?: number; carbs?: number; fats?: number; grams?: number; calories?: number; isVegan?: boolean; isVegetarian?: boolean }) {
   const id = `vegan_${Date.now()}`;
-  const stmt = db.prepare('INSERT INTO vegan_items (id, name, price, composition, protein, carbs, fats, grams, calories, isActive) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-  stmt.run(id, item.name, item.price, item.composition || null, item.protein || null, item.carbs || null, item.fats || null, item.grams || null, item.calories || null, 1);
+  const stmt = db.prepare('INSERT INTO vegan_items (id, name, price, composition, protein, carbs, fats, grams, calories, isVegan, isVegetarian, isActive) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  stmt.run(id, item.name, item.price, item.composition || null, item.protein || null, item.carbs || null, item.fats || null, item.grams || null, item.calories || null, item.isVegan ? 1 : 0, item.isVegetarian ? 1 : 0, 1);
   return { id, ...item, isActive: 1 };
 }
 
@@ -377,13 +474,15 @@ export function updateOtherItems(items: any[]) {
   const transaction = db.transaction(() => {
     db.prepare('DELETE FROM other_items').run();
     const insertStmt = db.prepare(`
-      INSERT INTO other_items (id, name, price, composition, protein, carbs, fats, isActive)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO other_items (id, name, price, composition, protein, carbs, fats, grams, calories, isVegan, isVegetarian, isActive)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const item of items) {
       insertStmt.run(
         item.id, item.name, item.price || 100, item.composition || null,
         item.protein || null, item.carbs || null, item.fats || null,
+        item.grams || null, item.calories || null,
+        item.isVegan ? 1 : 0, item.isVegetarian ? 1 : 0,
         item.isActive !== false ? 1 : 0
       );
     }
@@ -401,9 +500,9 @@ export function getGarnishes() {
 export function updateGarnishes(items: any[]) {
   const transaction = db.transaction(() => {
     db.prepare('DELETE FROM garnishes').run();
-    const insertStmt = db.prepare('INSERT INTO garnishes (id, name, grams, calories, isActive) VALUES (?, ?, ?, ?, ?)');
+    const insertStmt = db.prepare('INSERT INTO garnishes (id, name, composition, grams, calories, isVegan, isVegetarian, isActive) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
     for (const item of items) {
-      insertStmt.run(item.id, item.name, item.grams || 50, item.calories || 0, item.isActive !== false ? 1 : 0);
+      insertStmt.run(item.id, item.name, item.composition || null, item.grams || 50, item.calories || 0, item.isVegan ? 1 : 0, item.isVegetarian ? 1 : 0, item.isActive !== false ? 1 : 0);
     }
   });
   transaction();
@@ -419,9 +518,9 @@ export function getSauces() {
 export function updateSauces(items: any[]) {
   const transaction = db.transaction(() => {
     db.prepare('DELETE FROM sauces').run();
-    const insertStmt = db.prepare('INSERT INTO sauces (id, name, grams, calories, isActive) VALUES (?, ?, ?, ?, ?)');
+    const insertStmt = db.prepare('INSERT INTO sauces (id, name, composition, grams, calories, isVegan, isVegetarian, isActive) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
     for (const item of items) {
-      insertStmt.run(item.id, item.name, item.grams || 30, item.calories || 0, item.isActive !== false ? 1 : 0);
+      insertStmt.run(item.id, item.name, item.composition || null, item.grams || 30, item.calories || 0, item.isVegan ? 1 : 0, item.isVegetarian ? 1 : 0, item.isActive !== false ? 1 : 0);
     }
   });
   transaction();
@@ -454,9 +553,9 @@ export function updatePastries(items: any[]) {
   try {
     const transaction = db.transaction(() => {
       db.prepare('DELETE FROM pastries').run();
-      const insertStmt = db.prepare('INSERT INTO pastries (id, name, isVegan, isActive) VALUES (?, ?, ?, ?)');
+      const insertStmt = db.prepare('INSERT INTO pastries (id, name, isVegan, isVegetarian, isActive) VALUES (?, ?, ?, ?, ?)');
       for (const item of items) {
-        insertStmt.run(item.id, item.name, item.isVegan ? 1 : 0, item.isActive !== false ? 1 : 0);
+        insertStmt.run(item.id, item.name, item.isVegan ? 1 : 0, item.isVegetarian ? 1 : 0, item.isActive !== false ? 1 : 0);
       }
     });
     transaction();

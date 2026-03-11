@@ -55,21 +55,29 @@ const OmskAdmin: React.FC = () => {
     carbs: '',
     fats: '',
     grams: '',
-    calories: ''
+    calories: '',
+    isVegan: false,
+    isVegetarian: false
   });
   
   // Form state for adding garnishes
   const [newGarnish, setNewGarnish] = useState({
     name: '',
+    composition: '',
     grams: '',
-    calories: ''
+    calories: '',
+    isVegan: false,
+    isVegetarian: false
   });
   
   // Form state for adding sauces
   const [newSauce, setNewSauce] = useState({
     name: '',
+    composition: '',
     grams: '',
-    calories: ''
+    calories: '',
+    isVegan: false,
+    isVegetarian: false
   });
   
   // Form state for adding vegan items
@@ -81,7 +89,9 @@ const OmskAdmin: React.FC = () => {
     carbs: '',
     fats: '',
     grams: '',
-    calories: ''
+    calories: '',
+    isVegan: false,
+    isVegetarian: false
   });
   
   // Form state for disabled dates
@@ -165,8 +175,8 @@ const OmskAdmin: React.FC = () => {
   const setActiveWeek = async (weekNumber: number) => {
     setSaving(true);
     try {
-      const response = await fetch('/api/omsk/weeks/set-active', {
-        method: 'POST',
+      const response = await fetch('/api/omsk/active-week', {
+        method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
           'x-admin-code': getAdminCode()
@@ -199,7 +209,7 @@ const OmskAdmin: React.FC = () => {
       if (response.ok) {
         const savedDish = await response.json();
         setDishes([...dishes, savedDish]);
-        setNewDish({ name: '', category: 'hot', weekNumber: 1, composition: '', protein: '', carbs: '', fats: '', grams: '', calories: '' });
+        setNewDish({ name: '', category: 'hot', weekNumber: 1, composition: '', protein: '', carbs: '', fats: '', grams: '', calories: '', isVegan: false, isVegetarian: false });
       }
     } catch (error) {
       console.error('Failed to save dish:', error);
@@ -236,15 +246,18 @@ const OmskAdmin: React.FC = () => {
         },
         body: JSON.stringify({ 
           name: newGarnish.name,
+          composition: newGarnish.composition,
           grams: parseInt(newGarnish.grams) || 50,
-          calories: parseInt(newGarnish.calories) || 0
+          calories: parseInt(newGarnish.calories) || 0,
+          isVegan: newGarnish.isVegan || false,
+          isVegetarian: newGarnish.isVegetarian || false
         })
       });
       
       if (response.ok) {
         const newGarnishData = await response.json();
         setGarnishes([...garnishes, newGarnishData]);
-        setNewGarnish({ name: '', grams: '', calories: '' });
+        setNewGarnish({ name: '', composition: '', grams: '', calories: '', isVegan: false, isVegetarian: false });
       }
     } catch (error) {
       console.error('Failed to add garnish:', error);
@@ -304,15 +317,18 @@ const OmskAdmin: React.FC = () => {
         },
         body: JSON.stringify({ 
           name: newSauce.name,
+          composition: newSauce.composition,
           grams: parseInt(newSauce.grams) || 30,
-          calories: parseInt(newSauce.calories) || 0
+          calories: parseInt(newSauce.calories) || 0,
+          isVegan: newSauce.isVegan || false,
+          isVegetarian: newSauce.isVegetarian || false
         })
       });
       
       if (response.ok) {
         const newSauceData = await response.json();
         setSauces([...sauces, newSauceData]);
-        setNewSauce({ name: '', grams: '', calories: '' });
+        setNewSauce({ name: '', composition: '', grams: '', calories: '', isVegan: false, isVegetarian: false });
       }
     } catch (error) {
       console.error('Failed to add sauce:', error);
@@ -359,6 +375,43 @@ const OmskAdmin: React.FC = () => {
     }
   };
 
+  const handleImportGarnishesSauces = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSaving(true);
+    try {
+      const response = await fetch('/api/omsk/import/garnishes-sauces', {
+        method: 'POST',
+        headers: { 'x-admin-code': getAdminCode() },
+        body: file
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(result.message || 'Импорт успешен!');
+        // Refresh data
+        const [garnishesRes, saucesRes] = await Promise.all([
+          fetch('/api/omsk/garnishes'),
+          fetch('/api/omsk/sauces')
+        ]);
+        const garnishesData = await garnishesRes.json();
+        const saucesData = await saucesRes.json();
+        setGarnishes(garnishesData);
+        setSauces(saucesData);
+      } else {
+        const error = await response.json();
+        alert('Ошибка импорта: ' + (error.error || error.details || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Failed to import garnishes/sauces:', error);
+      alert('Ошибка импорта');
+    } finally {
+      setSaving(false);
+      e.target.value = ''; // Reset input
+    }
+  };
+
   const handleAddVeganItem = async () => {
     if (!newVeganItem.name.trim() || !newVeganItem.price.trim()) {
       alert('Название и цена обязательны');
@@ -381,7 +434,9 @@ const OmskAdmin: React.FC = () => {
           carbs: parseFloat(newVeganItem.carbs) || 0,
           fats: parseFloat(newVeganItem.fats) || 0,
           grams: parseInt(newVeganItem.grams) || 100,
-          calories: parseInt(newVeganItem.calories) || 0
+          calories: parseInt(newVeganItem.calories) || 0,
+          isVegan: newVeganItem.isVegan || false,
+          isVegetarian: newVeganItem.isVegetarian || false
         })
       });
       
@@ -396,7 +451,9 @@ const OmskAdmin: React.FC = () => {
           carbs: '',
           fats: '',
           grams: '',
-          calories: ''
+          calories: '',
+          isVegan: false,
+          isVegetarian: false
         });
       }
     } catch (error) {
@@ -798,6 +855,26 @@ const OmskAdmin: React.FC = () => {
                       style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
                     />
                   </div>
+                  <div className="flex gap-4 mb-4 items-center">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newDish.isVegan}
+                        onChange={e => setNewDish({ ...newDish, isVegan: e.target.checked })}
+                        className="w-4 h-4"
+                      />
+                      <span>Веган</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newDish.isVegetarian}
+                        onChange={e => setNewDish({ ...newDish, isVegetarian: e.target.checked })}
+                        className="w-4 h-4"
+                      />
+                      <span>Вегетарианское</span>
+                    </label>
+                  </div>
                   <button
                     onClick={handleSaveDish}
                     disabled={saving || !newDish.name}
@@ -873,7 +950,27 @@ const OmskAdmin: React.FC = () => {
             {/* Garnishes Tab */}
             {activeTab === 'garnishes' && (
               <div className="space-y-6">
-                <h2 className="text-2xl font-bold mb-6">Управление гарнирами</h2>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold">Управление гарнирами</h2>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => window.open('/api/omsk/export/garnishes-sauces-template', '_blank')}
+                      className="px-3 py-1 rounded text-sm"
+                      style={{ backgroundColor: palette.colors.border, color: palette.colors.text }}
+                    >
+                      Экспорт шаблона
+                    </button>
+                    <label className="px-3 py-1 rounded text-sm cursor-pointer" style={{ backgroundColor: palette.colors.primary, color: 'white' }}>
+                      Импорт из Excel
+                      <input
+                        type="file"
+                        accept=".xlsx"
+                        onChange={handleImportGarnishesSauces}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
                 
                 {/* Add new garnish form */}
                 <div className="p-4 rounded-lg" style={{ backgroundColor: palette.colors.cardBg, borderColor: palette.colors.border, borderWidth: 1 }}>
@@ -884,6 +981,14 @@ const OmskAdmin: React.FC = () => {
                       placeholder="Название гарнира"
                       value={newGarnish.name}
                       onChange={e => setNewGarnish({ ...newGarnish, name: e.target.value })}
+                      className="flex-1 px-3 py-2 rounded border"
+                      style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Состав"
+                      value={newGarnish.composition}
+                      onChange={e => setNewGarnish({ ...newGarnish, composition: e.target.value })}
                       className="flex-1 px-3 py-2 rounded border"
                       style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
                     />
@@ -903,6 +1008,26 @@ const OmskAdmin: React.FC = () => {
                       className="w-28 px-3 py-2 rounded border"
                       style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
                     />
+                  </div>
+                  <div className="flex gap-4 mb-4 items-center">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newGarnish.isVegan}
+                        onChange={e => setNewGarnish({ ...newGarnish, isVegan: e.target.checked })}
+                        className="w-4 h-4"
+                      />
+                      <span>Веган</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newGarnish.isVegetarian}
+                        onChange={e => setNewGarnish({ ...newGarnish, isVegetarian: e.target.checked })}
+                        className="w-4 h-4"
+                      />
+                      <span>Вегетарианское</span>
+                    </label>
                     <button
                       onClick={handleAddGarnish}
                       className="px-4 py-2 rounded text-white"
@@ -919,6 +1044,9 @@ const OmskAdmin: React.FC = () => {
                     <div key={garnish.id} className="p-4 rounded-lg border flex justify-between items-center" style={{ backgroundColor: palette.colors.cardBg, borderColor: palette.colors.border }}>
                       <div>
                         <div className="font-semibold">{garnish.name}</div>
+                        {garnish.composition && (
+                          <div className="text-sm" style={{ color: palette.colors.textSecondary }}>{garnish.composition}</div>
+                        )}
                       </div>
                       <div className="flex gap-2">
                         <button
@@ -962,6 +1090,14 @@ const OmskAdmin: React.FC = () => {
                       style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
                     />
                     <input
+                      type="text"
+                      placeholder="Состав"
+                      value={newSauce.composition}
+                      onChange={e => setNewSauce({ ...newSauce, composition: e.target.value })}
+                      className="flex-1 px-3 py-2 rounded border"
+                      style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                    />
+                    <input
                       type="number"
                       placeholder="Вес (г)"
                       value={newSauce.grams}
@@ -977,6 +1113,26 @@ const OmskAdmin: React.FC = () => {
                       className="w-28 px-3 py-2 rounded border"
                       style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
                     />
+                  </div>
+                  <div className="flex gap-4 mb-4 items-center">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newSauce.isVegan}
+                        onChange={e => setNewSauce({ ...newSauce, isVegan: e.target.checked })}
+                        className="w-4 h-4"
+                      />
+                      <span>Веган</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newSauce.isVegetarian}
+                        onChange={e => setNewSauce({ ...newSauce, isVegetarian: e.target.checked })}
+                        className="w-4 h-4"
+                      />
+                      <span>Вегетарианское</span>
+                    </label>
                     <button
                       onClick={handleAddSauce}
                       className="px-4 py-2 rounded text-white"
@@ -993,6 +1149,9 @@ const OmskAdmin: React.FC = () => {
                     <div key={sauce.id} className="p-4 rounded-lg border flex justify-between items-center" style={{ backgroundColor: palette.colors.cardBg, borderColor: palette.colors.border }}>
                       <div>
                         <div className="font-semibold">{sauce.name}</div>
+                        {sauce.composition && (
+                          <div className="text-sm" style={{ color: palette.colors.textSecondary }}>{sauce.composition}</div>
+                        )}
                       </div>
                       <div className="flex gap-2">
                         <button
@@ -1092,13 +1251,33 @@ const OmskAdmin: React.FC = () => {
                       style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
                     />
                   </div>
-                  <button
-                    onClick={handleAddVeganItem}
-                    className="px-4 py-2 rounded text-white"
-                    style={{ backgroundColor: palette.colors.primary }}
-                  >
-                    Добавить
-                  </button>
+                  <div className="flex gap-4 mb-4 items-center">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newVeganItem.isVegan}
+                        onChange={e => setNewVeganItem({ ...newVeganItem, isVegan: e.target.checked })}
+                        className="w-4 h-4"
+                      />
+                      <span>Веган</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newVeganItem.isVegetarian}
+                        onChange={e => setNewVeganItem({ ...newVeganItem, isVegetarian: e.target.checked })}
+                        className="w-4 h-4"
+                      />
+                      <span>Вегетарианское</span>
+                    </label>
+                    <button
+                      onClick={handleAddVeganItem}
+                      className="px-4 py-2 rounded text-white"
+                      style={{ backgroundColor: palette.colors.primary }}
+                    >
+                      Добавить
+                    </button>
+                  </div>
                 </div>
                 
                 {/* Vegan items list */}

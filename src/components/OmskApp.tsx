@@ -210,8 +210,9 @@ const OmskApp: React.FC = () => {
       const currentDate = new Date(currentEmployeeOrder.orderDate);
       currentDate.setDate(currentDate.getDate() + 1);
       const nextDate = currentDate.toISOString().split('T')[0];
-      setSelectedAggregateDate(nextDate);
       
+      setSelectedAggregateDate(nextDate);
+       
       // Save name and department to localStorage for next time
       if (typeof window !== 'undefined') {
         localStorage.setItem('omsk_employeeName', currentEmployeeOrder.employeeName);
@@ -424,8 +425,10 @@ const OmskApp: React.FC = () => {
                     </div>
                     <div className="text-sm mt-1" style={{ color: palette.colors.textSecondary }}>
                       {order.items?.map((item: any, idx: number) => {
-                        const garnishName = item.garnish ? (garnishes.find(g => g.id === item.garnish)?.name || item.garnish) : null;
-                        const sauceName = item.sauce ? (sauces.find(s => s.id === item.sauce)?.name || item.sauce) : null;
+                        const garnishItem = item.garnish ? garnishes.find(g => g.id === item.garnish) : null;
+                        const sauceItem = item.sauce ? sauces.find(s => s.id === item.sauce) : null;
+                        const garnishName = garnishItem?.name || item.garnish;
+                        const sauceName = sauceItem?.name || item.sauce;
                         return (
                           <div key={item.dishId || idx} className="mb-2">
                             <div className="font-medium">
@@ -440,6 +443,22 @@ const OmskApp: React.FC = () => {
                                 {item.fats && <span>Ж: {item.fats}г</span>}
                                 {item.grams && <span> | {item.grams}г</span>}
                                 {item.calories && <span> | {item.calories}ккал</span>}
+                              </div>
+                            )}
+                            {(garnishItem?.composition || garnishItem?.grams || garnishItem?.calories) && (
+                              <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
+                                {garnishItem?.composition && <span>Состав гарнира: {garnishItem.composition} | </span>}
+                                {garnishItem?.grams && <span>{garnishItem.grams}г</span>}
+                                {garnishItem?.grams && garnishItem?.calories && <span> / </span>}
+                                {garnishItem?.calories && <span>{garnishItem.calories}ккал</span>}
+                              </div>
+                            )}
+                            {(sauceItem?.composition || sauceItem?.grams || sauceItem?.calories) && (
+                              <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
+                                {sauceItem?.composition && <span>Состав соуса: {sauceItem.composition} | </span>}
+                                {sauceItem?.grams && <span>{sauceItem.grams}г</span>}
+                                {sauceItem?.grams && sauceItem?.calories && <span> / </span>}
+                                {sauceItem?.calories && <span>{sauceItem.calories}ккал</span>}
                               </div>
                             )}
                           </div>
