@@ -587,8 +587,15 @@ export function getOrdersByDate(date: string, address: string) {
     
     // Handle 'all' address to return orders from all addresses
     if (address && address !== 'all') {
-      query += ` AND address = ?`;
-      params.push(address);
+      // Handle 'office' address to include both floor 10 and 14 orders (office_10, office_14)
+      if (address === 'office') {
+        query += ` AND (address = ? OR address LIKE ?)`;
+        params.push('office');
+        params.push('office_%');
+      } else {
+        query += ` AND address = ?`;
+        params.push(address);
+      }
     }
     
     query += ` ORDER BY timestamp DESC`;
@@ -608,8 +615,15 @@ export function getOrdersByDateRange(startDate: string, endDate: string, address
     const params: string[] = [startDate, endDate];
     
     if (address && address !== 'all') {
-      query += ` AND address = ?`;
-      params.push(address);
+      // Handle 'office' address to include both floor 10 and 14 orders (office_10, office_14)
+      if (address === 'office') {
+        query += ` AND (address = ? OR address LIKE ?)`;
+        params.push('office');
+        params.push('office_%');
+      } else {
+        query += ` AND address = ?`;
+        params.push(address);
+      }
     }
     
     query += ` ORDER BY orderDate DESC, timestamp DESC`;
@@ -628,8 +642,21 @@ export function getOrdersByDateRange(startDate: string, endDate: string, address
 
 export function hasUserOrderedToday(employeeName: string, department: string, orderDate: string, address: string): boolean {
   try {
-    const stmt = db.prepare('SELECT COUNT(*) as count FROM orders WHERE employeeName = ? AND department = ? AND orderDate = ? AND address = ?');
-    const result = stmt.get(employeeName, department, orderDate, address) as { count: number };
+    let query = 'SELECT COUNT(*) as count FROM orders WHERE employeeName = ? AND department = ? AND orderDate = ?';
+    const params: string[] = [employeeName, department, orderDate];
+    
+    // Handle 'office' address to include both floor 10 and 14 orders
+    if (address && address === 'office') {
+      query += ' AND (address = ? OR address LIKE ?)';
+      params.push('office');
+      params.push('office_%');
+    } else if (address) {
+      query += ' AND address = ?';
+      params.push(address);
+    }
+    
+    const stmt = db.prepare(query);
+    const result = stmt.get(...params) as { count: number };
     return result.count > 0;
   } catch (error) {
     console.error('Error checking if user ordered today:', error);

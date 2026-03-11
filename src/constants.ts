@@ -113,6 +113,7 @@ export const FLOOR_14_DEPARTMENTS: string[] = [
   'Финансовый отдел',
   'Тренеры по кофе',
   'Снабжение',
+  'IT Отдел',
 ];
 
 // Office address labels for Excel export
