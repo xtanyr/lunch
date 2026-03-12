@@ -276,9 +276,108 @@ function seedDefaultData() {
   console.log('Default data seeded successfully');
 }
 
+// Migration: Add old garnish/sauce IDs from orders to the database
+// This fixes old orders that stored garnish/sauce IDs that don't exist in the database
+function migrateOldGarnishSauceIds() {
+  try {
+    // Check if we've already run this migration
+    const migrationCheck = db.prepare('SELECT value FROM settings WHERE key = ?').get('migration_garnish_sauce_ids') as { value: string } | undefined;
+    if (migrationCheck) {
+      console.log('Old garnish/sauce IDs migration already completed');
+      return;
+    }
+
+    console.log('Running migration for old garnish/sauce IDs...');
+
+    // Get all existing garnishes and sauces
+    const existingGarnishes = db.prepare('SELECT id, name FROM garnishes').all() as { id: string; name: string }[];
+    const existingSauces = db.prepare('SELECT id, name FROM sauces').all() as { id: string; name: string }[];
+
+    const garnishIds = new Set(existingGarnishes.map(g => g.id));
+    const sauceIds = new Set(existingSauces.map(s => s.id));
+
+    // Get all orders
+    const orders = db.prepare('SELECT id, items FROM orders').all() as { id: string; items: string }[];
+
+    const newGarnishes: { id: string; name: string }[] = [];
+    const newSauces: { id: string; name: string }[] = [];
+
+    // Scan each order for garnish/sauce IDs
+    for (const order of orders) {
+      try {
+        const items = JSON.parse(order.items);
+        if (!Array.isArray(items)) continue;
+
+        for (const item of items) {
+          // Check for garnish ID
+          if (item.garnish && typeof item.garnish === 'string') {
+            if (!garnishIds.has(item.garnish) && item.garnish.startsWith('garnish_')) {
+              // Check if we already found this garnish
+              if (!newGarnishes.find(g => g.id === item.garnish)) {
+                // Try to get the name from the item itself (newer orders store garnishName)
+                const name = item.garnishName || 'Гарнир';
+                newGarnishes.push({ id: item.garnish, name });
+                garnishIds.add(item.garnish);
+              }
+            }
+          }
+
+          // Check for sauce ID
+          if (item.sauce && typeof item.sauce === 'string') {
+            if (!sauceIds.has(item.sauce) && item.sauce.startsWith('sauce_')) {
+              // Check if we already found this sauce
+              if (!newSauces.find(s => s.id === item.sauce)) {
+                // Try to get the name from the item itself (newer orders store sauceName)
+                const name = item.sauceName || 'Соус';
+                newSauces.push({ id: item.sauce, name });
+                sauceIds.add(item.sauce);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // Skip orders with invalid JSON
+        console.warn('Skipping order with invalid items JSON:', order.id);
+      }
+    }
+
+    // Insert new garnishes
+    if (newGarnishes.length > 0) {
+      console.log(`Adding ${newGarnishes.length} old garnish IDs to database...`);
+      const insertGarnish = db.prepare('INSERT OR IGNORE INTO garnishes (id, name, isActive) VALUES (?, ?, 1)');
+      for (const g of newGarnishes) {
+        insertGarnish.run(g.id, g.name);
+      }
+    }
+
+    // Insert new sauces
+    if (newSauces.length > 0) {
+      console.log(`Adding ${newSauces.length} old sauce IDs to database...`);
+      const insertSauce = db.prepare('INSERT OR IGNORE INTO sauces (id, name, isActive) VALUES (?, ?, 1)');
+      for (const s of newSauces) {
+        insertSauce.run(s.id, s.name);
+      }
+    }
+
+    // Mark migration as complete
+    if (newGarnishes.length > 0 || newSauces.length > 0) {
+      db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('migration_garnish_sauce_ids', new Date().toISOString());
+      console.log('Old garnish/sauce IDs migration completed');
+    } else {
+      console.log('No old garnish/sauce IDs found');
+      db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('migration_garnish_sauce_ids', new Date().toISOString());
+    }
+  } catch (error) {
+    console.error('Error migrating old garnish/sauce IDs:', error);
+  }
+}
+
 // Migration: Add grams and calories columns to existing tables
 export function migrateDatabase() {
   try {
+    // Run migration for old garnish/sauce IDs from orders
+    migrateOldGarnishSauceIds();
+
     // Check and add grams/calories columns to garnishes
     try {
       db.prepare('SELECT grams FROM garnishes LIMIT 1').get();
