@@ -1,5 +1,5 @@
 // Run this on your server to fix old garnish/sauce IDs
-// Usage: node fix_garnish_sauce.cjs
+// Usage: node fix_garnish_sauce.mjs
 
 import Database from 'better-sqlite3';
 import path from 'path';
