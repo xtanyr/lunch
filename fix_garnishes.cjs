@@ -1,9 +1,10 @@
 const Database = require('better-sqlite3');
 const path = require('path');
+const os = require('os');
 
-// Database is at /home/lunch/data/omsk.db (relative to user home)
-// From /home/lunch/lunch, go up ONE dir to /home/lunch
-const dbPath = path.join(__dirname, '..', 'data', 'omsk.db');
+// Use home directory + lunch/data/omsk.db
+const homeDir = os.homedir();
+const dbPath = path.join(homeDir, 'lunch', 'data', 'omsk.db');
 console.log('Using database:', dbPath);
 const db = new Database(dbPath);
 
