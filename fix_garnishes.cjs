@@ -1,7 +1,9 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const dbPath = path.join(__dirname, 'data', 'omsk.db');
+// Use the SAME path as server.js: __dirname + ../data/omsk.db
+const dbPath = path.join(__dirname, '..', 'data', 'omsk.db');
+console.log('Using database:', dbPath);
 const db = new Database(dbPath);
 
 // Add missing garnishes with their proper names
@@ -27,7 +29,6 @@ for (const [id, name] of garnishesToAdd) {
   if (result.changes > 0) {
     console.log('Added garnish:', id, '=', name);
   } else {
-    // Try update if exists
     db.prepare('UPDATE garnishes SET name = ? WHERE id = ?').run(name, id);
     console.log('Updated garnish:', id, '=', name);
   }
@@ -39,7 +40,6 @@ for (const [id, name] of saucesToAdd) {
   if (result.changes > 0) {
     console.log('Added sauce:', id, '=', name);
   } else {
-    // Try update if exists
     db.prepare('UPDATE sauces SET name = ? WHERE id = ?').run(name, id);
     console.log('Updated sauce:', id, '=', name);
   }
