@@ -334,7 +334,7 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
     sauces.forEach(s => sauceMap[s.id] = s.name);
     
     // Import CITY_ADDRESSES for address name lookup
-    const addressMap = {};
+    let addressMap = {};
     Object.values(CITY_ADDRESSES).flat().forEach(addr => {
       addressMap[addr.id] = addr.label;
     });
