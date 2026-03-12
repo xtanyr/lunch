@@ -159,8 +159,16 @@ const OmskApp: React.FC = () => {
         ]);
         const garnishesData = await garnishesRes.json();
         const saucesData = await saucesRes.json();
-        setGarnishes(garnishesData);
-        setSauces(saucesData);
+        // Normalize: support both { id, name } objects and pipe-delimited strings "id|name"
+        const normalize = (data: any[]) => data.map((item: any) => {
+          if (typeof item === 'string') {
+            const [id, name] = item.split('|');
+            return { id: id?.trim(), name: name?.trim() };
+          }
+          return { ...item, id: item.id || item.key };
+        });
+        setGarnishes(normalize(garnishesData));
+        setSauces(normalize(saucesData));
       } catch (error) {
         console.error('Failed to load garnishes/sauces:', error);
       }
@@ -425,10 +433,30 @@ const OmskApp: React.FC = () => {
                     </div>
                     <div className="text-sm mt-1" style={{ color: palette.colors.textSecondary }}>
                       {order.items?.map((item: any, idx: number) => {
-                        const garnishItem = item.garnish ? garnishes.find(g => g.id === item.garnish || g.name === item.garnish) : null;
-                        const sauceItem = item.sauce ? sauces.find(s => s.id === item.sauce || s.name === item.sauce) : null;
-                        const garnishName = garnishItem?.name || item.garnishName || item.garnish;
-                        const sauceName = sauceItem?.name || item.sauceName || item.sauce;
+                        // Build a robust lookup: match by id, name, or the full key string
+                        const resolveItem = (list: any[], value: string | undefined) => {
+                          if (!value) return null;
+                          return list.find(x =>
+                            x.id === value ||
+                            x.name === value ||
+                            x.key === value ||
+                            // Handle case where value IS the name already
+                            (x.id && value.startsWith('garnish_') === false && value.startsWith('sauce_') === false && x.name === value)
+                          ) || null;
+                        };
+                        const garnishItem = resolveItem(garnishes, item.garnish);
+                        const sauceItem = resolveItem(sauces, item.sauce);
+                        // If still not resolved, check if the value looks like an ID and try matching by suffix
+                        const resolveNameFromId = (list: any[], id: string | undefined) => {
+                          if (!id) return undefined;
+                          const found = list.find(x => x.id === id || x.key === id);
+                          if (found) return found.name;
+                          // If it doesn't look like an ID (no underscore+digits pattern), treat as name directly
+                          if (!/_([\d]+)$/.test(id)) return id;
+                          return undefined;
+                        };
+                        const garnishName = garnishItem?.name || item.garnishName || resolveNameFromId(garnishes, item.garnish);
+                        const sauceName = sauceItem?.name || item.sauceName || resolveNameFromId(sauces, item.sauce);
                         return (
                           <div key={item.dishId || idx} className="mb-2">
                             <div className="font-medium">
