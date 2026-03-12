@@ -1276,6 +1276,115 @@ app.post('/api/omsk/import/garnishes-sauces', requireAdmin, express.raw({ type: 
   }
 });
 
+// Admin endpoint to force-run old garnish/sauce migration
+app.post('/api/omsk/admin/migrate-garnish-sauce', requireAdmin, (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+
+  try {
+    // Remove migration flag so it runs again
+    omskDb.prepare('DELETE FROM settings WHERE key = ?').run('migration_garnish_sauce_ids');
+    
+    // Run the migration
+    // Note: The migrateOldGarnishSauceIds function is defined in database.ts but not exported
+    // So we'll manually do the migration here
+    const orders = omskDb.prepare('SELECT id, items FROM orders').all();
+    const existingGarnishes = omskDb.prepare('SELECT id, name FROM garnishes').all();
+    const existingSauces = omskDb.prepare('SELECT id, name FROM sauces').all();
+    
+    const garnishIds = new Set(existingGarnishes.map((g) => g.id));
+    const garnishNames = new Set(existingGarnishes.map((g) => g.name.toLowerCase()));
+    const sauceIds = new Set(existingSauces.map((s) => s.id));
+    const sauceNames = new Set(existingSauces.map((s) => s.name.toLowerCase()));
+    
+    const newGarnishes = [];
+    const newSauces = [];
+    
+    for (const order of orders) {
+      try {
+        const items = JSON.parse(order.items);
+        if (!Array.isArray(items)) continue;
+        
+        for (const item of items) {
+          // Check for garnish
+          if (item.garnish) {
+            const garnishValue = item.garnish;
+            
+            if (typeof garnishValue === 'string' && garnishValue.startsWith('garnish_')) {
+              if (!garnishIds.has(garnishValue)) {
+                if (!newGarnishes.find(g => g.id === garnishValue)) {
+                  const name = item.garnishName || 'Гарнир';
+                  newGarnishes.push({ id: garnishValue, name });
+                  garnishIds.add(garnishValue);
+                }
+              }
+            } else if (typeof garnishValue === 'string' && !garnishNames.has(garnishValue.toLowerCase())) {
+              if (!newGarnishes.find(g => g.name.toLowerCase() === garnishValue.toLowerCase())) {
+                const id = `garnish_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                newGarnishes.push({ id, name: garnishValue });
+                garnishNames.add(garnishValue.toLowerCase());
+              }
+            }
+          }
+          
+          // Check for sauce
+          if (item.sauce) {
+            const sauceValue = item.sauce;
+            
+            if (typeof sauceValue === 'string' && sauceValue.startsWith('sauce_')) {
+              if (!sauceIds.has(sauceValue)) {
+                if (!newSauces.find(s => s.id === sauceValue)) {
+                  const name = item.sauceName || 'Соус';
+                  newSauces.push({ id: sauceValue, name });
+                  sauceIds.add(sauceValue);
+                }
+              }
+            } else if (typeof sauceValue === 'string' && !sauceNames.has(sauceValue.toLowerCase())) {
+              if (!newSauces.find(s => s.name.toLowerCase() === sauceValue.toLowerCase())) {
+                const id = `sauce_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                newSauces.push({ id, name: sauceValue });
+                sauceNames.add(sauceValue.toLowerCase());
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // Skip invalid JSON
+      }
+    }
+    
+    // Insert new garnishes
+    if (newGarnishes.length > 0) {
+      const insertGarnish = omskDb.prepare('INSERT OR IGNORE INTO garnishes (id, name, isActive) VALUES (?, ?, 1)');
+      for (const g of newGarnishes) {
+        insertGarnish.run(g.id, g.name);
+      }
+    }
+    
+    // Insert new sauces
+    if (newSauces.length > 0) {
+      const insertSauce = omskDb.prepare('INSERT OR IGNORE INTO sauces (id, name, isActive) VALUES (?, ?, 1)');
+      for (const s of newSauces) {
+        insertSauce.run(s.id, s.name);
+      }
+    }
+    
+    // Set migration flag
+    omskDb.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('migration_garnish_sauce_ids', new Date().toISOString());
+    
+    res.json({ 
+      success: true, 
+      message: `Migration complete: added ${newGarnishes.length} garnishes and ${newSauces.length} sauces`,
+      garnishesAdded: newGarnishes,
+      saucesAdded: newSauces
+    });
+  } catch (error) {
+    console.error('Migration error:', error);
+    res.status(500).json({ error: 'Migration failed', details: String(error) });
+  }
+});
+
 // Export garnishes and sauces to Excel template
 app.get('/api/omsk/export/garnishes-sauces-template', requireAdmin, (req, res) => {
   if (!omskDbReady) {
