@@ -45,14 +45,5 @@ for (const [id, name] of saucesToAdd) {
   }
 }
 
-console.log('\nVerifying...');
-const garnishes = db.prepare('SELECT * FROM garnishes').all();
-console.log('Total garnishes:', garnishes.length);
-garnishes.forEach(g => console.log(' -', g.id, '=', g.name));
-
-const sauces = db.prepare('SELECT * FROM sauces').all();
-console.log('Total sauces:', sauces.length);
-sauces.forEach(s => console.log(' -', s.id, '=', s.name));
-
 console.log('\nDone!');
 db.close();
