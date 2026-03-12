@@ -398,9 +398,11 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
           if (!order.items || !Array.isArray(order.items)) return;
           
           order.items.forEach(item => {
-            // Look up garnish and sauce names
-            const garnishName = item.garnish ? (garnishMap[item.garnish] || item.garnish) : '';
-            const sauceName = item.sauce ? (sauceMap[item.sauce] || item.sauce) : '';
+            // Look up garnish and sauce names - handle both ID format and plain name format
+            const garnishItem = item.garnish ? garnishes.find(g => g.id === item.garnish || g.name === item.garnish) : null;
+            const sauceItem = item.sauce ? sauces.find(s => s.id === item.sauce || s.name === item.sauce) : null;
+            const garnishName = garnishItem?.name || item.garnishName || item.garnish || '';
+            const sauceName = sauceItem?.name || item.sauceName || item.sauce || '';
             
             const key = `${item.dishName}|||${garnishName || '---'}|||${sauceName || '---'}`;
             if (!dishMap[key]) {

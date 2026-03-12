@@ -294,7 +294,9 @@ function migrateOldGarnishSauceIds() {
     const existingSauces = db.prepare('SELECT id, name FROM sauces').all() as { id: string; name: string }[];
 
     const garnishIds = new Set(existingGarnishes.map(g => g.id));
+    const garnishNames = new Set(existingGarnishes.map(g => g.name.toLowerCase()));
     const sauceIds = new Set(existingSauces.map(s => s.id));
+    const sauceNames = new Set(existingSauces.map(s => s.name.toLowerCase()));
 
     // Get all orders
     const orders = db.prepare('SELECT id, items FROM orders').all() as { id: string; items: string }[];
@@ -302,35 +304,61 @@ function migrateOldGarnishSauceIds() {
     const newGarnishes: { id: string; name: string }[] = [];
     const newSauces: { id: string; name: string }[] = [];
 
-    // Scan each order for garnish/sauce IDs
+    // Scan each order for garnish/sauce IDs and names
     for (const order of orders) {
       try {
         const items = JSON.parse(order.items);
         if (!Array.isArray(items)) continue;
 
         for (const item of items) {
-          // Check for garnish ID
-          if (item.garnish && typeof item.garnish === 'string') {
-            if (!garnishIds.has(item.garnish) && item.garnish.startsWith('garnish_')) {
-              // Check if we already found this garnish
-              if (!newGarnishes.find(g => g.id === item.garnish)) {
-                // Try to get the name from the item itself (newer orders store garnishName)
-                const name = item.garnishName || 'Гарнир';
-                newGarnishes.push({ id: item.garnish, name });
-                garnishIds.add(item.garnish);
+          // Check for garnish - can be ID (new format) or name (old format)
+          if (item.garnish) {
+            const garnishValue = item.garnish;
+            
+            // New format: ID like "garnish_xxx"
+            if (typeof garnishValue === 'string' && garnishValue.startsWith('garnish_')) {
+              if (!garnishIds.has(garnishValue)) {
+                // Check if we already found this garnish
+                if (!newGarnishes.find(g => g.id === garnishValue)) {
+                  const name = item.garnishName || 'Гарнир';
+                  newGarnishes.push({ id: garnishValue, name });
+                  garnishIds.add(garnishValue);
+                }
+              }
+            }
+            // Old format: plain name like "Рис" or "Гречка"
+            else if (typeof garnishValue === 'string' && !garnishNames.has(garnishValue.toLowerCase())) {
+              if (!newGarnishes.find(g => g.name.toLowerCase() === garnishValue.toLowerCase())) {
+                // Create an ID for this old name format
+                const id = `garnish_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                newGarnishes.push({ id, name: garnishValue });
+                garnishNames.add(garnishValue.toLowerCase());
               }
             }
           }
 
-          // Check for sauce ID
-          if (item.sauce && typeof item.sauce === 'string') {
-            if (!sauceIds.has(item.sauce) && item.sauce.startsWith('sauce_')) {
-              // Check if we already found this sauce
-              if (!newSauces.find(s => s.id === item.sauce)) {
-                // Try to get the name from the item itself (newer orders store sauceName)
-                const name = item.sauceName || 'Соус';
-                newSauces.push({ id: item.sauce, name });
-                sauceIds.add(item.sauce);
+          // Check for sauce - can be ID (new format) or name (old format)
+          if (item.sauce) {
+            const sauceValue = item.sauce;
+            
+            // New format: ID like "sauce_xxx"
+            if (typeof sauceValue === 'string' && sauceValue.startsWith('sauce_')) {
+              if (!sauceIds.has(sauceValue)) {
+                // Check if we already found this sauce
+                if (!newSauces.find(s => s.id === sauceValue)) {
+                  const name = item.sauceName || 'Соус';
+                  newSauces.push({ id: sauceValue, name });
+                  sauceIds.add(sauceValue);
+                }
+              }
+            }
+            // Old format: plain name like "Тартар" or "Сырный"
+            else if (typeof sauceValue === 'string' && !sauceNames.has(sauceValue.toLowerCase())) {
+              if (!newSauces.find(s => s.name.toLowerCase() === sauceValue.toLowerCase())) {
+                // Create an ID for this old name format
+                const id = `sauce_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                newSauces.push({ id, name: sauceValue });
+                sauceNames.add(sauceValue.toLowerCase());
               }
             }
           }
@@ -343,7 +371,7 @@ function migrateOldGarnishSauceIds() {
 
     // Insert new garnishes
     if (newGarnishes.length > 0) {
-      console.log(`Adding ${newGarnishes.length} old garnish IDs to database...`);
+      console.log(`Adding ${newGarnishes.length} old garnish entries to database...`);
       const insertGarnish = db.prepare('INSERT OR IGNORE INTO garnishes (id, name, isActive) VALUES (?, ?, 1)');
       for (const g of newGarnishes) {
         insertGarnish.run(g.id, g.name);
@@ -352,7 +380,7 @@ function migrateOldGarnishSauceIds() {
 
     // Insert new sauces
     if (newSauces.length > 0) {
-      console.log(`Adding ${newSauces.length} old sauce IDs to database...`);
+      console.log(`Adding ${newSauces.length} old sauce entries to database...`);
       const insertSauce = db.prepare('INSERT OR IGNORE INTO sauces (id, name, isActive) VALUES (?, ?, 1)');
       for (const s of newSauces) {
         insertSauce.run(s.id, s.name);
@@ -362,9 +390,9 @@ function migrateOldGarnishSauceIds() {
     // Mark migration as complete
     if (newGarnishes.length > 0 || newSauces.length > 0) {
       db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('migration_garnish_sauce_ids', new Date().toISOString());
-      console.log('Old garnish/sauce IDs migration completed');
+      console.log('Old garnish/sauce migration completed:', newGarnishes.length, 'garnishes,', newSauces.length, 'sauces');
     } else {
-      console.log('No old garnish/sauce IDs found');
+      console.log('No old garnish/sauce entries found');
       db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('migration_garnish_sauce_ids', new Date().toISOString());
     }
   } catch (error) {

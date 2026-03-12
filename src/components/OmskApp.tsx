@@ -425,10 +425,10 @@ const OmskApp: React.FC = () => {
                     </div>
                     <div className="text-sm mt-1" style={{ color: palette.colors.textSecondary }}>
                       {order.items?.map((item: any, idx: number) => {
-                        const garnishItem = item.garnish ? garnishes.find(g => g.id === item.garnish) : null;
-                        const sauceItem = item.sauce ? sauces.find(s => s.id === item.sauce) : null;
-                        const garnishName = garnishItem?.name || item.garnish;
-                        const sauceName = sauceItem?.name || item.sauce;
+                        const garnishItem = item.garnish ? garnishes.find(g => g.id === item.garnish || g.name === item.garnish) : null;
+                        const sauceItem = item.sauce ? sauces.find(s => s.id === item.sauce || s.name === item.sauce) : null;
+                        const garnishName = garnishItem?.name || item.garnishName || item.garnish;
+                        const sauceName = sauceItem?.name || item.sauceName || item.sauce;
                         return (
                           <div key={item.dishId || idx} className="mb-2">
                             <div className="font-medium">

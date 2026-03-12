@@ -1509,8 +1509,8 @@ const OmskAdmin: React.FC = () => {
                             <div className="text-sm" style={{ color: palette.colors.textSecondary }}>{order.department}</div>
                             <div className="text-sm mt-1">
                               {(order.items || []).map((i: any) => {
-                                const garnishName = i.garnish ? (garnishes.find(g => g.id === i.garnish)?.name || i.garnish) : null;
-                                const sauceName = i.sauce ? (sauces.find(s => s.id === i.sauce)?.name || i.sauce) : null;
+                                const garnishName = i.garnish ? (garnishes.find(g => g.id === i.garnish || g.name === i.garnish)?.name || i.garnishName || i.garnish) : null;
+                                const sauceName = i.sauce ? (sauces.find(s => s.id === i.sauce || s.name === i.sauce)?.name || i.sauceName || i.sauce) : null;
                                 const parts = [i.dishName];
                                 if (garnishName) parts.push(`+ ${garnishName}`);
                                 if (sauceName) parts.push(`+ ${sauceName}`);
