@@ -1,8 +1,8 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-// Use the SAME path as server.js: __dirname + ../data/omsk.db
-const dbPath = path.join(__dirname, '..', 'data', 'omsk.db');
+// Use the correct path - go up TWO directories from lunch/lunch to lunch, then into data
+const dbPath = path.join(__dirname, '..', '..', 'data', 'omsk.db');
 console.log('Using database:', dbPath);
 const db = new Database(dbPath);
 
