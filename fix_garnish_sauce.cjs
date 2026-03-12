@@ -1,8 +1,12 @@
 // Run this on your server to fix old garnish/sauce IDs
-// Usage: node fix_garnish_sauce.js
+// Usage: node fix_garnish_sauce.cjs
 
-const Database = require('better-sqlite3');
-const path = require('path');
+import Database from 'better-sqlite3';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const dbPath = path.join(__dirname, 'data', 'omsk.db');
 const db = new Database(dbPath);
