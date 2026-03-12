@@ -1,12 +1,5 @@
-// Run this on your server to update garnish/sauce names
-// Usage: node update_names.mjs
-
-import Database from 'better-sqlite3';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const Database = require('better-sqlite3');
+const path = require('path');
 
 const dbPath = path.join(__dirname, 'data', 'omsk.db');
 const db = new Database(dbPath);
