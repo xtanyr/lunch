@@ -559,14 +559,62 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
       });
       
       // Add dish totals for the day at the bottom
-      excelData.push(['Итого по блюдам за день']);
-      excelData.push(['Блюдо', 'Гарнир', 'Соусы', 'Общее кол-во']);
+      // We need to recalculate to separate dishes, garnishes, and sauces
+      const dayDishSummary = {};
+      const dayGarnishSummary = {};
+      const daySauceSummary = {};
       
-      Object.values(dishDayTotals)
-        .sort((a, b) => a.dishName.localeCompare(b.dishName))
-        .forEach((data) => {
-          excelData.push([data.dishName, data.garnish, data.sauce || '', data.quantity]);
+      dayOrders.forEach(order => {
+        if (!order.items || !Array.isArray(order.items)) return;
+        
+        order.items.forEach(item => {
+          const garnishItem = item.garnish ? garnishes.find(g => g.id === item.garnish || g.name === item.garnish) : null;
+          const sauceItem = item.sauce ? sauces.find(s => s.id === item.sauce || s.name === item.sauce) : null;
+          const garnishName = garnishItem?.name || item.garnishName || item.garnish || '';
+          const sauceName = sauceItem?.name || item.sauceName || item.sauce || '';
+          
+          // Track dish summary
+          if (!dayDishSummary[item.dishName]) {
+            dayDishSummary[item.dishName] = 0;
+          }
+          dayDishSummary[item.dishName] += 1;
+          
+          // Track garnish summary
+          if (garnishName) {
+            if (!dayGarnishSummary[garnishName]) {
+              dayGarnishSummary[garnishName] = 0;
+            }
+            dayGarnishSummary[garnishName] += 1;
+          }
+          
+          // Track sauce summary
+          if (sauceName) {
+            if (!daySauceSummary[sauceName]) {
+              daySauceSummary[sauceName] = 0;
+            }
+            daySauceSummary[sauceName] += 1;
+          }
         });
+      });
+      
+      // Add totals for the day
+      excelData.push(['Итого по блюдам за день']);
+      excelData.push(['Итого:']);
+      
+      // Add dishes
+      Object.keys(dayDishSummary).sort().forEach(dishName => {
+        excelData.push([dishName, '', '', dayDishSummary[dishName]]);
+      });
+      
+      // Add garnishes
+      Object.keys(dayGarnishSummary).sort().forEach(garnishName => {
+        excelData.push(['', garnishName, '', dayGarnishSummary[garnishName]]);
+      });
+      
+      // Add sauces
+      Object.keys(daySauceSummary).sort().forEach(sauceName => {
+        excelData.push(['', '', sauceName, daySauceSummary[sauceName]]);
+      });
       
       // Create worksheet
       const sheetName = date.replace(/-/g, '').slice(2);
