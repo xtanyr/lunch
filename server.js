@@ -390,63 +390,192 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
         // Add address header
         const addressName = addressMap[addr] || addr;
         excelData.push([addressName]);
-        excelData.push(['Блюдо', 'Гарнир', 'Соусы', 'Кол-во', 'Цена', 'Сумма']);
         
-        // Aggregate dishes for this address
-        const dishMap = {};
-        addressOrders.forEach(order => {
-          if (!order.items || !Array.isArray(order.items)) return;
+        // Check if this is an office address that needs department grouping
+        const isOfficeAddress = addr === 'office' || addr === 'office_10' || addr === 'office_14';
+        
+        if (isOfficeAddress) {
+          // Group orders by department for office addresses
+          const ordersByDepartment = {};
+          addressOrders.forEach(order => {
+            const dept = order.department || 'Без отдела';
+            if (!ordersByDepartment[dept]) {
+              ordersByDepartment[dept] = [];
+            }
+            ordersByDepartment[dept].push(order);
+          });
           
-          order.items.forEach(item => {
-            // Look up garnish and sauce names - handle both ID format and plain name format
-            const garnishItem = item.garnish ? garnishes.find(g => g.id === item.garnish || g.name === item.garnish) : null;
-            const sauceItem = item.sauce ? sauces.find(s => s.id === item.sauce || s.name === item.sauce) : null;
-            const garnishName = garnishItem?.name || item.garnishName || item.garnish || '';
-            const sauceName = sauceItem?.name || item.sauceName || item.sauce || '';
+          // Process each department
+          Object.keys(ordersByDepartment).sort().forEach(dept => {
+            const deptOrders = ordersByDepartment[dept];
             
-            const key = `${item.dishName}|||${garnishName || '---'}|||${sauceName || '---'}`;
-            if (!dishMap[key]) {
-              dishMap[key] = { 
-                quantity: 0, 
-                price: item.price || 0,
-                dishName: item.dishName,
-                garnish: garnishName || '',
-                sauce: sauceName || ''
-              };
-            }
-            dishMap[key].quantity += 1;
+            // Add department header
+            excelData.push([dept]);
+            excelData.push(['Блюдо', 'Гарнир', 'Соусы', 'Кол-во', 'Цена', 'Сумма']);
+            
+            // Aggregate dishes for this department
+            const dishMap = {};
+            
+            // Track all items for summary
+            const dishSummary = {};
+            const garnishSummary = {};
+            const sauceSummary = {};
+            
+            deptOrders.forEach(order => {
+              if (!order.items || !Array.isArray(order.items)) return;
+              
+              order.items.forEach(item => {
+                const garnishItem = item.garnish ? garnishes.find(g => g.id === item.garnish || g.name === item.garnish) : null;
+                const sauceItem = item.sauce ? sauces.find(s => s.id === item.sauce || s.name === item.sauce) : null;
+                const garnishName = garnishItem?.name || item.garnishName || item.garnish || '';
+                const sauceName = sauceItem?.name || item.sauceName || item.sauce || '';
+                
+                // Track dish summary
+                if (!dishSummary[item.dishName]) {
+                  dishSummary[item.dishName] = 0;
+                }
+                dishSummary[item.dishName] += 1;
+                
+                // Track garnish summary
+                if (garnishName) {
+                  if (!garnishSummary[garnishName]) {
+                    garnishSummary[garnishName] = 0;
+                  }
+                  garnishSummary[garnishName] += 1;
+                }
+                
+                // Track sauce summary
+                if (sauceName) {
+                  if (!sauceSummary[sauceName]) {
+                    sauceSummary[sauceName] = 0;
+                  }
+                  sauceSummary[sauceName] += 1;
+                }
+                
+                const key = `${item.dishName}|||${garnishName || '---'}|||${sauceName || '---'}`;
+                if (!dishMap[key]) {
+                  dishMap[key] = { 
+                    quantity: 0, 
+                    price: item.price || 0,
+                    dishName: item.dishName,
+                    garnish: garnishName || '',
+                    sauce: sauceName || ''
+                  };
+                }
+                dishMap[key].quantity += 1;
+              });
+            });
+            
+            let deptTotal = 0;
+            
+            // Add dishes sorted by name
+            Object.values(dishMap)
+              .sort((a, b) => a.dishName.localeCompare(b.dishName))
+              .forEach((data) => {
+                const totalPrice = data.price * data.quantity;
+                deptTotal += totalPrice;
+                
+                excelData.push([
+                  data.dishName,
+                  data.garnish,
+                  data.sauce,
+                  data.quantity,
+                  data.price,
+                  totalPrice
+                ]);
+                
+                // Track day totals
+                const dayKey = `${data.dishName}|||${data.garnish}|||${data.sauce || ''}`;
+                if (!dishDayTotals[dayKey]) {
+                  dishDayTotals[dayKey] = { dishName: data.dishName, garnish: data.garnish, sauce: data.sauce || '', quantity: 0 };
+                }
+                dishDayTotals[dayKey].quantity += data.quantity;
+              });
+            
+            // Add department total
+            excelData.push(['', '', '', '', 'Итого:', deptTotal]);
+            
+            // Add summary section for department
+            excelData.push([]); // Empty row
+            excelData.push(['Итого:']);
+            
+            // Add dishes summary
+            Object.keys(dishSummary).sort().forEach(dishName => {
+              excelData.push([dishName, '', '', dishSummary[dishName]]);
+            });
+            
+            // Add garnishes summary
+            Object.keys(garnishSummary).sort().forEach(garnishName => {
+              excelData.push(['', garnishName, '', garnishSummary[garnishName]]);
+            });
+            
+            // Add sauces summary
+            Object.keys(sauceSummary).sort().forEach(sauceName => {
+              excelData.push(['', '', sauceName, sauceSummary[sauceName]]);
+            });
+            
+            excelData.push([]); // Empty row
           });
-        });
-        
-        let addressTotal = 0;
-        
-        // Add dishes sorted by name
-        Object.values(dishMap)
-          .sort((a, b) => a.dishName.localeCompare(b.dishName))
-          .forEach((data) => {
-            const totalPrice = data.price * data.quantity;
-            addressTotal += totalPrice;
+        } else {
+          // Non-office addresses - original behavior
+          excelData.push(['Блюдо', 'Гарнир', 'Соусы', 'Кол-во', 'Цена', 'Сумма']);
+          
+          // Aggregate dishes for this address
+          const dishMap = {};
+          addressOrders.forEach(order => {
+            if (!order.items || !Array.isArray(order.items)) return;
             
-            excelData.push([
-              data.dishName,
-              data.garnish,
-              data.sauce,
-              data.quantity,
-              data.price,
-              totalPrice
-            ]);
-            
-            // Track day totals
-            const dayKey = `${data.dishName}|||${data.garnish}|||${data.sauce || ''}`;
-            if (!dishDayTotals[dayKey]) {
-              dishDayTotals[dayKey] = { dishName: data.dishName, garnish: data.garnish, sauce: data.sauce || '', quantity: 0 };
-            }
-            dishDayTotals[dayKey].quantity += data.quantity;
+            order.items.forEach(item => {
+              // Look up garnish and sauce names - handle both ID format and plain name format
+              const garnishItem = item.garnish ? garnishes.find(g => g.id === item.garnish || g.name === item.garnish) : null;
+              const sauceItem = item.sauce ? sauces.find(s => s.id === item.sauce || s.name === item.sauce) : null;
+              const garnishName = garnishItem?.name || item.garnishName || item.garnish || '';
+              const sauceName = sauceItem?.name || item.sauceName || item.sauce || '';
+              
+              const key = `${item.dishName}|||${garnishName || '---'}|||${sauceName || '---'}`;
+              if (!dishMap[key]) {
+                dishMap[key] = { 
+                  quantity: 0, 
+                  price: item.price || 0,
+                  dishName: item.dishName,
+                  garnish: garnishName || '',
+                  sauce: sauceName || ''
+                };
+              }
+              dishMap[key].quantity += 1;
+            });
           });
-        
-        // Add address total
-        excelData.push(['', '', '', '', 'Итого:', addressTotal]);
-        excelData.push([]); // Empty row
+          
+          let addressTotal = 0;
+          
+          // Add dishes sorted by name
+          Object.values(dishMap)
+            .sort((a, b) => a.dishName.localeCompare(b.dishName))
+            .forEach((data) => {
+              const totalPrice = data.price * data.quantity;
+              addressTotal += totalPrice;
+              
+              excelData.push([
+                data.dishName,
+                data.garnish,
+                data.sauce,
+                data.quantity,
+                data.price,
+                totalPrice
+              ]);
+              
+              // Track day totals
+              const dayKey = `${data.dishName}|||${data.garnish}|||${data.sauce || ''}`;
+              if (!dishDayTotals[dayKey]) {
+                dishDayTotals[dayKey] = { dishName: data.dishName, garnish: data.garnish, sauce: data.sauce || '', quantity: 0 };
+              }
+              dishDayTotals[dayKey].quantity += data.quantity;
+            });
+          
+          // Add address total
+          excelData.push(['', '', '', '', 'Итого:', addressTotal]);
+          excelData.push([]); // Empty row
+        }
       });
       
       // Add dish totals for the day at the bottom
