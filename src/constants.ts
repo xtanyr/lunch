@@ -106,6 +106,7 @@ export const FLOOR_10_DEPARTMENTS: string[] = [
   'R&D',
   'Аренда',
   'Лаборатория Кухня',
+  'Развитие Сети',
 ];
 
 export const FLOOR_14_DEPARTMENTS: string[] = [
