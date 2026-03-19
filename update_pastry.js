@@ -22,7 +22,7 @@ db.prepare('DELETE FROM pastries').run();
 
 // Insert the new single pastry: Кутаб с картофелем и зеленью
 const insertPastry = db.prepare('INSERT INTO pastries (id, name, isVegan, isVegetarian, isActive) VALUES (?, ?, ?, ?, ?)');
-insertPastry.run('kutab_potato_greens', 'Кутаб с картофелем и зеленью', 1, 1, 1);
+insertPastry.run('kutab_potato_greens', 'Кутаб с картофелем и зеленью', 0, 0, 1);
 
 console.log('Pastry updated successfully!');
 console.log('Now there is only 1 pastry: Кутаб с картофелем и зеленью');
