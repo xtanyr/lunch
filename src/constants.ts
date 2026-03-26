@@ -112,9 +112,7 @@ export const FLOOR_10_DEPARTMENTS: string[] = [
 export const FLOOR_14_DEPARTMENTS: string[] = [
   'HR + Университет',
   'Финансовый отдел',
-  'Тренеры по кофе',
   'Снабжение',
-  'IT Отдел',
 ];
 
 export const FLOOR_5_DEPARTMENTS: string[] = [
