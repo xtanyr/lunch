@@ -117,11 +117,18 @@ export const FLOOR_14_DEPARTMENTS: string[] = [
   'IT Отдел',
 ];
 
+export const FLOOR_5_DEPARTMENTS: string[] = [
+  'Тренеры по кофе',
+  'IT Отдел',
+  'Сервисологи',
+];
+
 // Office address labels for Excel export
 export const OMSK_OFFICE_ADDRESSES: Record<string, string> = {
   'office': 'Офис',
   'office_10': 'Офис 10 этаж',
   'office_14': 'Офис 14 этаж',
+  'office_5': 'Офис 5 этаж',
 };
 
 // Города
@@ -137,8 +144,10 @@ export const CITIES = [
 export const CITY_ADDRESSES: Record<string, { id: string; label: string }[]> = {
   omsk: [
     { id: 'office', label: 'Офис' },
+    { id: 'mega', label: 'Мега' },
     { id: 'kamergersky', label: 'Камергерский' },
     { id: 'gagarina', label: 'Гагарина' },
+    { id: 'vodniki', label: 'Водники' },
     { id: 'drujniy', label: 'Дружный' },
     { id: 'chv', label: 'ЧВ' },
     { id: 'festival', label: 'Фестиваль' },

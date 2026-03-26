@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../theme/ThemeContext';
-import { CITY_ADDRESSES, FLOOR_10_DEPARTMENTS, FLOOR_14_DEPARTMENTS } from '../constants';
+import { CITY_ADDRESSES, FLOOR_10_DEPARTMENTS, FLOOR_14_DEPARTMENTS, FLOOR_5_DEPARTMENTS } from '../constants';
 
 // Types for the new Omsk ordering system
 interface DishItem {
@@ -99,7 +99,10 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
 
   // Get departments based on selected floor
   const getFloorDepartments = () => {
-    return selectedFloor === '10' ? FLOOR_10_DEPARTMENTS : FLOOR_14_DEPARTMENTS;
+    if (selectedFloor === '10') return FLOOR_10_DEPARTMENTS;
+    if (selectedFloor === '14') return FLOOR_14_DEPARTMENTS;
+    if (selectedFloor === '5') return FLOOR_5_DEPARTMENTS;
+    return FLOOR_10_DEPARTMENTS;
   };
   
   // Get coffee shop name for the selected address
@@ -524,6 +527,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
               >
                 <option value="10">10 этаж</option>
                 <option value="14">14 этаж</option>
+                <option value="5">5 этаж</option>
               </select>
               <select
                 value={currentOrder.department}

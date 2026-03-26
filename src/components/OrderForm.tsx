@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { EmployeeOrder, CurrentOrderItem, Dish, SideDish, DishCategory } from '../types';
 import { fetchDisabledDates, DisabledDateRange } from '../api';
-import { FLOOR_10_DEPARTMENTS, FLOOR_14_DEPARTMENTS } from '../constants';
+import { FLOOR_10_DEPARTMENTS, FLOOR_14_DEPARTMENTS, FLOOR_5_DEPARTMENTS } from '../constants';
 import Input from './ui/Input';
 import Button from './ui/Button';
 import Select from './ui/Select';
@@ -298,6 +298,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
               >
                 <option value="10">10 этаж</option>
                 <option value="14">14 этаж</option>
+                <option value="5">5 этаж</option>
               </Select>
               <Select
                 label="Отдел"
@@ -311,7 +312,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
                 className={showDeptError ? 'border-red-500 ring-2 ring-red-400' : ''}
               >
                 <option value="" disabled>Выберите отдел...</option>
-                {(selectedFloor === '10' ? FLOOR_10_DEPARTMENTS : FLOOR_14_DEPARTMENTS).map(dept => (
+                {(selectedFloor === '10' ? FLOOR_10_DEPARTMENTS : selectedFloor === '5' ? FLOOR_5_DEPARTMENTS : FLOOR_14_DEPARTMENTS).map(dept => (
                   <option key={dept} value={dept}>{dept}</option>
                 ))}
               </Select>
