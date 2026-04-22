@@ -25,6 +25,7 @@ import {
   deleteOrder,
   hasUserOrderedToday,
   getMenuItems, 
+  getMenuItemsAdmin,
   getMenuSides, 
   updateMenuItems, 
   getMenuConfig, 
@@ -35,23 +36,32 @@ import {
   setActiveWeek,
   getAllWeeks,
   getWeekMenuItems,
+  getWeekMenuItemsAdmin,
   updateWeekMenuItems,
   getVeganItems,
+  getVeganItemsAdmin,
   updateVeganItems,
   insertVeganItem,
   deleteVeganItem,
   getOtherItems,
+  getOtherItemsAdmin,
   updateOtherItems,
   getGarnishes,
+  getGarnishesAdmin,
   updateGarnishes,
   deleteGarnish,
   getSauces,
+  getSaucesAdmin,
   updateSauces,
   deleteSauce,
   getPastries,
+  getPastriesAdmin,
   updatePastries,
   getSetting,
   setSetting,
+  addOrderLog,
+  getOrderLogs,
+  getOrderLogsByDate,
   omskDb
 } from './src/database.ts';
 import { CITY_ADDRESSES, OMSK_OFFICE_ADDRESSES } from './src/constants.js';
@@ -714,28 +724,21 @@ app.get('/api/omsk/can-order', (req, res) => {
 });
 
 app.post('/api/omsk/orders', express.json(), (req, res) => {
-  console.log('POST /api/omsk/orders received:', req.method, req.url);
-  console.log('Request headers:', req.headers);
-  console.log('Request body:', req.body);
+  const clientIp = req.headers['x-forwarded-for']?.toString().split(',')[0] || req.socket?.remoteAddress || 'unknown';
   
   if (!omskDbReady) {
-    console.log('Database not ready, returning 503');
     return res.status(503).json({ error: 'Omsk database not available' });
   }
   const { employeeName, department, orderDate, items, address, totalPrice, floor } = req.body;
-  console.log('Creating order:', { employeeName, department, orderDate, items: items?.length, address, totalPrice, floor });
   
   if (!employeeName || !orderDate || !items || typeof address !== 'string') {
-    console.log('Validation failed - missing fields:', { employeeName: !!employeeName, orderDate: !!orderDate, items: !!items, address: typeof address });
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
   // Check if user already ordered today
-  // Normalize office addresses for duplicate check (office_10, office_14 should be treated as 'office')
   const normalizedAddress = (address === 'office_10' || address === 'office_14') ? 'office' : address;
   const hasOrderedToday = hasUserOrderedToday(employeeName, department, orderDate, normalizedAddress);
   if (hasOrderedToday) {
-    console.log('Duplicate order attempt:', { employeeName, department, orderDate, address });
     return res.status(409).json({ error: 'Вы уже сделали заказ на этот день' });
   }
 
@@ -759,6 +762,10 @@ app.post('/api/omsk/orders', express.json(), (req, res) => {
       floor: floor || ''
     };
     createOrder(newOrder);
+    
+    // Log the order creation with IP
+    addOrderLog(newOrder.id, 'created', employeeName, department, JSON.stringify(items), clientIp);
+    
     res.status(201).json(newOrder);
   } catch (error) {
     console.error('Error creating Omsk order:', error);
@@ -771,8 +778,17 @@ app.delete('/api/omsk/orders/:id', (req, res) => {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
   const { id } = req.params;
+  const clientIp = req.headers['x-forwarded-for']?.toString().split(',')[0] || req.socket?.remoteAddress || 'unknown';
   try {
+    // Get order details before deletion for logging
+    const orderStmt = omskDb.prepare('SELECT employeeName, department, items FROM orders WHERE id = ?');
+    const order = orderStmt.get(id);
+    
     deleteOrder(id);
+    
+    // Log the deletion with IP
+    addOrderLog(id, 'deleted', order?.employeeName, order?.department, order?.items, clientIp);
+    
     res.status(204).end();
   } catch (error) {
     console.error('Error deleting Omsk order:', error);
@@ -780,8 +796,28 @@ app.delete('/api/omsk/orders/:id', (req, res) => {
   }
 });
 
+// Get order logs
+app.get('/api/omsk/order-logs', requireAdmin, (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { startDate, endDate, limit } = req.query;
+  try {
+    let logs;
+    if (startDate && endDate) {
+      logs = getOrderLogsByDate(startDate, endDate);
+    } else {
+      logs = getOrderLogs(limit ? parseInt(limit) : 100);
+    }
+    res.json(logs);
+  } catch (error) {
+    console.error('Error fetching order logs:', error);
+    res.status(500).json({ error: 'Failed to fetch order logs' });
+  }
+});
+
 // Omsk Admin API - Dishes
-// Public endpoint - reading dishes is allowed without auth
+// Public endpoint - reading dishes is allowed without auth (for order form - filtered)
 app.get('/api/omsk/dishes', (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
@@ -795,11 +831,25 @@ app.get('/api/omsk/dishes', (req, res) => {
   }
 });
 
+// Admin endpoint - returns ALL dishes including hidden ones
+app.get('/api/omsk/admin/dishes', requireAdmin, (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  try {
+    const items = getMenuItemsAdmin();
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching dishes (admin):', error);
+    res.status(500).json({ error: 'Failed to fetch dishes' });
+  }
+});
+
 app.post('/api/omsk/dishes', requireAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
-  const { name, category, price, weekNumber, composition, protein, carbs, fats, grams, calories, isVegan, isVegetarian } = req.body;
+  const { name, category, price, weekNumber, composition, protein, carbs, fats, grams, calories, isVegan, isVegetarian, noGarnish } = req.body;
   if (!name || !category) {
     return res.status(400).json({ error: 'name and category are required' });
   }
@@ -826,7 +876,8 @@ app.post('/api/omsk/dishes', requireAdmin, express.json(), (req, res) => {
       calories: calories !== undefined && calories !== '' ? parseInt(calories) : null,
       isVegan: isVegan || false,
       isVegetarian: isVegetarian || false,
-      isActive: true
+      isActive: true,
+      noGarnish: req.body.noGarnish || false
     };
     const items = getMenuItems();
     items.push(newDish);
@@ -1084,6 +1135,21 @@ app.put('/api/omsk/week-menu/:weekNumber', requireAdmin, express.json(), (req, r
   }
 });
 
+// Admin endpoint - returns ALL week menu items including hidden ones
+app.get('/api/omsk/admin/week-menu/:weekNumber', requireAdmin, (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { weekNumber } = req.params;
+  try {
+    const items = getWeekMenuItemsAdmin(parseInt(weekNumber));
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching week menu (admin):', error);
+    res.status(500).json({ error: 'Failed to fetch week menu' });
+  }
+});
+
 app.get('/api/omsk/vegan-items', (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
@@ -1093,6 +1159,20 @@ app.get('/api/omsk/vegan-items', (req, res) => {
     res.json(items);
   } catch (error) {
     console.error('Error fetching vegan items:', error);
+    res.status(500).json({ error: 'Failed to fetch vegan items' });
+  }
+});
+
+// Admin endpoint - returns ALL vegan items including hidden ones
+app.get('/api/omsk/admin/vegan-items', requireAdmin, (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  try {
+    const items = getVeganItemsAdmin();
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching vegan items (admin):', error);
     res.status(500).json({ error: 'Failed to fetch vegan items' });
   }
 });
@@ -1116,7 +1196,7 @@ app.post('/api/omsk/vegan-items', requireAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
-  const { name, price, composition, protein, carbs, fats, grams, calories, isVegan, isVegetarian } = req.body;
+  const { name, price, composition, protein, carbs, fats, grams, calories, isVegan, isVegetarian, noGarnish } = req.body;
   if (!name || !price) {
     return res.status(400).json({ error: 'Name and price are required' });
   }
@@ -1132,7 +1212,8 @@ app.post('/api/omsk/vegan-items', requireAdmin, express.json(), (req, res) => {
       grams: grams ? parseInt(grams) : undefined,
       calories: calories ? parseInt(calories) : undefined,
       isVegan,
-      isVegetarian
+      isVegetarian,
+      noGarnish
     });
     res.json(newItem);
   } catch (error) {
@@ -1189,6 +1270,20 @@ app.get('/api/omsk/other-items', (req, res) => {
   }
 });
 
+// Admin endpoint - returns ALL other items including hidden ones
+app.get('/api/omsk/admin/other-items', requireAdmin, (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  try {
+    const items = getOtherItemsAdmin();
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching other items (admin):', error);
+    res.status(500).json({ error: 'Failed to fetch other items' });
+  }
+});
+
 app.put('/api/omsk/other-items', requireAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
@@ -1216,6 +1311,20 @@ app.get('/api/omsk/garnishes', (req, res) => {
   }
 });
 
+// Admin endpoint - returns ALL garnishes including hidden ones
+app.get('/api/omsk/admin/garnishes', requireAdmin, (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  try {
+    const items = getGarnishesAdmin();
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching garnishes (admin):', error);
+    res.status(500).json({ error: 'Failed to fetch garnishes' });
+  }
+});
+
 app.put('/api/omsk/garnishes', requireAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
@@ -1235,16 +1344,16 @@ app.post('/api/omsk/garnishes', requireAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
-  const { name, grams, calories, composition, isVegan, isVegetarian } = req.body;
+const { name, grams, calories, composition, isVegan, isVegetarian, protein, carbs, fats } = req.body;
   if (!name) {
     return res.status(400).json({ error: 'Name is required' });
   }
   
   try {
     const id = `garnish_${Date.now()}`;
-    const stmt = omskDb.prepare('INSERT INTO garnishes (id, name, composition, grams, calories, isVegan, isVegetarian) VALUES (?, ?, ?, ?, ?, ?, ?)');
-    stmt.run(id, name, composition || null, grams || 50, calories || 0, isVegan ? 1 : 0, isVegetarian ? 1 : 0);
-    res.json({ id, name, composition, grams: grams || 50, calories: calories || 0, isVegan: isVegan || false, isVegetarian: isVegetarian || false, isActive: 1 });
+    const stmt = omskDb.prepare('INSERT INTO garnishes (id, name, composition, grams, calories, isVegan, isVegetarian, protein, carbs, fats) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    stmt.run(id, name, composition || null, grams || 50, calories || 0, isVegan ? 1 : 0, isVegetarian ? 1 : 0, protein || 0, carbs || 0, fats || 0);
+    res.json({ id, name, composition, grams: grams || 50, calories: calories || 0, protein: protein || 0, carbs: carbs || 0, fats: fats || 0, isVegan: isVegan || false, isVegetarian: isVegetarian || false, isActive: 1 });
   } catch (error) {
     console.error('Error adding garnish:', error);
     res.status(500).json({ error: 'Failed to add garnish' });
@@ -1298,6 +1407,20 @@ app.get('/api/omsk/sauces', (req, res) => {
   }
 });
 
+// Admin endpoint - returns ALL sauces including hidden ones
+app.get('/api/omsk/admin/sauces', requireAdmin, (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  try {
+    const items = getSaucesAdmin();
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching sauces (admin):', error);
+    res.status(500).json({ error: 'Failed to fetch sauces' });
+  }
+});
+
 app.put('/api/omsk/sauces', requireAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
@@ -1317,16 +1440,16 @@ app.post('/api/omsk/sauces', requireAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
-  const { name, grams, calories, composition, isVegan, isVegetarian } = req.body;
+  const { name, grams, calories, composition, isVegan, isVegetarian, protein, carbs, fats } = req.body;
   if (!name) {
     return res.status(400).json({ error: 'Name is required' });
   }
   
   try {
     const id = `sauce_${Date.now()}`;
-    const stmt = omskDb.prepare('INSERT INTO sauces (id, name, composition, grams, calories, isVegan, isVegetarian) VALUES (?, ?, ?, ?, ?, ?, ?)');
-    stmt.run(id, name, composition || null, grams || 30, calories || 0, isVegan ? 1 : 0, isVegetarian ? 1 : 0);
-    res.json({ id, name, composition, grams: grams || 30, calories: calories || 0, isVegan: isVegan || false, isVegetarian: isVegetarian || false, isActive: 1 });
+    const stmt = omskDb.prepare('INSERT INTO sauces (id, name, composition, grams, calories, protein, carbs, fats, isVegan, isVegetarian) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    stmt.run(id, name, composition || null, grams || 30, calories || 0, protein || 0, carbs || 0, fats || 0, isVegan ? 1 : 0, isVegetarian ? 1 : 0);
+    res.json({ id, name, composition, grams: grams || 30, calories: calories || 0, protein: protein || 0, carbs: carbs || 0, fats: fats || 0, isVegan: isVegan || false, isVegetarian: isVegetarian || false, isActive: 1 });
   } catch (error) {
     console.error('Error adding sauce:', error);
     res.status(500).json({ error: 'Failed to add sauce' });
@@ -1600,6 +1723,20 @@ app.get('/api/omsk/pastries', (req, res) => {
     res.json(items);
   } catch (error) {
     console.error('Error fetching pastries:', error);
+    res.status(500).json({ error: 'Failed to fetch pastries' });
+  }
+});
+
+// Admin endpoint - returns ALL pastries including hidden ones
+app.get('/api/omsk/admin/pastries', requireAdmin, (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  try {
+    const items = getPastriesAdmin();
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching pastries (admin):', error);
     res.status(500).json({ error: 'Failed to fetch pastries' });
   }
 });

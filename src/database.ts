@@ -96,6 +96,9 @@ export function initOmskDatabase() {
         composition TEXT,
         grams INTEGER DEFAULT 50,
         calories INTEGER DEFAULT 0,
+        protein REAL DEFAULT 0,
+        carbs REAL DEFAULT 0,
+        fats REAL DEFAULT 0,
         isVegan INTEGER DEFAULT 0,
         isVegetarian INTEGER DEFAULT 0,
         isActive INTEGER DEFAULT 1
@@ -108,6 +111,9 @@ export function initOmskDatabase() {
         composition TEXT,
         grams INTEGER DEFAULT 30,
         calories INTEGER DEFAULT 0,
+        protein REAL DEFAULT 0,
+        carbs REAL DEFAULT 0,
+        fats REAL DEFAULT 0,
         isVegan INTEGER DEFAULT 0,
         isVegetarian INTEGER DEFAULT 0,
         isActive INTEGER DEFAULT 1
@@ -193,6 +199,74 @@ export function initOmskDatabase() {
       db.exec(`ALTER TABLE pastries ADD COLUMN isVegetarian INTEGER DEFAULT 0`);
     } catch (e) {
       // Column already exists
+    }
+    try {
+      db.exec(`ALTER TABLE week_menu_items ADD COLUMN noGarnish INTEGER DEFAULT 0`);
+    } catch (e) {
+      // Column already exists
+    }
+    try {
+      db.exec(`ALTER TABLE vegan_items ADD COLUMN noGarnish INTEGER DEFAULT 0`);
+    } catch (e) {
+      // Column already exists
+    }
+    try {
+      db.exec(`ALTER TABLE other_items ADD COLUMN noGarnish INTEGER DEFAULT 0`);
+    } catch (e) {
+      // Column already exists
+    }
+    try {
+      db.exec(`ALTER TABLE garnishes ADD COLUMN protein REAL DEFAULT 0`);
+    } catch (e) {
+      // Column already exists
+    }
+    try {
+      db.exec(`ALTER TABLE garnishes ADD COLUMN carbs REAL DEFAULT 0`);
+    } catch (e) {
+      // Column already exists
+    }
+    try {
+      db.exec(`ALTER TABLE garnishes ADD COLUMN fats REAL DEFAULT 0`);
+    } catch (e) {
+      // Column already exists
+    }
+    try {
+      db.exec(`ALTER TABLE sauces ADD COLUMN protein REAL DEFAULT 0`);
+    } catch (e) {
+      // Column already exists
+    }
+    try {
+      db.exec(`ALTER TABLE sauces ADD COLUMN carbs REAL DEFAULT 0`);
+    } catch (e) {
+      // Column already exists
+    }
+    try {
+      db.exec(`ALTER TABLE sauces ADD COLUMN fats REAL DEFAULT 0`);
+    } catch (e) {
+      // Column already exists
+    }
+
+    // Create order_logs table if not exists
+    try {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS order_logs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          orderId TEXT NOT NULL,
+          action TEXT NOT NULL,
+          employeeName TEXT,
+          department TEXT,
+          details TEXT,
+          performedBy TEXT,
+          timestamp TEXT NOT NULL
+        )
+      `);
+    } catch (e) {
+      // Table might already exist
+    }
+    try {
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_order_logs_timestamp ON order_logs(timestamp)`);
+    } catch (e) {
+      // Index might already exist
     }
 
     // Check if we need to seed default data
@@ -423,6 +497,16 @@ export function migrateDatabase() {
       db.prepare('ALTER TABLE garnishes ADD COLUMN composition TEXT').run();
     }
 
+    // Check and add protein/carbs/fats columns to garnishes
+    try {
+      db.prepare('SELECT protein FROM garnishes LIMIT 1').get();
+    } catch (error) {
+      console.log('Adding protein, carbs, fats columns to garnishes table...');
+      db.prepare('ALTER TABLE garnishes ADD COLUMN protein INTEGER DEFAULT 0').run();
+      db.prepare('ALTER TABLE garnishes ADD COLUMN carbs INTEGER DEFAULT 0').run();
+      db.prepare('ALTER TABLE garnishes ADD COLUMN fats INTEGER DEFAULT 0').run();
+    }
+
     // Check and add grams/calories columns to sauces
     try {
       db.prepare('SELECT grams FROM sauces LIMIT 1').get();
@@ -530,12 +614,23 @@ export function getWeekMenuItems(weekNumber: number) {
   }
 }
 
+// Admin version - returns ALL items including hidden ones
+export function getWeekMenuItemsAdmin(weekNumber: number) {
+  try {
+    const stmt = db.prepare('SELECT * FROM week_menu_items WHERE weekNumber = ?');
+    return stmt.all(weekNumber);
+  } catch (error) {
+    console.error('Error getting week menu items (admin):', error);
+    return [];
+  }
+}
+
 export function updateWeekMenuItems(weekNumber: number, items: any[]) {
   const transaction = db.transaction(() => {
     db.prepare('DELETE FROM week_menu_items WHERE weekNumber = ?').run(weekNumber);
     const insertStmt = db.prepare(`
-      INSERT INTO week_menu_items (id, weekNumber, name, category, price, composition, protein, carbs, fats, grams, calories, isVegan, isVegetarian, isActive)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO week_menu_items (id, weekNumber, name, category, price, composition, protein, carbs, fats, grams, calories, isVegan, isVegetarian, isActive, noGarnish)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const item of items) {
       insertStmt.run(
@@ -543,7 +638,8 @@ export function updateWeekMenuItems(weekNumber: number, items: any[]) {
         item.composition || null, item.protein || null, item.carbs || null,
         item.fats || null, item.grams || null, item.calories || null,
         item.isVegan ? 1 : 0, item.isVegetarian ? 1 : 0,
-        item.isActive !== false ? 1 : 0
+        item.isActive !== false ? 1 : 0,
+        item.noGarnish ? 1 : 0
       );
     }
   });
@@ -557,12 +653,18 @@ export function getVeganItems() {
   return stmt.all();
 }
 
+// Admin version - returns ALL items including hidden ones
+export function getVeganItemsAdmin() {
+  const stmt = db.prepare('SELECT * FROM vegan_items');
+  return stmt.all();
+}
+
 export function updateVeganItems(items: any[]) {
   const transaction = db.transaction(() => {
     db.prepare('DELETE FROM vegan_items').run();
     const insertStmt = db.prepare(`
-      INSERT INTO vegan_items (id, name, price, composition, protein, carbs, fats, grams, calories, isVegan, isVegetarian, isActive)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO vegan_items (id, name, price, composition, protein, carbs, fats, grams, calories, isVegan, isVegetarian, isActive, noGarnish)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const item of items) {
       insertStmt.run(
@@ -570,7 +672,8 @@ export function updateVeganItems(items: any[]) {
         item.protein || null, item.carbs || null, item.fats || null,
         item.grams || null, item.calories || null,
         item.isVegan ? 1 : 0, item.isVegetarian ? 1 : 0,
-        item.isActive !== false ? 1 : 0
+        item.isActive !== false ? 1 : 0,
+        item.noGarnish ? 1 : 0
       );
     }
   });
@@ -578,10 +681,10 @@ export function updateVeganItems(items: any[]) {
   return { success: true };
 }
 
-export function insertVeganItem(item: { name: string; price: number; composition?: string; protein?: number; carbs?: number; fats?: number; grams?: number; calories?: number; isVegan?: boolean; isVegetarian?: boolean }) {
+export function insertVeganItem(item: { name: string; price: number; composition?: string; protein?: number; carbs?: number; fats?: number; grams?: number; calories?: number; isVegan?: boolean; isVegetarian?: boolean; noGarnish?: boolean }) {
   const id = `vegan_${Date.now()}`;
-  const stmt = db.prepare('INSERT INTO vegan_items (id, name, price, composition, protein, carbs, fats, grams, calories, isVegan, isVegetarian, isActive) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-  stmt.run(id, item.name, item.price, item.composition || null, item.protein || null, item.carbs || null, item.fats || null, item.grams || null, item.calories || null, item.isVegan ? 1 : 0, item.isVegetarian ? 1 : 0, 1);
+  const stmt = db.prepare('INSERT INTO vegan_items (id, name, price, composition, protein, carbs, fats, grams, calories, isVegan, isVegetarian, isActive, noGarnish) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  stmt.run(id, item.name, item.price, item.composition || null, item.protein || null, item.carbs || null, item.fats || null, item.grams || null, item.calories || null, item.isVegan ? 1 : 0, item.isVegetarian ? 1 : 0, 1, item.noGarnish ? 1 : 0);
   return { id, ...item, isActive: 1 };
 }
 
@@ -597,11 +700,17 @@ export function getOtherItems() {
   return stmt.all();
 }
 
+// Admin version - returns ALL items including hidden ones
+export function getOtherItemsAdmin() {
+  const stmt = db.prepare('SELECT * FROM other_items');
+  return stmt.all();
+}
+
 export function updateOtherItems(items: any[]) {
   const transaction = db.transaction(() => {
     db.prepare('DELETE FROM other_items').run();
     const insertStmt = db.prepare(`
-      INSERT INTO other_items (id, name, price, composition, protein, carbs, fats, grams, calories, isVegan, isVegetarian, isActive)
+      INSERT INTO other_items (id, name, price, composition, protein, carbs, fats, grams, calories, isVegan, isVegetarian, isActive, noGarnish)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const item of items) {
@@ -610,7 +719,8 @@ export function updateOtherItems(items: any[]) {
         item.protein || null, item.carbs || null, item.fats || null,
         item.grams || null, item.calories || null,
         item.isVegan ? 1 : 0, item.isVegetarian ? 1 : 0,
-        item.isActive !== false ? 1 : 0
+        item.isActive !== false ? 1 : 0,
+        item.noGarnish ? 1 : 0
       );
     }
   });
@@ -624,12 +734,22 @@ export function getGarnishes() {
   return stmt.all();
 }
 
+// Admin version - returns ALL items including hidden ones
+export function getGarnishesAdmin() {
+  const stmt = db.prepare('SELECT * FROM garnishes');
+  return stmt.all();
+}
+
 export function updateGarnishes(items: any[]) {
   const transaction = db.transaction(() => {
     db.prepare('DELETE FROM garnishes').run();
-    const insertStmt = db.prepare('INSERT INTO garnishes (id, name, composition, grams, calories, isVegan, isVegetarian, isActive) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+    const insertStmt = db.prepare('INSERT INTO garnishes (id, name, composition, grams, calories, protein, carbs, fats, isVegan, isVegetarian, isActive) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
     for (const item of items) {
-      insertStmt.run(item.id, item.name, item.composition || null, item.grams || 50, item.calories || 0, item.isVegan ? 1 : 0, item.isVegetarian ? 1 : 0, item.isActive !== false ? 1 : 0);
+      insertStmt.run(
+        item.id, item.name, item.composition || null, item.grams || 50, item.calories || 0,
+        item.protein || 0, item.carbs || 0, item.fats || 0,
+        item.isVegan ? 1 : 0, item.isVegetarian ? 1 : 0, item.isActive !== false ? 1 : 0
+      );
     }
   });
   transaction();
@@ -642,15 +762,26 @@ export function getSauces() {
   return stmt.all();
 }
 
+// Admin version - returns ALL items including hidden ones
+export function getSaucesAdmin() {
+  const stmt = db.prepare('SELECT * FROM sauces');
+  return stmt.all();
+}
+
 export function updateSauces(items: any[]) {
   const transaction = db.transaction(() => {
     db.prepare('DELETE FROM sauces').run();
-    const insertStmt = db.prepare('INSERT INTO sauces (id, name, composition, grams, calories, isVegan, isVegetarian, isActive) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+    const insertStmt = db.prepare('INSERT INTO sauces (id, name, composition, grams, calories, protein, carbs, fats, isVegan, isVegetarian, isActive) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
     for (const item of items) {
-      insertStmt.run(item.id, item.name, item.composition || null, item.grams || 30, item.calories || 0, item.isVegan ? 1 : 0, item.isVegetarian ? 1 : 0, item.isActive !== false ? 1 : 0);
+      insertStmt.run(
+        item.id, item.name, item.composition || null, item.grams || 30, item.calories || 0,
+        item.protein || 0, item.carbs || 0, item.fats || 0,
+        item.isVegan ? 1 : 0, item.isVegetarian ? 1 : 0, item.isActive !== false ? 1 : 0
+      );
     }
   });
   transaction();
+  return { success: true };
 }
 
 export function deleteGarnish(id: string) {
@@ -672,6 +803,17 @@ export function getPastries() {
     return stmt.all();
   } catch (error) {
     console.error('Error getting pastries:', error);
+    return [];
+  }
+}
+
+// Admin version - returns ALL items including hidden ones
+export function getPastriesAdmin() {
+  try {
+    const stmt = db.prepare('SELECT * FROM pastries');
+    return stmt.all();
+  } catch (error) {
+    console.error('Error getting pastries (admin):', error);
     return [];
   }
 }
@@ -853,6 +995,20 @@ export function getMenuItems() {
   }
 }
 
+// Admin version - returns ALL items including hidden ones
+export function getMenuItemsAdmin() {
+  try {
+    const week = getActiveWeek();
+    if (week) {
+      return getWeekMenuItemsAdmin((week as any).weekNumber);
+    }
+    return [];
+  } catch (error) {
+    console.error('Error getting menu items (admin):', error);
+    return [];
+  }
+}
+
 export function getMenuSides() {
   // Return garnishes as sides for compatibility
   try {
@@ -873,11 +1029,6 @@ export function updateMenuItems(items: any[]) {
     return updateWeekMenuItems((week as any).weekNumber, items);
   }
   return { success: false, error: 'No active week' };
-}
-
-export function updateMenuConfig(config: any) {
-  // Not used in new system
-  return { success: true };
 }
 
 export function getDisabledDates() {
@@ -904,4 +1055,36 @@ export function setDisabledDates(range: any) {
 
 export function getDatabase() {
   return db;
+}
+
+// Order activity logs
+export function addOrderLog(orderId: string, action: string, employeeName?: string, department?: string, details?: string, ipAddress?: string) {
+  try {
+    const stmt = db.prepare('INSERT INTO order_logs (orderId, action, employeeName, department, details, performedBy, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    stmt.run(orderId, action, employeeName || null, department || null, details || null, ipAddress || null, new Date().toISOString());
+    return { success: true };
+  } catch (error) {
+    console.error('Error adding order log:', error);
+    return { success: false, error: String(error) };
+  }
+}
+
+export function getOrderLogs(limit: number = 100) {
+  try {
+    const stmt = db.prepare('SELECT * FROM order_logs ORDER BY timestamp DESC LIMIT ?');
+    return stmt.all(limit);
+  } catch (error) {
+    console.error('Error getting order logs:', error);
+    return [];
+  }
+}
+
+export function getOrderLogsByDate(startDate: string, endDate: string) {
+  try {
+    const stmt = db.prepare('SELECT * FROM order_logs WHERE timestamp >= ? AND timestamp <= ? ORDER BY timestamp DESC');
+    return stmt.all(startDate, endDate + 'T23:59:59');
+  } catch (error) {
+    console.error('Error getting order logs by date:', error);
+    return [];
+  }
 }

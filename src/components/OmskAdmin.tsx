@@ -12,6 +12,7 @@ interface Dish {
   protein?: number;
   carbs?: number;
   fats?: number;
+  noGarnish?: boolean;
 }
 
 interface WeekMenu {
@@ -31,7 +32,7 @@ const OmskAdmin: React.FC = () => {
     navigate('/omsk');
   };
   
-  const [activeTab, setActiveTab] = useState<'weeks' | 'menu' | 'garnishes' | 'sauces' | 'vegan' | 'disabled' | 'orders'>('weeks');
+  const [activeTab, setActiveTab] = useState<'weeks' | 'menu' | 'garnishes' | 'sauces' | 'vegan' | 'disabled' | 'orders' | 'logs'>('weeks');
   const [weeks, setWeeks] = useState<WeekMenu[]>([]);
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
@@ -39,6 +40,9 @@ const OmskAdmin: React.FC = () => {
   const [sauces, setSauces] = useState<any[]>([]);
   const [veganItems, setVeganItems] = useState<any[]>([]);
   const [disabledDates, setDisabledDates] = useState<any>(null);
+  const [orderLogs, setOrderLogs] = useState<any[]>([]);
+  const [logsDateFrom, setLogsDateFrom] = useState<string>('');
+  const [logsDateTo, setLogsDateTo] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
@@ -57,7 +61,8 @@ const OmskAdmin: React.FC = () => {
     grams: '',
     calories: '',
     isVegan: false,
-    isVegetarian: false
+    isVegetarian: false,
+    noGarnish: false
   });
   
   // Form state for adding garnishes
@@ -66,6 +71,9 @@ const OmskAdmin: React.FC = () => {
     composition: '',
     grams: '',
     calories: '',
+    protein: '',
+    carbs: '',
+    fats: '',
     isVegan: false,
     isVegetarian: false
   });
@@ -131,30 +139,40 @@ const OmskAdmin: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
+      const adminCode = getAdminCode();
+      
       // Load weeks
       const weeksRes = await fetch('/api/omsk/weeks');
       const weeksData = await weeksRes.json();
       setWeeks(weeksData);
       
-      // Load dishes
-      const dishesRes = await fetch('/api/omsk/dishes');
+      // Load dishes - use admin endpoint to include hidden dishes
+      const dishesRes = await fetch('/api/omsk/admin/dishes', {
+        headers: { 'x-admin-code': adminCode }
+      });
       const dishesData = await dishesRes.json();
-      setDishes(dishesData);
+      setDishes(Array.isArray(dishesData) ? dishesData : []);
       
-      // Load garnishes
-      const garnishesRes = await fetch('/api/omsk/garnishes');
+      // Load garnishes - use admin endpoint to include hidden items
+      const garnishesRes = await fetch('/api/omsk/admin/garnishes', {
+        headers: { 'x-admin-code': adminCode }
+      });
       const garnishesData = await garnishesRes.json();
-      setGarnishes(garnishesData);
+      setGarnishes(Array.isArray(garnishesData) ? garnishesData : []);
       
-      // Load sauces
-      const saucesRes = await fetch('/api/omsk/sauces');
+      // Load sauces - use admin endpoint to include hidden items
+      const saucesRes = await fetch('/api/omsk/admin/sauces', {
+        headers: { 'x-admin-code': adminCode }
+      });
       const saucesData = await saucesRes.json();
-      setSauces(saucesData);
+      setSauces(Array.isArray(saucesData) ? saucesData : []);
       
-      // Load vegan items
-      const veganRes = await fetch('/api/omsk/vegan-items');
+      // Load vegan items - use admin endpoint to include hidden items
+      const veganRes = await fetch('/api/omsk/admin/vegan-items', {
+        headers: { 'x-admin-code': adminCode }
+      });
       const veganData = await veganRes.json();
-      setVeganItems(veganData);
+      setVeganItems(Array.isArray(veganData) ? veganData : []);
       
       // Load disabled dates
       const disabledRes = await fetch('/api/omsk/disabled-dates');
@@ -164,7 +182,7 @@ const OmskAdmin: React.FC = () => {
       // Load orders
       const ordersRes = await fetch(`/api/omsk/orders/${selectedDate}?address=all`);
       const ordersData = await ordersRes.json();
-      setOrders(ordersData);
+      setOrders(Array.isArray(ordersData) ? ordersData : []);
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -209,7 +227,7 @@ const OmskAdmin: React.FC = () => {
       if (response.ok) {
         const savedDish = await response.json();
         setDishes([...dishes, savedDish]);
-        setNewDish({ name: '', category: 'hot', weekNumber: 1, composition: '', protein: '', carbs: '', fats: '', grams: '', calories: '', isVegan: false, isVegetarian: false });
+        setNewDish({ name: '', category: 'hot', weekNumber: 1, composition: '', protein: '', carbs: '', fats: '', grams: '', calories: '', isVegan: false, isVegetarian: false, noGarnish: false });
       }
     } catch (error) {
       console.error('Failed to save dish:', error);
@@ -249,6 +267,9 @@ const OmskAdmin: React.FC = () => {
           composition: newGarnish.composition,
           grams: parseInt(newGarnish.grams) || 50,
           calories: parseInt(newGarnish.calories) || 0,
+          protein: parseFloat(newGarnish.protein) || 0,
+          carbs: parseFloat(newGarnish.carbs) || 0,
+          fats: parseFloat(newGarnish.fats) || 0,
           isVegan: newGarnish.isVegan || false,
           isVegetarian: newGarnish.isVegetarian || false
         })
@@ -257,7 +278,7 @@ const OmskAdmin: React.FC = () => {
       if (response.ok) {
         const newGarnishData = await response.json();
         setGarnishes([...garnishes, newGarnishData]);
-        setNewGarnish({ name: '', composition: '', grams: '', calories: '', isVegan: false, isVegetarian: false });
+        setNewGarnish({ name: '', composition: '', grams: '', calories: '', protein: '', carbs: '', fats: '', isVegan: false, isVegetarian: false });
       }
     } catch (error) {
       console.error('Failed to add garnish:', error);
@@ -390,15 +411,15 @@ const OmskAdmin: React.FC = () => {
       if (response.ok) {
         const result = await response.json();
         alert(result.message || 'Импорт успешен!');
-        // Refresh data
+        // Refresh data using admin endpoints to include hidden items
         const [garnishesRes, saucesRes] = await Promise.all([
-          fetch('/api/omsk/garnishes'),
-          fetch('/api/omsk/sauces')
+          fetch('/api/omsk/admin/garnishes', { headers: { 'x-admin-code': getAdminCode() } }),
+          fetch('/api/omsk/admin/sauces', { headers: { 'x-admin-code': getAdminCode() } })
         ]);
         const garnishesData = await garnishesRes.json();
         const saucesData = await saucesRes.json();
-        setGarnishes(garnishesData);
-        setSauces(saucesData);
+        setGarnishes(Array.isArray(garnishesData) ? garnishesData : []);
+        setSauces(Array.isArray(saucesData) ? saucesData : []);
       } else {
         const error = await response.json();
         alert('Ошибка импорта: ' + (error.error || error.details || 'Unknown error'));
@@ -664,7 +685,7 @@ const OmskAdmin: React.FC = () => {
 
       {/* Tabs */}
       <div className="flex border-b" style={{ borderColor: palette.colors.border }}>
-        {(['weeks', 'menu', 'garnishes', 'sauces', 'vegan', 'disabled', 'orders'] as const).map(tab => (
+        {(['weeks', 'menu', 'garnishes', 'sauces', 'vegan', 'disabled', 'orders', 'logs'] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -675,7 +696,7 @@ const OmskAdmin: React.FC = () => {
               backgroundColor: activeTab === tab ? palette.colors.cardBg : 'transparent'
             }}
           >
-            {tab === 'weeks' ? 'Недели' : tab === 'menu' ? 'Меню' : tab === 'garnishes' ? 'Гарниры' : tab === 'sauces' ? 'Соусы' : tab === 'vegan' ? 'Дополнительные блюда' : tab === 'disabled' ? 'Блокировка заказов' : 'Заказы'}
+            {tab === 'weeks' ? 'Недели' : tab === 'menu' ? 'Меню' : tab === 'garnishes' ? 'Гарниры' : tab === 'sauces' ? 'Соусы' : tab === 'vegan' ? 'Дополнительные блюда' : tab === 'disabled' ? 'Блокировка заказов' : tab === 'orders' ? 'Заказы' : 'Логи'}
           </button>
         ))}
       </div>
@@ -874,6 +895,15 @@ const OmskAdmin: React.FC = () => {
                       />
                       <span>Вегетарианское</span>
                     </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newDish.noGarnish}
+                        onChange={e => setNewDish({ ...newDish, noGarnish: e.target.checked })}
+                        className="w-4 h-4"
+                      />
+                      <span>Без гарнира</span>
+                    </label>
                   </div>
                   <button
                     onClick={handleSaveDish}
@@ -892,18 +922,17 @@ const OmskAdmin: React.FC = () => {
                   return (
                     <div key={category} className="space-y-2">
                       <h3 className="text-lg font-bold" style={{ color: palette.colors.primary }}>
-                        {categoryLabels[category]} ({categoryDishes.length})
+                        {categoryLabels[category]} ({categoryDishes.filter(d => d.isActive).length})
                       </h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                        {categoryDishes.map(dish => (
+                        {categoryDishes.filter(d => d.isActive).map(dish => (
                           <div
                             key={dish.id}
                             className="p-3 rounded flex justify-between items-center"
                             style={{ 
                               backgroundColor: palette.colors.cardBg,
                               borderColor: palette.colors.border,
-                              borderWidth: 1,
-                              opacity: dish.isActive ? 1 : 0.5
+                              borderWidth: 1
                             }}
                           >
                             <div>
@@ -920,7 +949,7 @@ const OmskAdmin: React.FC = () => {
                                 </div>
                               )}
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap">
                               <button
                                 onClick={() => toggleDishActive(dish)}
                                 className="text-xs px-2 py-1 rounded"
@@ -930,6 +959,30 @@ const OmskAdmin: React.FC = () => {
                                 }}
                               >
                                 {dish.isActive ? 'Активно' : 'Скрыто'}
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await fetch(`/api/omsk/dishes/${dish.id}`, {
+                                      method: 'PATCH',
+                                      headers: { 
+                                        'Content-Type': 'application/json',
+                                        'x-admin-code': getAdminCode()
+                                      },
+                                      body: JSON.stringify({ noGarnish: !dish.noGarnish })
+                                    });
+                                    setDishes(dishes.map(d => d.id === dish.id ? { ...d, noGarnish: !d.noGarnish } : d));
+                                  } catch (error) {
+                                    console.error('Failed to toggle noGarnish:', error);
+                                  }
+                                }}
+                                className="text-xs px-2 py-1 rounded"
+                                style={{ 
+                                  backgroundColor: dish.noGarnish ? '#ef4444' + '30' : palette.colors.border,
+                                  color: dish.noGarnish ? '#ef4444' : palette.colors.text
+                                }}
+                              >
+                                {dish.noGarnish ? 'Без гарнира' : 'Гарнир'}
                               </button>
                               <button
                                 onClick={() => handleDeleteDish(dish.id)}
@@ -1008,6 +1061,30 @@ const OmskAdmin: React.FC = () => {
                       className="w-28 px-3 py-2 rounded border"
                       style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
                     />
+                    <input
+                      type="number"
+                      placeholder="Белки (г)"
+                      value={newGarnish.protein}
+                      onChange={e => setNewGarnish({ ...newGarnish, protein: e.target.value })}
+                      className="w-20 px-3 py-2 rounded border"
+                      style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Углеводы (г)"
+                      value={newGarnish.carbs}
+                      onChange={e => setNewGarnish({ ...newGarnish, carbs: e.target.value })}
+                      className="w-24 px-3 py-2 rounded border"
+                      style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Жиры (г)"
+                      value={newGarnish.fats}
+                      onChange={e => setNewGarnish({ ...newGarnish, fats: e.target.value })}
+                      className="w-20 px-3 py-2 rounded border"
+                      style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                    />
                   </div>
                   <div className="flex gap-4 mb-4 items-center">
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -1046,6 +1123,15 @@ const OmskAdmin: React.FC = () => {
                         <div className="font-semibold">{garnish.name}</div>
                         {garnish.composition && (
                           <div className="text-sm" style={{ color: palette.colors.textSecondary }}>{garnish.composition}</div>
+                        )}
+                        {(garnish.protein || garnish.carbs || garnish.fats || garnish.grams || garnish.calories) && (
+                          <div className="text-xs" style={{ color: palette.colors.textSecondary }}>
+                            {garnish.protein && <span>Б: {garnish.protein}г </span>}
+                            {garnish.carbs && <span>У: {garnish.carbs}г </span>}
+                            {garnish.fats && <span>Ж: {garnish.fats}г</span>}
+                            {garnish.grams && <span> | {garnish.grams}г</span>}
+                            {garnish.calories && <span> | {garnish.calories}ккал</span>}
+                          </div>
                         )}
                       </div>
                       <div className="flex gap-2">
@@ -1522,6 +1608,102 @@ const OmskAdmin: React.FC = () => {
                             </div>
                           </div>
                         </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Logs Tab */}
+            {activeTab === 'logs' && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold">Логи заказов</h2>
+                  <div className="flex gap-4 items-center">
+                    <input
+                      type="date"
+                      value={logsDateFrom}
+                      onChange={e => setLogsDateFrom(e.target.value)}
+                      className="px-3 py-2 rounded border"
+                      style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.cardBg, color: palette.colors.text }}
+                    />
+                    <span style={{ color: palette.colors.text }}>—</span>
+                    <input
+                      type="date"
+                      value={logsDateTo}
+                      onChange={e => setLogsDateTo(e.target.value)}
+                      className="px-3 py-2 rounded border"
+                      style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.cardBg, color: palette.colors.text }}
+                    />
+                    <button
+                      onClick={async () => {
+                        const params = new URLSearchParams();
+                        if (logsDateFrom) params.append('startDate', logsDateFrom);
+                        if (logsDateTo) params.append('endDate', logsDateTo);
+                        const res = await fetch(`/api/omsk/order-logs?${params}`, {
+                          headers: { 'x-admin-code': getAdminCode() }
+                        });
+                        const data = await res.json();
+                        setOrderLogs(Array.isArray(data) ? data : []);
+                      }}
+                      className="px-4 py-2 rounded text-white"
+                      style={{ backgroundColor: palette.colors.primary }}
+                    >
+                      Загрузить
+                    </button>
+                  </div>
+                </div>
+
+                {orderLogs.length === 0 ? (
+                  <div className="text-center p-8" style={{ color: palette.colors.textSecondary }}>
+                    Нет записей
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {orderLogs.map((log, index) => (
+                      <div 
+                        key={log.id || index}
+                        className="p-4 rounded-lg border"
+                        style={{ 
+                          backgroundColor: palette.colors.cardBg, 
+                          borderColor: palette.colors.border,
+                          borderLeftWidth: '4px',
+                          borderLeftColor: log.action === 'created' ? '#22c55e' : '#ef4444'
+                        }}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="font-medium">
+                              {log.action === 'created' ? '✅ Создан заказ' : '❌ Удалён заказ'}
+                            </div>
+                            <div className="text-sm mt-1">
+                              <span style={{ color: palette.colors.textSecondary }}>ID заказа:</span> {log.orderId}
+                            </div>
+                            <div className="text-sm">
+                              <span style={{ color: palette.colors.textSecondary }}>Сотрудник:</span> {log.employeeName || 'N/A'} • {log.department || 'N/A'}
+                            </div>
+                            <div className="text-sm">
+                              <span style={{ color: palette.colors.textSecondary }}>IP адрес:</span> {log.performedBy || 'N/A'}
+                            </div>
+                          </div>
+                          <div className="text-xs" style={{ color: palette.colors.textSecondary }}>
+                            {log.timestamp ? new Date(log.timestamp).toLocaleString('ru-RU') : 'N/A'}
+                          </div>
+                        </div>
+                        {log.details && (
+                          <div className="text-xs mt-2 p-2 rounded" style={{ backgroundColor: palette.colors.background }}>
+                            <span style={{ color: palette.colors.textSecondary }}>Состав:</span> 
+                            {(() => {
+                              try {
+                                const items = JSON.parse(log.details);
+                                return items.map((i: any) => i.dishName).join(', ');
+                              } catch {
+                                return log.details;
+                              }
+                            })()}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

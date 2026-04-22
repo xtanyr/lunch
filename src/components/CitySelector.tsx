@@ -36,7 +36,7 @@ const CitySelector: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-0 max-w-4xl w-full">
-        {CITIES.map((city, index) => (
+        {CITIES.map((city) => (
           <button
             key={city.id}
             onClick={() => handleCitySelect(city.id)}

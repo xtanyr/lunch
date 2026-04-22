@@ -16,6 +16,7 @@ interface DishItem {
   calories?: number;
   isVegan?: boolean | number;
   isVegetarian?: boolean | number;
+  noGarnish?: boolean | number;
 }
 
 interface OrderItem {
@@ -95,7 +96,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
   const { palette } = useTheme();
 
   // Floor selection state
-  const [selectedFloor, setSelectedFloor] = useState<string>('10');
+  const [selectedFloor, setSelectedFloor] = useState<string>('');
 
   // Get departments based on selected floor
   const getFloorDepartments = () => {
@@ -351,6 +352,16 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
   };
 
   const handleSubmit = () => {
+    // Validate floor selection for office orders
+    if (selectedAddress === 'office' && !selectedFloor) {
+      alert('Пожалуйста, выберите этаж');
+      return;
+    }
+    if (selectedAddress === 'office' && !currentOrder.department) {
+      alert('Пожалуйста, выберите отдел');
+      return;
+    }
+
     // Build order items
     const items: OrderItem[] = [];
     
@@ -519,12 +530,13 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                 }}
                 className="w-full px-4 py-2 rounded-lg border mb-2"
                 style={{ 
-                  borderColor: palette.colors.border,
+                  borderColor: !selectedFloor ? '#ef4444' : palette.colors.border,
                   backgroundColor: palette.colors.cardBg,
                   color: palette.colors.text
                 }}
                 required
               >
+                <option value="" disabled>Выберите этаж...</option>
                 <option value="10">10 этаж</option>
                 <option value="14">14 этаж</option>
                 <option value="5">5 этаж</option>
@@ -757,6 +769,9 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                         {!dish.isVegan && dish.isVegetarian ? <span className="text-green-500">🥬</span> : null}
                       </span>
                     ) : null}
+                    {dish.noGarnish ? (
+                      <span className="ml-2 text-xs text-neutral-500">(без гарнира)</span>
+                    ) : null}
                   </div>
                   {dish.composition && (
                     <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
@@ -777,8 +792,8 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
               })}
             </div>
             
-            {/* Garnish and Sauce - only show when hot dish is selected */}
-            {selectedHotDish && (
+            {/* Garnish and Sauce - only show when hot dish is selected and noGarnish is not set */}
+            {selectedHotDish && !selectedHotDish.noGarnish && (
               <div className="mt-4">
                 <h3 className="text-lg font-semibold mb-2" style={{ color: palette.colors.text }}>
                   Гарнир (бесплатно)
@@ -819,8 +834,12 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                           {garnish.composition}
                         </div>
                       )}
-                      {(garnish.grams || garnish.calories) && (
+                      {(garnish.protein || garnish.carbs || garnish.fats || garnish.grams || garnish.calories) && (
                         <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
+                          {garnish.protein && <span>Б: {garnish.protein}г </span>}
+                          {garnish.carbs && <span>У: {garnish.carbs}г </span>}
+                          {garnish.fats && <span>Ж: {garnish.fats}г</span>}
+                          {(garnish.protein || garnish.carbs || garnish.fats) && (garnish.grams || garnish.calories) && <span> | </span>}
                           {garnish.grams && `${garnish.grams}г`}{garnish.grams && garnish.calories && ' / '}{garnish.calories && `${garnish.calories}ккал`}
                         </div>
                       )}
@@ -868,14 +887,25 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                           {sauce.composition}
                         </div>
                       )}
-                      {(sauce.grams || sauce.calories) && (
+                      {(sauce.protein || sauce.carbs || sauce.fats || sauce.grams || sauce.calories) && (
                         <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
+                          {sauce.protein && <span>Б: {sauce.protein}г </span>}
+                          {sauce.carbs && <span>У: {sauce.carbs}г </span>}
+                          {sauce.fats && <span>Ж: {sauce.fats}г</span>}
+                          {(sauce.protein || sauce.carbs || sauce.fats) && (sauce.grams || sauce.calories) && <span> | </span>}
                           {sauce.grams && `${sauce.grams}г`}{sauce.grams && sauce.calories && ' / '}{sauce.calories && `${sauce.calories}ккал`}
                         </div>
                       )}
                     </button>
                   );
                   })}
+                </div>
+              </div>
+            )}
+            {selectedHotDish && selectedHotDish.noGarnish && (
+              <div className="mt-4 p-3 rounded-lg bg-neutral-100 border border-neutral-300">
+                <div className="text-sm text-neutral-600" style={{ color: palette.colors.textSecondary }}>
+                  К этому блюду гарнир не предусмотрен
                 </div>
               </div>
             )}

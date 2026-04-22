@@ -20,8 +20,8 @@ module.exports = {
     },
     {
       name: 'lunch-frontend',
-      script: 'npx',
-      args: 'vite preview --port 3001 --host',
+      script: './node_modules/.bin/vite',
+      args: 'preview --port 3001 --host',
       cwd: './',
       env: {
         NODE_ENV: 'production'

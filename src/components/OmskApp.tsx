@@ -7,6 +7,7 @@ import Header from './Header';
 import Footer from './Footer';
 import ThemeSelector from './ThemeSelector';
 import { useTheme } from '../theme/ThemeContext';
+import { safeGetItem, safeSetItem, validateIncomingOrderData } from '../utils/localStorage';
 
 // Omsk-specific API functions that use SQLite
 const fetchOmskOrdersFromAPI = async (date: string, address: string) => {
@@ -51,17 +52,11 @@ const OmskApp: React.FC = () => {
   
   // Load last used values from localStorage
   const getInitialEmployeeName = () => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('omsk_employeeName') || '';
-    }
-    return '';
+    return safeGetItem<string>('omsk_employeeName', '');
   };
   
   const getInitialDepartment = () => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('omsk_department') || '';
-    }
-    return '';
+    return safeGetItem<string>('omsk_department', '');
   };
   
   const [currentEmployeeOrder, setCurrentEmployeeOrder] = useState<any>({
@@ -89,36 +84,30 @@ const OmskApp: React.FC = () => {
   
   // Initialize selectedAddress from localStorage on mount
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('selectedAddress');
-      if (saved) {
-        setSelectedAddress(saved);
-      }
-      setAddressLoaded(true);
+    const saved = safeGetItem<string>('selectedAddress', '');
+    if (saved) {
+      setSelectedAddress(saved);
     }
+    setAddressLoaded(true);
   }, []);
 
   // Initialize selectedDepartment from localStorage on mount
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('selectedDepartment');
-      if (saved) {
-        setSelectedDepartment(saved);
-      }
+    const saved = safeGetItem<string>('selectedDepartment', '');
+    if (saved) {
+      setSelectedDepartment(saved);
     }
   }, []);
 
   // Save selectedDepartment to localStorage whenever it changes
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('selectedDepartment', selectedDepartment);
-    }
+    safeSetItem('selectedDepartment', selectedDepartment);
   }, [selectedDepartment]);
 
   // Save selectedAddress to localStorage whenever it changes (only after initial load)
   useEffect(() => {
-    if (addressLoaded && typeof window !== 'undefined') {
-      localStorage.setItem('selectedAddress', selectedAddress);
+    if (addressLoaded) {
+      safeSetItem('selectedAddress', selectedAddress);
     }
   }, [selectedAddress, addressLoaded]);
 
@@ -135,7 +124,20 @@ const OmskApp: React.FC = () => {
     setFetchError(null);
     try {
       const orders = await fetchOmskOrdersFromAPI(date, address);
-      setAllOrders(orders);
+      
+      // Validate and sanitize incoming orders from external sources
+      const validatedOrders = Array.isArray(orders) 
+        ? orders.filter((order: any) => {
+            const validation = validateIncomingOrderData(order);
+            if (!validation.valid) {
+              console.warn(`Filtered out invalid order:`, validation.errors, order);
+              return false;
+            }
+            return true;
+          })
+        : [];
+      
+      setAllOrders(validatedOrders);
     } catch (error) {
       console.error("Failed to fetch orders:", error);
       setFetchError("Не удалось загрузить заказы.");
@@ -176,12 +178,6 @@ const OmskApp: React.FC = () => {
     loadGarnishesSauces();
   }, []);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('selectedAddress', selectedAddress);
-    }
-  }, [selectedAddress]);
-
   const handleOrderSubmit = useCallback(() => {
     setConfirmModal({ open: true });
   }, []);
@@ -212,6 +208,15 @@ const OmskApp: React.FC = () => {
     setConfirmModal({ open: false });
     try {
       const newOrder = await submitOmskOrderToAPI(currentEmployeeOrder);
+      
+      // Validate the incoming order response from API
+      const orderValidation = validateIncomingOrderData(newOrder);
+      if (!orderValidation.valid) {
+        console.error('Invalid order data received from API:', orderValidation.errors);
+        showNotification('error', 'Ошибка валидации данных заказа.');
+        return;
+      }
+      
       setAllOrders((prevOrders: EmployeeOrder[]) => [...prevOrders, newOrder]);
       
       // Increase selected date by 1 day after successful order
@@ -219,13 +224,11 @@ const OmskApp: React.FC = () => {
       currentDate.setDate(currentDate.getDate() + 1);
       const nextDate = currentDate.toISOString().split('T')[0];
       
-      setSelectedAggregateDate(nextDate);
-       
+setSelectedAggregateDate(nextDate);
+        
       // Save name and department to localStorage for next time
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('omsk_employeeName', currentEmployeeOrder.employeeName);
-        localStorage.setItem('omsk_department', currentEmployeeOrder.department);
-      }
+      safeSetItem('omsk_employeeName', currentEmployeeOrder.employeeName);
+      safeSetItem('omsk_department', currentEmployeeOrder.department);
       
       // Reset form with the new date
       setCurrentEmployeeOrder({

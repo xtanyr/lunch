@@ -48,7 +48,6 @@ const OrderForm: React.FC<OrderFormProps> = ({
   onSubmit,
   menuItems,
   sideDishes,
-  departments,
   isSubmitting,
   address,
   addressLabel,
@@ -59,7 +58,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
   const [showDeptError, setShowDeptError] = useState(false);
   const [showDateError, setShowDateError] = useState(false);
   const [disabledRange, setDisabledRange] = useState<DisabledDateRange | null>(null);
-  const [selectedFloor, setSelectedFloor] = useState<string>('10');
+  const [selectedFloor, setSelectedFloor] = useState<string>('');
   const [localEmployeeName, setLocalEmployeeName] = useState(currentOrder.employeeName);
   const [localDepartment, setLocalDepartment] = useState(currentOrder.department);
   const [localOrderDate, setLocalOrderDate] = useState(currentOrder.orderDate);
@@ -213,9 +212,14 @@ const OrderForm: React.FC<OrderFormProps> = ({
     if (address !== 'office') {
       departmentValue = addressLabel || '';
     }
-    if (address === 'office' && !departmentValue) {
-      setShowDeptError(true);
-      hasError = true;
+    if (address === 'office') {
+      if (!selectedFloor) {
+        setShowDeptError(true);
+        hasError = true;
+      } else if (!departmentValue) {
+        setShowDeptError(true);
+        hasError = true;
+      }
     }
     if (disabledRange && localOrderDate >= disabledRange.startDate && localOrderDate <= disabledRange.endDate) {
       setShowDateError(true);
@@ -295,7 +299,9 @@ const OrderForm: React.FC<OrderFormProps> = ({
                 }}
                 required
                 disabled={isSubmitting}
+                className={!selectedFloor ? 'border-red-500 ring-2 ring-red-400' : ''}
               >
+                <option value="" disabled>Выберите этаж...</option>
                 <option value="10">10 этаж</option>
                 <option value="14">14 этаж</option>
                 <option value="5">5 этаж</option>
@@ -331,7 +337,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
             />
           )}
           {showDeptError && address === 'office' && (
-            <div className="text-red-500 text-xs mt-1">Пожалуйста, выберите отдел</div>
+            <div className="text-red-500 text-xs mt-1">Пожалуйста, выберите этаж и отдел</div>
           )}
         </div>
         <div className="flex flex-col">
