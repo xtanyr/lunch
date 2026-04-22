@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../theme/ThemeContext';
 import { CITY_ADDRESSES, FLOOR_10_DEPARTMENTS, FLOOR_14_DEPARTMENTS, FLOOR_5_DEPARTMENTS } from '../constants';
+import { SkeletonForm } from './ui/Skeleton';
+import { getLastOrder, setLastOrder, clearLastOrder } from '../utils/localStorage';
 
 // Types for the new Omsk ordering system
 interface DishItem {
@@ -142,6 +144,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
   const [selectedOther, setSelectedOther] = useState<DishItem | null>(null);
   const [selectedGarnish, setSelectedGarnish] = useState<string>('');
   const [selectedSauce, setSelectedSauce] = useState<string>('');
+  const [savedOrder, setSavedOrder] = useState<any>(null);
 
   useEffect(() => {
     const loadMenu = async () => {
@@ -161,6 +164,13 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
       }
     };
     loadMenu();
+  }, []);
+
+  useEffect(() => {
+    const saved = getLastOrder();
+    if (saved && saved.items && saved.items.length > 0) {
+      setSavedOrder(saved);
+    }
   }, []);
 
   // Check if user has already ordered when current order or address changes
@@ -351,6 +361,64 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
     setSelectedSauce('');
   };
 
+  // Quick reorder handler
+  const handleQuickReorder = () => {
+    if (!savedOrder) return;
+    
+    setCurrentOrder((prev: any) => ({
+      ...prev,
+      employeeName: savedOrder.employeeName || prev.employeeName,
+      department: savedOrder.department || prev.department,
+    }));
+    
+    if (savedOrder.items && savedOrder.items.length > 0) {
+      savedOrder.items.forEach((item: any) => {
+        const itemCategory = item.category;
+        
+        if (itemCategory === 'soup' || itemCategory === 'broth') {
+          const dish = weekMenu.find(d => d.id === item.dishId);
+          if (dish) setSelectedSoup(dish);
+        } else if (itemCategory === 'hot') {
+          const dish = weekMenu.find(d => d.id === item.dishId);
+          if (dish) {
+            setSelectedHotDish(dish);
+            if (item.garnish) {
+              const garnishMatch = garnishes.find(g => g.id === item.garnish || g.id === item.garnishName);
+              if (garnishMatch) setSelectedGarnish(garnishMatch.id);
+            }
+            if (item.sauce) {
+              const sauceMatch = sauces.find(s => s.id === item.sauce || s.id === item.sauceName);
+              if (sauceMatch) setSelectedSauce(sauceMatch.id);
+            }
+          }
+        } else if (itemCategory === 'salad') {
+          const dish = weekMenu.find(d => d.id === item.dishId) || saladDishes.find(d => d.id === item.dishId);
+          if (dish) setSelectedSalad(dish);
+        } else if (itemCategory === 'vegan') {
+          const dish = veganItems.find(d => d.id === item.dishId);
+          if (dish) setSelectedVegan(dish);
+        } else if (itemCategory === 'other') {
+          const dish = otherItems.find(d => d.id === item.dishId);
+          if (dish) setSelectedOther(dish);
+        } else if (itemCategory === 'pastry') {
+          const pastry = pastries.find(p => p.id === item.dishId);
+          if (pastry) setSelectedPastry(pastry.id);
+        }
+      });
+    }
+    
+    if (savedOrder.orderDate && savedOrder.orderDate !== currentOrder.orderDate) {
+      const savedDate = new Date(savedOrder.orderDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (savedDate < today) {
+        const newDate = today.toISOString().split('T')[0];
+        setCurrentOrder((prev: any) => ({ ...prev, orderDate: newDate }));
+      }
+    }
+  };
+
   const handleSubmit = () => {
     // Validate floor selection for office orders
     if (selectedAddress === 'office' && !selectedFloor) {
@@ -454,6 +522,14 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
       });
     }
 
+    setLastOrder({
+      employeeName: currentOrder.employeeName,
+      department: currentOrder.department,
+      items,
+      address: selectedAddress === 'office' ? `office_${selectedFloor}` : selectedAddress,
+      orderDate: currentOrder.orderDate
+    });
+
     setCurrentOrder({
       ...currentOrder,
       items,
@@ -467,11 +543,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
   };
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center p-8">
-        <div className="text-lg" style={{ color: palette.colors.text }}>Загрузка меню...</div>
-      </div>
-    );
+    return <SkeletonForm />;
   }
 
   if (error) {
@@ -1157,6 +1229,22 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
           </div>
         )}
       </div>
+
+      {/* Quick Reorder Button */}
+      {savedOrder && savedOrder.items && savedOrder.items.length > 0 && (
+        <button
+          type="button"
+          onClick={handleQuickReorder}
+          className="w-full py-3 rounded-lg font-semibold border-2 transition-all hover:opacity-90"
+          style={{ 
+            borderColor: palette.colors.primary,
+            color: palette.colors.primary,
+            backgroundColor: 'transparent'
+          }}
+        >
+          Повторить заказ ({savedOrder.items.length} {savedOrder.items.length === 1 ? 'блюдо' : savedOrder.items.length <= 4 ? 'блюда' : 'блюд'})
+        </button>
+      )}
 
       {/* Submit Button */}
       <button

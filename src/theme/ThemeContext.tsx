@@ -50,14 +50,14 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     root.style.setProperty('--color-card-bg', palette.colors.cardBg);
   }, [paletteId, palette]);
 
-  const setPalette = (id: string) => {
+  const handlePaletteChange = (id: string) => {
     if (PALETTES.some(p => p.id === id)) {
       setPaletteId(id);
     }
   };
 
   return (
-    <ThemeContext.Provider value={{ palette, paletteId, setPalette, palettes: PALETTES }}>
+    <ThemeContext.Provider value={{ palette, paletteId, setPalette: handlePaletteChange, palettes: PALETTES }}>
       {children}
     </ThemeContext.Provider>
   );

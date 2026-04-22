@@ -174,6 +174,26 @@ export const validateAndSanitizeOrder = (order: any): OrderSchema | null => {
   return validation.valid ? validation.data : null;
 };
 
+export interface LastOrder {
+  employeeName: string;
+  department: string;
+  items: OrderItemSchema[];
+  address: string;
+  orderDate?: string;
+}
+
+export const getLastOrder = (): LastOrder | null => {
+  return safeGetItem<LastOrder>('omsk_lastOrder', null);
+};
+
+export const setLastOrder = (order: LastOrder): boolean => {
+  return safeSetItem('omsk_lastOrder', order);
+};
+
+export const clearLastOrder = (): boolean => {
+  return safeRemoveItem('omsk_lastOrder');
+};
+
 export const validateIncomingOrderData = (data: any): { valid: boolean; errors: string[] } => {
   const errors: string[] = [];
   

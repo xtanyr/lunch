@@ -1020,7 +1020,28 @@ export function getMenuSides() {
 }
 
 export function getMenuConfig() {
-  return { categories: [], lastUpdated: new Date().toISOString() };
+  try {
+    const stmt = db.prepare('SELECT value FROM settings WHERE key = ?');
+    const result = stmt.get('menu_config') as { value: string } | undefined;
+    if (result?.value) {
+      return JSON.parse(result.value);
+    }
+    return { categories: [], lastUpdated: new Date().toISOString() };
+  } catch (error) {
+    console.error('Error getting menu config:', error);
+    return { categories: [], lastUpdated: new Date().toISOString() };
+  }
+}
+
+export function updateMenuConfig(config: { categories: any[]; lastUpdated: string }) {
+  try {
+    const stmt = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+    stmt.run('menu_config', JSON.stringify(config));
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating menu config:', error);
+    throw error;
+  }
 }
 
 export function updateMenuItems(items: any[]) {

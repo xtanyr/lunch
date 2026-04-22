@@ -8,6 +8,7 @@ import Footer from './Footer';
 import ThemeSelector from './ThemeSelector';
 import { useTheme } from '../theme/ThemeContext';
 import { safeGetItem, safeSetItem, validateIncomingOrderData } from '../utils/localStorage';
+import { SkeletonCard, SkeletonForm } from './ui/Skeleton';
 
 // Omsk-specific API functions that use SQLite
 const fetchOmskOrdersFromAPI = async (date: string, address: string) => {
@@ -377,13 +378,13 @@ setSelectedAggregateDate(nextDate);
 
         {/* Orders List */}
         <section className="flex-1 overflow-visible" style={{ minHeight: '400px' }}>
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-4">
+            <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 w-full sm:w-auto">
               <h2 className="text-2xl font-bold" style={{ color: palette.colors.text }}>Заказы</h2>
               <select
                 value={selectedDepartment}
                 onChange={(e) => setSelectedDepartment(e.target.value)}
-                className="px-3 py-1 rounded border text-sm"
+                className="px-3 py-2 rounded border text-sm min-h-[44px] w-full sm:w-auto"
                 style={{ 
                   borderColor: palette.colors.border,
                   backgroundColor: palette.colors.cardBg,
@@ -402,13 +403,17 @@ setSelectedAggregateDate(nextDate);
               type="date"
               value={selectedAggregateDate}
               onChange={(e) => setSelectedAggregateDate(e.target.value)}
-              className="px-4 py-2 rounded-lg border w-full sm:w-auto"
+              className="px-4 py-2 rounded-lg border w-full sm:w-auto min-h-[44px]"
               style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.cardBg, color: palette.colors.text }}
             />
           </div>
           
           {isLoadingOrders ? (
-            <div className="text-center p-4" style={{ color: palette.colors.textSecondary }}>Загрузка...</div>
+            <div className="space-y-2">
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </div>
           ) : ordersForSelectedDate.length === 0 ? (
             <div className="text-center p-4" style={{ color: palette.colors.textSecondary }}>Нет заказов на эту дату</div>
           ) : (
