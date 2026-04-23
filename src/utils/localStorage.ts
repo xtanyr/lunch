@@ -182,8 +182,33 @@ export interface LastOrder {
   orderDate?: string;
 }
 
-export const getLastOrder = (): LastOrder | null => {
-  return safeGetItem<LastOrder>('omsk_lastOrder', null);
+export const getLastOrder = async (employeeName: string, department: string): Promise<LastOrder | null> => {
+  try {
+    // Fetch the user's most recent order from the database
+    const response = await fetch(`/api/omsk/orders/last?employeeName=${encodeURIComponent(employeeName)}&department=${encodeURIComponent(department)}`);
+    
+    if (!response.ok) {
+      console.error('Failed to fetch last order:', response.statusText);
+      return null;
+    }
+    
+    const order = await response.json();
+    
+    if (order && order.items && order.items.length > 0) {
+      return {
+        employeeName: order.employeeName,
+        department: order.department,
+        items: order.items,
+        address: order.address,
+        orderDate: order.orderDate
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error fetching last order:', error);
+    return null;
+  }
 };
 
 export const setLastOrder = (order: LastOrder): boolean => {
