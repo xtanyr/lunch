@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import { EmployeeOrder, CurrentOrderItem, AggregatedOrderItem, Dish } from './types';
 import { MENU_ITEMS, SIDE_DISHES, DEPARTMENTS, CITY_ADDRESSES, CITIES } from './constants';
 import OrderForm from './components/OrderForm';
@@ -13,6 +13,8 @@ import OmskAdmin from './components/OmskAdmin';
 import OmskAdminLogin from './components/OmskAdminLogin';
 import SpbApp from './components/SpbApp';
 import SpbAdmin from './components/SpbAdmin';
+import Header from './components/Header';
+import Footer from './components/Footer';
 import { fetchOrdersFromAPI, submitOrderToAPI, deleteOrderFromAPI, fetchMenuItems, fetchSideDishes, fetchMenuConfig } from './api';
 import ConfirmModal from './components/ui/ConfirmModal';
 import Select from './components/ui/Select';
@@ -41,6 +43,65 @@ const RequireOmskAdmin: React.FC<{ children: React.ReactNode }> = ({ children })
         if (!data.valid) {
           localStorage.removeItem('omskAdminCodeEntered');
           navigate('/omsk/admin/login');
+        }
+        setIsValid(data.valid);
+      })
+      .catch(() => {
+        setIsValid(false);
+      });
+  }, [code, navigate]);
+  
+  if (isValid === null || isValid === false) {
+    return <div className="min-h-screen flex items-center justify-center">Проверка...</div>;
+  }
+  
+  return <>{children}</>;
+};
+
+// Component to verify SPB admin authentication
+const RequireSpbAdmin: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const code = localStorage.getItem('adminCodeEntered');
+  const [isValid, setIsValid] = useState<boolean | null>(null);
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    if (!code) {
+      navigate('/admin/login');
+      return;
+    }
+    
+    setIsValid(true);
+  }, [code, navigate]);
+  
+  if (isValid === null || isValid === false) {
+    return <div className="min-h-screen flex items-center justify-center">Проверка...</div>;
+  }
+  
+  return <>{children}</>;
+};
+
+// Component to verify generic admin authentication server-side
+const RequireAdmin: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const code = localStorage.getItem('adminCodeEntered');
+  const [isValid, setIsValid] = useState<boolean | null>(null);
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    if (!code) {
+      navigate('/admin/login');
+      return;
+    }
+    
+    fetch('/api/admin/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.valid) {
+          localStorage.removeItem('adminCodeEntered');
+          navigate('/admin/login');
         }
         setIsValid(data.valid);
       })
@@ -664,7 +725,9 @@ const App: React.FC = () => {
        } />
        <Route path="/spb/admin" element={
          <ThemeProvider>
-           <SpbAdmin />
+           <RequireSpbAdmin>
+             <SpbAdmin />
+           </RequireSpbAdmin>
          </ThemeProvider>
        } />
        <Route path="/spb/*" element={
@@ -680,13 +743,11 @@ const App: React.FC = () => {
       <Route
         path="/admin"
         element={
-          localStorage.getItem('adminCodeEntered') ? (
-            <ThemeProvider>
+          <ThemeProvider>
+            <RequireAdmin>
               <AdminPage />
-            </ThemeProvider>
-          ) : (
-            <Navigate to="/admin/login" replace />
-          )
+            </RequireAdmin>
+          </ThemeProvider>
         }
       />
       <Route path="/admin/login" element={

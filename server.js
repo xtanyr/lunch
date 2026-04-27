@@ -91,6 +91,17 @@ app.post('/api/omsk/admin/verify', express.json(), (req, res) => {
   }
 });
 
+// Generic admin verification endpoint (for cities other than Omsk and SPB)
+const GENERIC_ADMIN_CODE = process.env.GENERIC_ADMIN_CODE || process.env.REACT_APP_ADMIN_CODE;
+app.post('/api/admin/verify', express.json(), (req, res) => {
+  const { code } = req.body;
+  if (code === GENERIC_ADMIN_CODE) {
+    res.json({ valid: true });
+  } else {
+    res.status(401).json({ valid: false, error: 'Invalid code' });
+  }
+});
+
 // Serve static files from the dist directory
 app.use(express.static(path.join(__dirname, 'dist')));
 app.use('/m7', express.static(path.join(__dirname, 'm7')));
