@@ -2,3 +2,7 @@
 data
 dist
 node_modules
+.env
+.kilo
+logs
+temp_backup

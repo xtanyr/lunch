@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Button from './ui/Button';
 import Input from './ui/Input';
 
-const ADMIN_CODE = 'lunch20';
+const ADMIN_CODE = process.env.REACT_APP_ADMIN_CODE;
 
 const AdminAccess: React.FC = () => {
   const [code, setCode] = useState('');

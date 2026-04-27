@@ -9,13 +9,32 @@ interface AdminMenuManagerProps {
   menuItems: Dish[];
   sideDishes: SideDish[];
   onMenuItemsUpdate: (items: Dish[]) => void;
+  categoryOptions?: { id: string; label: string }[];
+  defaultPrice?: number;
 }
 
 const AdminMenuManager: React.FC<AdminMenuManagerProps> = ({
   menuItems,
   sideDishes,
-  onMenuItemsUpdate
+  onMenuItemsUpdate,
+  categoryOptions,
+  defaultPrice = 0
 }) => {
+  const defaultCategoryOptions = [
+    { id: 'all', label: 'Все категории' },
+    { id: DishCategory.SALAD, label: 'Салаты' },
+    { id: DishCategory.HOT_DISH, label: 'Горячее' },
+    { id: DishCategory.SINGLE_DISH, label: 'Одно блюдо' }
+  ];
+
+  const editCategoryOptions = [
+    { id: DishCategory.SALAD, label: 'Салаты' },
+    { id: DishCategory.HOT_DISH, label: 'Горячее' },
+    { id: DishCategory.SINGLE_DISH, label: 'Одно блюдо' }
+  ];
+
+  const filterOptions = categoryOptions || defaultCategoryOptions;
+  const editOptions = categoryOptions?.filter(opt => opt.id !== 'all') || editCategoryOptions;
   const [editingItem, setEditingItem] = useState<Dish | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState<{ show: boolean; item: Dish | null }>({ show: false, item: null });
@@ -44,7 +63,7 @@ const AdminMenuManager: React.FC<AdminMenuManagerProps> = ({
       id: '',
       name: '',
       category: DishCategory.SALAD,
-      price: 0,
+      price: defaultPrice,
       isActive: true,
       composition: '',
       availableSideIds: [],
@@ -131,12 +150,7 @@ const AdminMenuManager: React.FC<AdminMenuManagerProps> = ({
             id="category-filter"
             value={filterCategory}
             onChange={setFilterCategory}
-            options={[
-              { id: 'all', label: 'Все категории' },
-              { id: DishCategory.SALAD, label: 'Салаты' },
-              { id: DishCategory.HOT_DISH, label: 'Горячее' },
-              { id: DishCategory.SINGLE_DISH, label: 'Одно блюдо' }
-            ]}
+            options={filterOptions}
           />
         </div>
       </div>
@@ -162,11 +176,7 @@ const AdminMenuManager: React.FC<AdminMenuManagerProps> = ({
               label="Категория"
               value={editingItem.category}
               onChange={(value) => handleInputChange('category', value as DishCategory)}
-              options={[
-                { id: DishCategory.SALAD, label: 'Салаты' },
-                { id: DishCategory.HOT_DISH, label: 'Горячее' },
-                { id: DishCategory.SINGLE_DISH, label: 'Одно блюдо' }
-              ]}
+              options={editOptions}
             />
             
             <Input

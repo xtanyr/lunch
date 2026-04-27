@@ -15,6 +15,7 @@ export interface Dish {
   name: string;
   price?: number; // Цена для экспорта в Excel
   category: DishCategory;
+  dishType?: 'soup' | 'salad' | 'hot'; // Тип блюда для комбо-валидации
   availableSideIds?: string[];
   composition?: string; // Состав блюда
   protein?: number; // Белки (г)

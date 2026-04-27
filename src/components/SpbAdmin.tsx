@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dish } from '../types';
+import { Dish, DishCategory } from '../types';
 import { fetchSpbPeriods, updateSpbPeriodMenu } from '../api';
 import { CITY_ADDRESSES } from '../constants';
 import AdminMenuManager from './AdminMenuManager';
@@ -13,7 +13,23 @@ interface Period {
   endDate: string;
 }
 
+const formatDate = (dateStr: string): string => {
+  // Parse date string in local time to avoid timezone issues
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  const dayNum = date.getDate().toString().padStart(2, '0');
+  const monthNum = (date.getMonth() + 1).toString().padStart(2, '0');
+  return `${dayNum}.${monthNum}`;
+};
+
 const SpbAdmin: React.FC = () => {
+  // SPB-specific category options: replace "Одно блюдо" with "Супы"
+  const spbCategoryOptions = [
+    { id: 'all', label: 'Все категории' },
+    { id: DishCategory.SALAD, label: 'Салаты' },
+    { id: DishCategory.HOT_DISH, label: 'Горячее' },
+    { id: DishCategory.SOUP, label: 'Супы' }
+  ];
   const [periods, setPeriods] = useState<Period[]>([]);
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
   const [periodMenuItems, setPeriodMenuItems] = useState<Dish[]>([]);
@@ -102,7 +118,7 @@ const SpbAdmin: React.FC = () => {
       newItems.push({
         id,
         name,
-        price: 250, // Default price
+        price: 225, // Default price for SPB
         category: 'Горячее' as any, // Not used for SPB
         composition,
         garnishGrams: 250,
@@ -223,7 +239,7 @@ const SpbAdmin: React.FC = () => {
           )}
           {selectedPeriod && (
             <p className="mt-2 text-sm text-gray-600">
-              Период: {selectedPeriod.startDate} — {selectedPeriod.endDate}
+              Период: {formatDate(selectedPeriod.startDate)} — {formatDate(selectedPeriod.endDate)}
             </p>
           )}
         </div>
@@ -317,6 +333,8 @@ const SpbAdmin: React.FC = () => {
                 menuItems={periodMenuItems}
                 sideDishes={[]}
                 onMenuItemsUpdate={handleMenuUpdate}
+                categoryOptions={spbCategoryOptions}
+                defaultPrice={225}
               />
             </div>
           </div>

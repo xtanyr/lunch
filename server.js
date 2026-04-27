@@ -4,10 +4,12 @@ import path from 'path';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
 import XLSX from 'xlsx';
+import dotenv from 'dotenv';
 
-// Admin code - should be set via environment variable OMSK_ADMIN_CODE
-// Default fallback provided for development only - remove in production
-const OMSK_ADMIN_CODE = process.env.OMSK_ADMIN_CODE || 'lunch20';
+dotenv.config();
+
+// Admin code - must be set via environment variable OMSK_ADMIN_CODE
+const OMSK_ADMIN_CODE = process.env.OMSK_ADMIN_CODE;
 
 // Admin authentication middleware
 const requireAdmin = (req, res, next) => {
@@ -181,7 +183,7 @@ function generateSpbDefaultMenu() {
   const periods = [];
   
   // Start from April 28, 2026
-  let currentDate = new Date(2026, 3, 28); // April 28, 2026 (month is 0-indexed)
+  const currentDate = new Date(2026, 3, 28); // April 28, 2026 (month is 0-indexed)
   
   // Generate ~30 periods (about 2 months)
   for (let i = 0; i < 30; i++) {
@@ -192,11 +194,19 @@ function generateSpbDefaultMenu() {
     const periodId = `p${i + 1}`;
     const periodName = `(${startDate.getDate()}-${endDate.getDate()} ${startDate.toLocaleDateString('ru-RU', { month: 'long' })})`;
     
+    // Format dates as YYYY-MM-DD in local time to avoid timezone issues
+    const formatDateLocal = (date) => {
+      const year = date.getFullYear();
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    
     periods.push({
       id: periodId,
       name: periodName,
-      startDate: startDate.toISOString().split('T')[0],
-      endDate: endDate.toISOString().split('T')[0],
+      startDate: formatDateLocal(startDate),
+      endDate: formatDateLocal(endDate),
       items: [],
       isActive: 1
     });
@@ -211,11 +221,10 @@ function generateSpbDefaultMenu() {
 // Get SPB period for a given date
 function getSpbPeriodForDate(dateStr) {
   const menuData = readSpbMenuData();
-  const d = new Date(dateStr);
+  // Compare date strings directly to avoid timezone issues
+  // Format: YYYY-MM-DD
   for (const period of menuData.periods) {
-    const start = new Date(period.startDate);
-    const end = new Date(period.endDate);
-    if (d >= start && d <= end) {
+    if (dateStr >= period.startDate && dateStr <= period.endDate) {
       return period;
     }
   }
@@ -2103,6 +2112,17 @@ app.post('/api/spb/orders', express.json(), (req, res) => {
   }
   
   const orders = readOrders(address, 'spb');
+  
+  // Check if person with same name already has an order for the same day at this address
+  const existingOrder = orders.find(order => 
+    order.employeeName === employeeName && 
+    order.orderDate === orderDate
+  );
+  
+  if (existingOrder) {
+    return res.status(400).json({ error: 'Вы уже сделали заказ на этот день' });
+  }
+  
   const newOrder = {
     id: `order-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     employeeName,
@@ -2147,12 +2167,12 @@ app.get('/api/spb/export/excel', (req, res) => {
       addressMap[addr.id] = addr.label;
     });
     
-    // Load SPB menu data to get dish names
+    // Load SPB menu data to get dish names and prices
     const menuData = readSpbMenuData();
     const dishMap = {};
     menuData.periods.forEach(period => {
       (period.items || []).forEach(dish => {
-        dishMap[dish.id] = dish.name;
+        dishMap[dish.id] = { name: dish.name, price: dish.price || 225 };
       });
     });
     
@@ -2219,19 +2239,22 @@ app.get('/api/spb/export/excel', (req, res) => {
           if (!order.items || !Array.isArray(order.items)) return;
           
           order.items.forEach(item => {
-            // Get dish name from dishId
-            const dishName = dishMap[item.dishId] || item.dishId || 'Unknown dish';
+            // Get dish info from dishId
+            const dishInfo = dishMap[item.dishId] || { name: item.dishId || 'Unknown dish', price: 225 };
+            const dishName = dishInfo.name;
+            const dishPrice = dishInfo.price;
             
-            // Track dish summary
+            // Track dish summary with price
             if (!dishSummary[dishName]) {
-              dishSummary[dishName] = 0;
+              dishSummary[dishName] = { quantity: 0, price: dishPrice };
             }
-            dishSummary[dishName] += 1;
+            dishSummary[dishName].quantity += 1;
+            addressTotal += dishPrice;
             
             // Track day totals
             const dayKey = dishName;
             if (!dishDayTotals[dayKey]) {
-              dishDayTotals[dayKey] = { dishName: dishName, quantity: 0 };
+              dishDayTotals[dayKey] = { dishName: dishName, quantity: 0, price: dishPrice };
             }
             dishDayTotals[dayKey].quantity += 1;
           });
@@ -2240,26 +2263,97 @@ app.get('/api/spb/export/excel', (req, res) => {
         // Add summary section for address
         excelData.push(['Итого:']);
         
-        // Add dishes summary
+        // Add dishes summary with prices
         Object.keys(dishSummary).sort().forEach(dishName => {
-          excelData.push([dishName, dishSummary[dishName]]);
+          const summary = dishSummary[dishName];
+          excelData.push([dishName, summary.quantity, summary.price, summary.quantity * summary.price]);
         });
+        
+        excelData.push(['Всего:', '', '', addressTotal]);
         
         excelData.push([]); // Empty row
       });
       
       // Add totals for the day
       excelData.push(['Итого по блюдам за день']);
+      let dayTotal = 0;
       Object.keys(dishDayTotals).sort().forEach(dishName => {
-        excelData.push([dishName, dishDayTotals[dishName].quantity]);
+        const dayDish = dishDayTotals[dishName];
+        const dishTotal = dayDish.quantity * dayDish.price;
+        dayTotal += dishTotal;
+        excelData.push([dishName, dayDish.quantity, dayDish.price, dishTotal]);
       });
+      excelData.push(['Всего за день:', '', '', dayTotal]);
       
       // Create worksheet
       const sheetName = date.replace(/-/g, '').slice(2);
       const worksheet = XLSX.utils.aoa_to_sheet(excelData);
-      worksheet['!cols'] = [{ wch: 30 }, { wch: 10 }];
+      worksheet['!cols'] = [{ wch: 30 }, { wch: 10 }, { wch: 10 }, { wch: 15 }];
       XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
     });
+    
+    // Create summary sheet with daily totals by address
+    const summaryData = [['Наименование']];
+    const allDates = Object.keys(ordersByDate).sort();
+    allDates.forEach(date => summaryData[0].push(date));
+    summaryData[0].push('ИТОГО');
+
+    const addressDailyTotals = {}; // { address: { date: total, date: total, ... }, ... }
+    const addressGrandTotals = {}; // { address: grandTotal, ... }
+    const dailyGrandTotals = {}; // { date: total, ... }
+    let overallGrandTotal = 0;
+
+    // Initialize dailyGrandTotals
+    allDates.forEach(date => dailyGrandTotals[date] = 0);
+
+    // Populate addressDailyTotals and addressGrandTotals
+    allOrders.forEach(order => {
+      const addr = order.address || 'unknown';
+      const orderDate = order.orderDate;
+      
+      // Calculate order total
+      let orderTotal = 0;
+      if (order.items && Array.isArray(order.items)) {
+        order.items.forEach(item => {
+          const dishInfo = dishMap[item.dishId] || { price: 225 };
+          orderTotal += dishInfo.price || 225;
+        });
+      }
+
+      if (!addressDailyTotals[addr]) {
+        addressDailyTotals[addr] = {};
+        allDates.forEach(date => addressDailyTotals[addr][date] = 0);
+      }
+      addressDailyTotals[addr][orderDate] += orderTotal;
+
+      addressGrandTotals[addr] = (addressGrandTotals[addr] || 0) + orderTotal;
+      dailyGrandTotals[orderDate] += orderTotal;
+      overallGrandTotal += orderTotal;
+    });
+
+    // Add address rows to summaryData
+    Object.keys(addressDailyTotals).sort().forEach(addr => {
+      const addressName = addressMap[addr] || addr;
+      const row = [addressName];
+      allDates.forEach(date => row.push(addressDailyTotals[addr][date]));
+      row.push(addressGrandTotals[addr]);
+      summaryData.push(row);
+    });
+
+    // Add "ИТОГО ПО ДНЯМ" row
+    const dailyTotalRow = ['ИТОГО ПО ДНЯМ'];
+    allDates.forEach(date => dailyTotalRow.push(dailyGrandTotals[date]));
+    dailyTotalRow.push(overallGrandTotal);
+    summaryData.push(dailyTotalRow);
+
+    // Create summary worksheet
+    const summaryWorksheet = XLSX.utils.aoa_to_sheet(summaryData);
+    const summaryCols = [{ wch: 25 }]; // Width for 'Наименование' column
+    for (let i = 0; i < allDates.length + 1; i++) { // +1 for 'ИТОГО' column
+      summaryCols.push({ wch: 12 });
+    }
+    summaryWorksheet['!cols'] = summaryCols;
+    XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Итого');
     
     // Generate buffer and send
     const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
