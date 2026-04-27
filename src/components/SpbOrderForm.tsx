@@ -222,6 +222,10 @@ const SpbOrderForm: React.FC<OrderFormProps> = ({
             Актуальное меню: {currentPeriodName}
           </p>
         )}
+        <details className="mt-2">
+          <summary className="text-sm text-gray-600 cursor-pointer hover:text-gray-800">Информация о КБЖУ</summary>
+          <p className="text-xs text-gray-600 mt-1">КБЖУ указано на 100г. Для блюд с гарниром, КБЖУ указано только для основного блюда.</p>
+        </details>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
