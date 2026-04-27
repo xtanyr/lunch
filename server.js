@@ -92,7 +92,7 @@ app.post('/api/omsk/admin/verify', express.json(), (req, res) => {
 });
 
 // Generic admin verification endpoint (for cities other than Omsk and SPB)
-const GENERIC_ADMIN_CODE = process.env.GENERIC_ADMIN_CODE || process.env.REACT_APP_ADMIN_CODE;
+const GENERIC_ADMIN_CODE = process.env.GENERIC_ADMIN_CODE || process.env.VITE_ADMIN_CODE;
 app.post('/api/admin/verify', express.json(), (req, res) => {
   const { code } = req.body;
   if (code === GENERIC_ADMIN_CODE) {

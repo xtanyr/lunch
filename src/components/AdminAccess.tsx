@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Button from './ui/Button';
 import Input from './ui/Input';
 
-const ADMIN_CODE = process.env.REACT_APP_ADMIN_CODE;
+const ADMIN_CODE = import.meta.env.VITE_ADMIN_CODE;
 
 const AdminAccess: React.FC = () => {
   const [code, setCode] = useState('');
@@ -11,7 +11,7 @@ const AdminAccess: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (code === ADMIN_CODE) {
-      localStorage.setItem('adminCodeEntered', 'true');
+      localStorage.setItem('adminCodeEntered', code);
       window.location.href = '/admin';
     } else {
       setError('Неверный код доступа');

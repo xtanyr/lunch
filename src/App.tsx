@@ -13,6 +13,7 @@ import OmskAdmin from './components/OmskAdmin';
 import OmskAdminLogin from './components/OmskAdminLogin';
 import SpbApp from './components/SpbApp';
 import SpbAdmin from './components/SpbAdmin';
+import SpbAdminLogin from './components/SpbAdminLogin';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import { fetchOrdersFromAPI, submitOrderToAPI, deleteOrderFromAPI, fetchMenuItems, fetchSideDishes, fetchMenuConfig } from './api';
@@ -60,13 +61,13 @@ const RequireOmskAdmin: React.FC<{ children: React.ReactNode }> = ({ children })
 
 // Component to verify SPB admin authentication
 const RequireSpbAdmin: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const code = localStorage.getItem('adminCodeEntered');
+  const code = localStorage.getItem('spbAdminCodeEntered');
   const [isValid, setIsValid] = useState<boolean | null>(null);
   const navigate = useNavigate();
   
   useEffect(() => {
     if (!code) {
-      navigate('/admin/login');
+      navigate('/spb/admin/login');
       return;
     }
     
@@ -728,6 +729,11 @@ const App: React.FC = () => {
            <RequireSpbAdmin>
              <SpbAdmin />
            </RequireSpbAdmin>
+         </ThemeProvider>
+       } />
+       <Route path="/spb/admin/login" element={
+         <ThemeProvider>
+           <SpbAdminLogin />
          </ThemeProvider>
        } />
        <Route path="/spb/*" element={
