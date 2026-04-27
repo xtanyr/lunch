@@ -430,6 +430,61 @@ app.get('/api/omsk/orders/:date', (req, res) => {
   }
 });
 
+// API endpoint to get user's most recent order
+app.get('/api/omsk/orders/last', (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  
+  const { employeeName, department } = req.query;
+  
+  if (!employeeName || !department) {
+    return res.status(400).json({ error: 'Employee name and department are required' });
+  }
+  
+  try {
+    // Get the most recent order for this user
+    const stmt = omskDb.prepare(`
+      SELECT * FROM omsk_orders 
+      WHERE employeeName = ? AND department = ? 
+      ORDER BY timestamp DESC 
+      LIMIT 1
+    `);
+    
+    const order = stmt.get(employeeName, department);
+    
+    if (!order) {
+      return res.json(null);
+    }
+    
+    // Parse the items JSON if it's a string
+    let items = order.items;
+    if (typeof items === 'string') {
+      try {
+        items = JSON.parse(items);
+      } catch (e) {
+        console.error('Error parsing order items:', e);
+        return res.json(null);
+      }
+    }
+    
+    res.json({
+      id: order.id,
+      employeeName: order.employeeName,
+      department: order.department,
+      orderDate: order.orderDate,
+      items: items,
+      address: order.address,
+      timestamp: order.timestamp,
+      totalPrice: order.totalPrice
+    });
+    
+  } catch (error) {
+    console.error('Error fetching last order:', error);
+    res.status(500).json({ error: 'Failed to fetch last order' });
+  }
+});
+
 // New endpoint for date range orders (for Excel export)
 app.get('/api/omsk/orders-range', (req, res) => {
   if (!omskDbReady) {

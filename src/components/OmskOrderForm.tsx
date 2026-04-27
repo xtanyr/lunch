@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../theme/ThemeContext';
 import { CITY_ADDRESSES, FLOOR_10_DEPARTMENTS, FLOOR_14_DEPARTMENTS, FLOOR_5_DEPARTMENTS } from '../constants';
 import { SkeletonForm } from './ui/Skeleton';
-import { getLastOrder, setLastOrder, clearLastOrder } from '../utils/localStorage';
+import { getLastOrder, setLastOrder } from '../utils/localStorage';
 
 // Types for the new Omsk ordering system
 interface DishItem {
@@ -167,11 +167,23 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
   }, []);
 
   useEffect(() => {
-    const saved = getLastOrder();
-    if (saved && saved.items && saved.items.length > 0) {
-      setSavedOrder(saved);
-    }
-  }, []);
+    const loadLastOrder = async () => {
+      if (!currentOrder?.employeeName || !currentOrder?.department) {
+        return;
+      }
+      
+      try {
+        const saved = await getLastOrder(currentOrder.employeeName, currentOrder.department);
+        if (saved && saved.items && saved.items.length > 0) {
+          setSavedOrder(saved);
+        }
+      } catch (error) {
+        console.error('Error loading last order:', error);
+      }
+    };
+    
+    loadLastOrder();
+  }, [currentOrder?.employeeName, currentOrder?.department]);
 
   // Check if user has already ordered when current order or address changes
   useEffect(() => {
