@@ -10,6 +10,7 @@ const Header: React.FC<HeaderProps> = ({ children }) => {
   const location = useLocation();
   const isAdmin = location.pathname.startsWith('/admin');
   const isOmsk = location.pathname.startsWith('/omsk');
+  const isSpb = location.pathname.startsWith('/spb');
   const { palette } = useTheme();
 
   return (
@@ -19,7 +20,7 @@ const Header: React.FC<HeaderProps> = ({ children }) => {
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">Обеды</h1>
           {!isAdmin && (
             <Link 
-              to={isOmsk ? "/omsk/admin" : "/admin"} 
+              to={isOmsk ? "/omsk/admin" : isSpb ? "/spb/admin" : "/admin"} 
               className="text-xs sm:text-sm px-2 sm:px-3 py-1 rounded transition-colors hover:opacity-80"
               style={{ backgroundColor: palette.colors.primary, color: 'white' }}
             >

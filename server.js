@@ -99,7 +99,130 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-// Initialize default menu data if files don't exist
+// Helper to read SPB menu data (period-based)
+function readSpbMenuData() {
+  const file = path.join(__dirname, 'data', 'menu_spb.json');
+  if (!fs.existsSync(file)) {
+    const defaultSpbMenu = generateSpbDefaultMenu();
+    fs.writeFileSync(file, JSON.stringify(defaultSpbMenu, null, 2));
+    return defaultSpbMenu;
+  }
+  const data = fs.readFileSync(file, 'utf-8');
+  try {
+    const parsed = JSON.parse(data);
+    
+    // Migration: if old format {items, sides}, convert to period-based
+    if (parsed.items && !parsed.periods) {
+      const defaultSides = parsed.sides || generateSpbDefaultMenu().sides;
+      const periods = [];
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth();
+      
+      for (let m = month; m < month + 2; m++) {
+        const monthDate = new Date(year, m, 1);
+        const monthYear = monthDate.getFullYear();
+        const monthNum = monthDate.getMonth() + 1;
+        const daysInMonth = new Date(monthYear, monthNum, 0).getDate();
+        
+        for (let startDay = 1; startDay <= daysInMonth; startDay += 2) {
+          const endDay = Math.min(startDay + 1, daysInMonth);
+          const periodId = `${monthYear}-${monthNum.toString().padStart(2, '0')}-p${Math.ceil(startDay/2)}`;
+          const periodName = `(${startDay}-${endDay} ${monthDate.toLocaleDateString('ru-RU', { month: 'long' })})`;
+          
+          periods.push({
+            id: periodId,
+            name: periodName,
+            startDate: `${monthYear}-${monthNum.toString().padStart(2, '0')}-${startDay.toString().padStart(2, '0')}`,
+            endDate: `${monthYear}-${monthNum.toString().padStart(2, '0')}-${endDay.toString().padStart(2, '0')}`,
+            items: JSON.parse(JSON.stringify(parsed.items)),
+            isActive: 1
+          });
+        }
+      }
+      
+      const migrated = { sides: defaultSides, periods };
+      writeSpbMenuData(migrated);
+      return migrated;
+    }
+    
+    return parsed;
+  } catch {
+    const defaultSpbMenu = generateSpbDefaultMenu();
+    fs.writeFileSync(file, JSON.stringify(defaultSpbMenu, null, 2));
+    return defaultSpbMenu;
+  }
+}
+
+// Helper to write SPB menu data
+function writeSpbMenuData(menuData) {
+  const file = path.join(__dirname, 'data', 'menu_spb.json');
+  fs.writeFileSync(file, JSON.stringify(menuData, null, 2));
+}
+
+// Generate default SPB menu with 2-day periods starting from April 28, 2026
+function generateSpbDefaultMenu() {
+  const defaultSides = [
+    { id: 'no_garnish', name: 'Без гарнира' },
+    { id: 'grilled_vegetables', name: 'Овощи гриль' },
+    { id: 'rice_with_vegetables', name: 'Рис с овощами' },
+    { id: 'boiled_rice', name: 'Рис отварной' },
+    { id: 'mashed_potatoes', name: 'Картофельное пюре' },
+    { id: 'baked_potatoes', name: 'Запеченный картофель' },
+    { id: 'steamed_vegetables', name: 'Овощи на пару' },
+    { id: 'bulgur', name: 'Булгур' },
+    { id: 'grechka', name: 'Гречка' },
+    { id: 'spaghetti', name: 'Спагетти' },
+    { id: 'ptitim', name: 'Паста пти-тим' },
+    { id: 'poppy_seeds', name: 'Мак' },
+    { id: 'apple', name: 'Яблоко' },
+  ];
+
+  const periods = [];
+  
+  // Start from April 28, 2026
+  let currentDate = new Date(2026, 3, 28); // April 28, 2026 (month is 0-indexed)
+  
+  // Generate ~30 periods (about 2 months)
+  for (let i = 0; i < 30; i++) {
+    const startDate = new Date(currentDate);
+    const endDate = new Date(currentDate);
+    endDate.setDate(endDate.getDate() + 1);
+    
+    const periodId = `p${i + 1}`;
+    const periodName = `(${startDate.getDate()}-${endDate.getDate()} ${startDate.toLocaleDateString('ru-RU', { month: 'long' })})`;
+    
+    periods.push({
+      id: periodId,
+      name: periodName,
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+      items: [],
+      isActive: 1
+    });
+    
+    // Move to next period (skip 2 days)
+    currentDate.setDate(currentDate.getDate() + 2);
+  }
+  
+  return { sides: defaultSides, periods };
+}
+
+// Get SPB period for a given date
+function getSpbPeriodForDate(dateStr) {
+  const menuData = readSpbMenuData();
+  const d = new Date(dateStr);
+  for (const period of menuData.periods) {
+    const start = new Date(period.startDate);
+    const end = new Date(period.endDate);
+    if (d >= start && d <= end) {
+      return period;
+    }
+  }
+  return null;
+}
+
+// Existing default menu initialization
 const initializeDefaultData = () => {
   if (!fs.existsSync(MENU_FILE)) {
     const defaultMenu = {
@@ -154,6 +277,13 @@ const initializeDefaultData = () => {
 
   if (!fs.existsSync(ORDERS_FILE)) {
     fs.writeFileSync(ORDERS_FILE, JSON.stringify([], null, 2));
+  }
+  
+  // Initialize SPB period-based menu
+  const spbMenuFile = path.join(__dirname, 'data', 'menu_spb.json');
+  if (!fs.existsSync(spbMenuFile)) {
+    const defaultSpbMenu = generateSpbDefaultMenu();
+    fs.writeFileSync(spbMenuFile, JSON.stringify(defaultSpbMenu, null, 2));
   }
 };
 
@@ -1782,6 +1912,337 @@ app.put('/api/omsk/settings/:key', requireAdmin, express.json(), (req, res) => {
     console.error('Error updating setting:', error);
     res.status(500).json({ error: 'Failed to update setting' });
   }
+});
+
+// ==================== SPB API (Period-based menu, 2-day periods) ====================
+
+// Get available periods for a date range (SPB)
+app.get('/api/spb/periods', (req, res) => {
+  try {
+    const menuData = readSpbMenuData();
+    const { startDate, endDate } = req.query;
+    
+    let periods = menuData.periods || [];
+    
+    // Filter by date range if provided
+    if (startDate && endDate) {
+      periods = periods.filter(p => {
+        return p.startDate <= endDate && p.endDate >= startDate;
+      });
+    }
+    
+    // Return only necessary period info
+    const periodSummaries = periods.map(p => ({
+      id: p.id,
+      name: p.name,
+      startDate: p.startDate,
+      endDate: p.endDate
+    }));
+    
+    res.json(periodSummaries);
+  } catch (error) {
+    console.error('Error fetching SPB periods:', error);
+    res.status(500).json({ error: 'Failed to fetch periods' });
+  }
+});
+
+// Get menu items for a specific SPB period
+app.get('/api/spb/menu/:periodId', (req, res) => {
+  try {
+    const { periodId } = req.params;
+    const menuData = readSpbMenuData();
+    const period = menuData.periods.find(p => p.id === periodId);
+    
+    if (!period) {
+      return res.status(404).json({ error: 'Period not found' });
+    }
+    
+    res.json(period.items || []);
+  } catch (error) {
+    console.error('Error fetching SPB period menu:', error);
+    res.status(500).json({ error: 'Failed to fetch period menu' });
+  }
+});
+
+// Admin: Update menu items for a specific SPB period
+app.put('/api/spb/menu/:periodId', express.json(), (req, res) => {
+  try {
+    const { periodId } = req.params;
+    const items = req.body;
+    if (!Array.isArray(items)) {
+      return res.status(400).json({ error: 'Items must be an array' });
+    }
+    
+    const menuData = readSpbMenuData();
+    const periodIndex = menuData.periods.findIndex(p => p.id === periodId);
+    
+    if (periodIndex === -1) {
+      return res.status(404).json({ error: 'Period not found' });
+    }
+    
+    menuData.periods[periodIndex].items = items;
+    writeSpbMenuData(menuData);
+    
+    res.json({ success: true, message: 'Period menu updated' });
+  } catch (error) {
+    console.error('Error updating SPB period menu:', error);
+    res.status(500).json({ error: 'Failed to update period menu' });
+  }
+});
+
+// Get menu items for SPB based on date (auto-selects appropriate period)
+app.get('/api/spb/menu', (req, res) => {
+  try {
+    const { date } = req.query;
+    if (!date) {
+      return res.status(400).json({ error: 'Date is required' });
+    }
+    
+    const menuData = readSpbMenuData();
+    const period = getSpbPeriodForDate(date);
+    
+    if (!period) {
+      return res.status(404).json({ error: 'No menu period found for this date' });
+    }
+    
+    // Return both period info and items
+    res.json({
+      period: {
+        id: period.id,
+        name: period.name,
+        startDate: period.startDate,
+        endDate: period.endDate
+      },
+      items: period.items || []
+    });
+  } catch (error) {
+    console.error('Error fetching SPB menu:', error);
+    res.status(500).json({ error: 'Failed to fetch menu' });
+  }
+});
+
+// SPB orders endpoints
+app.get('/api/spb/orders/:date', (req, res) => {
+  const { address } = req.query;
+  const { date } = req.params;
+  const orders = readOrders(address, 'spb').filter(o => o.orderDate === date);
+  res.json(orders);
+});
+
+app.post('/api/spb/orders', express.json(), (req, res) => {
+  const { employeeName, department, orderDate, items, address, floor } = req.body;
+  if (!employeeName || !orderDate || !items || typeof address !== 'string') {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+  
+  // Check if order date is disabled
+  const disabledRange = readDisabledDates('spb');
+  if (disabledRange && orderDate >= disabledRange.startDate && orderDate <= disabledRange.endDate) {
+    return res.status(400).json({ error: disabledRange.message });
+  }
+  
+  // Validate that order date has a menu period
+  const period = getSpbPeriodForDate(orderDate);
+  if (!period) {
+    return res.status(400).json({ error: 'Невозможно сделать заказ на эту дату: меню не определено' });
+  }
+  
+  const orders = readOrders(address, 'spb');
+  const newOrder = {
+    id: `order-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+    employeeName,
+    department: department || '',
+    orderDate,
+    items,
+    address,
+    city: 'spb',
+    timestamp: new Date().toISOString(),
+    floor: floor || ''
+  };
+  orders.push(newOrder);
+  writeOrders(orders, address, 'spb');
+  res.status(201).json(newOrder);
+});
+
+app.delete('/api/spb/orders/:id', (req, res) => {
+  const { id } = req.params;
+  const { address } = req.query;
+  let orders = readOrders(address, 'spb');
+  const initialLength = orders.length;
+  orders = orders.filter(order => order.id !== id);
+  if (orders.length === initialLength) {
+    return res.status(404).json({ error: 'Order not found' });
+  }
+  writeOrders(orders, address, 'spb');
+  res.status(204).end();
+});
+
+// SPB Excel export endpoint
+app.get('/api/spb/export/excel', (req, res) => {
+  const { startDate, endDate, address } = req.query;
+  
+  if (!startDate || !endDate) {
+    return res.status(400).json({ error: 'Start date and end date are required' });
+  }
+  
+  try {
+    // Create address name lookup
+    let addressMap = {};
+    (CITY_ADDRESSES.spb || []).forEach(addr => {
+      addressMap[addr.id] = addr.label;
+    });
+    
+    // Load SPB menu data to get dish names
+    const menuData = readSpbMenuData();
+    const dishMap = {};
+    menuData.periods.forEach(period => {
+      (period.items || []).forEach(dish => {
+        dishMap[dish.id] = dish.name;
+      });
+    });
+    
+    // Get all orders from all SPB addresses for the date range
+    const allOrders = [];
+    const addressesToFetch = address === 'all' ? (CITY_ADDRESSES.spb || []).map(a => a.id) : [address];
+    
+    addressesToFetch.forEach(addr => {
+      const orders = readOrders(addr, 'spb');
+      orders.forEach(order => {
+        if (order.orderDate >= startDate && order.orderDate <= endDate) {
+          allOrders.push(order);
+        }
+      });
+    });
+    
+    console.log('SPB Export: Found', allOrders.length, 'orders for date range', startDate, 'to', endDate);
+    
+    // Group orders by date
+    const ordersByDate = {};
+    allOrders.forEach(order => {
+      if (!ordersByDate[order.orderDate]) {
+        ordersByDate[order.orderDate] = [];
+      }
+      ordersByDate[order.orderDate].push(order);
+    });
+    
+    // Create workbook
+    const workbook = XLSX.utils.book_new();
+    
+    // For each date, create a sheet
+    Object.keys(ordersByDate).sort().forEach(date => {
+      const dayOrders = ordersByDate[date];
+      
+      // Group orders by address
+      const ordersByAddress = {};
+      dayOrders.forEach(order => {
+        const addr = order.address || 'unknown';
+        if (!ordersByAddress[addr]) {
+          ordersByAddress[addr] = [];
+        }
+        ordersByAddress[addr].push(order);
+      });
+      
+      const excelData = [];
+      
+      // Track dish totals for the day
+      const dishDayTotals = {};
+      
+      // Process each address
+      Object.keys(ordersByAddress).sort().forEach(addr => {
+        const addressOrders = ordersByAddress[addr];
+        
+        // Add address header
+        const addressName = addressMap[addr] || addr;
+        excelData.push([addressName]);
+        
+        // Track all items for summary
+        const dishSummary = {};
+        let addressTotal = 0;
+        
+        // Process all orders to collect summaries
+        addressOrders.forEach(order => {
+          if (!order.items || !Array.isArray(order.items)) return;
+          
+          order.items.forEach(item => {
+            // Get dish name from dishId
+            const dishName = dishMap[item.dishId] || item.dishId || 'Unknown dish';
+            
+            // Track dish summary
+            if (!dishSummary[dishName]) {
+              dishSummary[dishName] = 0;
+            }
+            dishSummary[dishName] += 1;
+            
+            // Track day totals
+            const dayKey = dishName;
+            if (!dishDayTotals[dayKey]) {
+              dishDayTotals[dayKey] = { dishName: dishName, quantity: 0 };
+            }
+            dishDayTotals[dayKey].quantity += 1;
+          });
+        });
+        
+        // Add summary section for address
+        excelData.push(['Итого:']);
+        
+        // Add dishes summary
+        Object.keys(dishSummary).sort().forEach(dishName => {
+          excelData.push([dishName, dishSummary[dishName]]);
+        });
+        
+        excelData.push([]); // Empty row
+      });
+      
+      // Add totals for the day
+      excelData.push(['Итого по блюдам за день']);
+      Object.keys(dishDayTotals).sort().forEach(dishName => {
+        excelData.push([dishName, dishDayTotals[dishName].quantity]);
+      });
+      
+      // Create worksheet
+      const sheetName = date.replace(/-/g, '').slice(2);
+      const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+      worksheet['!cols'] = [{ wch: 30 }, { wch: 10 }];
+      XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+    });
+    
+    // Generate buffer and send
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=spb_orders_${startDate}_${endDate}.xlsx`);
+    res.send(buffer);
+  } catch (error) {
+    console.error('SPB Export error:', error);
+    res.status(500).json({ error: 'Failed to export orders' });
+  }
+});
+
+// SPB menu items (for admin - legacy compatibility, still uses items array)
+app.get('/api/spb/dishes', (req, res) => {
+  try {
+    const menuData = readSpbMenuData();
+    // Return flat items from all periods (for admin view)
+    const allItems = menuData.periods.flatMap(p => (p.items || []));
+    res.json(allItems);
+  } catch (error) {
+    console.error('Error fetching SPB dishes:', error);
+    res.status(500).json({ error: 'Failed to fetch dishes' });
+  }
+});
+
+// SPB disabled dates (same as generic but city=spb)
+app.get('/api/spb/disabled-dates', (req, res) => {
+  const range = readDisabledDates('spb');
+  res.json(range);
+});
+
+app.put('/api/spb/disabled-dates', express.json(), (req, res) => {
+  const range = req.body;
+  if (range && (typeof range !== 'object' || !range.startDate || !range.endDate || !range.message)) {
+    return res.status(400).json({ error: 'Invalid range format' });
+  }
+  writeDisabledDates(range, 'spb');
+  res.json({ success: true });
 });
 
 // API Routes for Orders (existing functionality)

@@ -235,3 +235,22 @@ export const aggregateOrdersByDate = (ordersByDate: { [date: string]: any[] }, m
   
   return result;
 };
+
+// SPB: 2-day period helpers
+export function getPeriodId(date: string): string {
+  const d = new Date(date);
+  const day = d.getDate();
+  const period = Math.ceil(day / 2);
+  const month = d.getMonth() + 1;
+  const year = d.getFullYear();
+  return `${year}-${month.toString().padStart(2, '0')}-p${period}`;
+}
+
+export function getPeriodName(date: string): string {
+  const d = new Date(date);
+  const day = d.getDate();
+  const periodStart = Math.floor((day - 1) / 2) * 2 + 1;
+  const periodEnd = periodStart + 1;
+  const month = d.toLocaleDateString('ru-RU', { month: 'long' });
+  return `(${periodStart}-${periodEnd} ${month})`;
+}

@@ -203,3 +203,39 @@ export const updateDisabledDates = async (range: DisabledDateRange | null, city?
     throw new Error('Не удалось обновить настройки отключенных дат.');
   }
 };
+
+// SPB API functions (period-based)
+export interface PeriodInfo {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+}
+
+export const fetchSpbPeriods = async (): Promise<PeriodInfo[]> => {
+  try {
+    const res = await fetch(`${API_BASE}/api/spb/periods?city=spb`);
+    if (!res.ok) throw new Error('Failed to fetch periods');
+    return await res.json();
+  } catch (error) {
+    console.error('API Error (fetchSpbPeriods):', error);
+    throw new Error('Не удалось получить периоды меню.');
+  }
+};
+
+export const updateSpbPeriodMenu = async (periodId: string, items: Dish[]): Promise<void> => {
+  try {
+    const res = await fetch(`${API_BASE}/api/spb/menu/${periodId}?city=spb`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(items),
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to update period menu');
+    }
+  } catch (error) {
+    console.error('API Error (updateSpbPeriodMenu):', error);
+    throw new Error('Не удалось обновить меню периода.');
+  }
+};

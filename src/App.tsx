@@ -5,14 +5,14 @@ import { MENU_ITEMS, SIDE_DISHES, DEPARTMENTS, CITY_ADDRESSES, CITIES } from './
 import OrderForm from './components/OrderForm';
 import IndividualOrdersList from './components/IndividualOrdersList';
 import AggregatedOrderSummary from './components/AggregatedOrderSummary';
-import Header from './components/Header';
-import Footer from './components/Footer';
 import AdminPage from './components/AdminPage';
 import AdminAccess from './components/AdminAccess';
 import CitySelector from './components/CitySelector';
 import OmskApp from './components/OmskApp';
 import OmskAdmin from './components/OmskAdmin';
 import OmskAdminLogin from './components/OmskAdminLogin';
+import SpbApp from './components/SpbApp';
+import SpbAdmin from './components/SpbAdmin';
 import { fetchOrdersFromAPI, submitOrderToAPI, deleteOrderFromAPI, fetchMenuItems, fetchSideDishes, fetchMenuConfig } from './api';
 import ConfirmModal from './components/ui/ConfirmModal';
 import Select from './components/ui/Select';
@@ -657,12 +657,22 @@ const App: React.FC = () => {
           <OmskAdminLogin />
         </ThemeProvider>
       } />
-      <Route path="/omsk/*" element={
-        <ThemeProvider>
-          <OmskApp />
-        </ThemeProvider>
-      } />
-      <Route path="/:city" element={
+       <Route path="/omsk/*" element={
+         <ThemeProvider>
+           <OmskApp />
+         </ThemeProvider>
+       } />
+       <Route path="/spb/admin" element={
+         <ThemeProvider>
+           <SpbAdmin />
+         </ThemeProvider>
+       } />
+       <Route path="/spb/*" element={
+         <ThemeProvider>
+           <SpbApp />
+         </ThemeProvider>
+       } />
+       <Route path="/:city" element={
         <ThemeProvider>
           <OrderPage />
         </ThemeProvider>

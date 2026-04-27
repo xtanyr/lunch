@@ -48,23 +48,23 @@ const CitySelector: React.FC = () => {
               ${city.id === 'omsk' ? 'border-l' : ''}
             `}
             style={{ 
-              backgroundColor: city.id === 'omsk' ? palette.colors.primary : palette.colors.cardBg,
+              backgroundColor: city.id === 'omsk' || city.id === 'spb' ? palette.colors.primary : palette.colors.cardBg,
               borderColor: palette.colors.border
             }}
           >
             <div 
               className="w-20 h-20 flex items-center justify-center text-4xl"
               style={{ 
-                backgroundColor: city.id === 'omsk' ? 'white' : palette.colors.primary + '20',
-                color: city.id === 'omsk' ? palette.colors.primary : palette.colors.text
+                backgroundColor: city.id === 'omsk' || city.id === 'spb' ? 'white' : palette.colors.primary + '20',
+                color: city.id === 'omsk' || city.id === 'spb' ? palette.colors.primary : palette.colors.text
               }}
             >
-              {city.id === 'omsk' ? '🍽️' : '🏙️'}
+              {city.id === 'omsk' ? '🍽️' : city.id === 'spb' ? '🏰' : '🏙️'}
             </div>
             <span 
               className="text-xl font-bold"
               style={{ 
-                color: city.id === 'omsk' ? 'white' : palette.colors.text 
+                color: city.id === 'omsk' || city.id === 'spb' ? 'white' : palette.colors.text 
               }}
             >
               {city.label}
@@ -74,7 +74,15 @@ const CitySelector: React.FC = () => {
                 className="text-sm font-medium px-3 py-1 rounded"
                 style={{ backgroundColor: 'white', color: palette.colors.primary }}
               >
-                New System
+                SQLite System
+              </span>
+            )}
+            {city.id === 'spb' && (
+              <span 
+                className="text-sm font-medium px-3 py-1 rounded"
+                style={{ backgroundColor: 'white', color: palette.colors.primary }}
+              >
+                Separate Version
               </span>
             )}
           </button>
@@ -85,8 +93,9 @@ const CitySelector: React.FC = () => {
         className="mt-12 text-center"
         style={{ color: palette.colors.textSecondary }}
       >
-        <p>Омск использует новую систему заказов</p>
-        <p>Другие города используют текущую версию</p>
+        <p>Омск — новая система на SQLite</p>
+        <p>Санкт-Петербург — отдельная версия (файловая система)</p>
+        <p>Другие города — общая файловая система</p>
       </div>
     </div>
   );
