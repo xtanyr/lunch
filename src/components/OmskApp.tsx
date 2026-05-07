@@ -8,7 +8,7 @@ import Footer from './Footer';
 import ThemeSelector from './ThemeSelector';
 import { useTheme } from '../theme/ThemeContext';
 import { safeGetItem, safeSetItem, validateIncomingOrderData } from '../utils/localStorage';
-import { SkeletonCard, SkeletonForm } from './ui/Skeleton';
+import { SkeletonCard } from './ui/Skeleton';
 
 // Omsk-specific API functions that use SQLite
 const fetchOmskOrdersFromAPI = async (date: string, address: string) => {
@@ -434,10 +434,11 @@ setSelectedAggregateDate(nextDate);
                     <div className="font-semibold" style={{ color: palette.colors.text }}>{order.employeeName}</div>
                     <div className="text-sm" style={{ color: palette.colors.textSecondary }}>{order.department}</div>
                     <div className="text-xs" style={{ color: palette.colors.textSecondary }}>
-                      {order.timestamp ? new Date(order.timestamp).toLocaleTimeString('ru-RU', { 
+                      <div>Дата заказа: {order.orderDate}</div>
+                      <div>Время заказа: {order.timestamp ? new Date(order.timestamp).toLocaleTimeString('ru-RU', { 
                         hour: '2-digit', 
                         minute: '2-digit' 
-                      }) : ''}
+                      }) : ''}</div>
                     </div>
                     <div className="text-sm mt-1" style={{ color: palette.colors.textSecondary }}>
                       {order.items?.map((item: any, idx: number) => {
