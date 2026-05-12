@@ -434,10 +434,11 @@ setSelectedAggregateDate(nextDate);
                     <div className="font-semibold" style={{ color: palette.colors.text }}>{order.employeeName}</div>
                     <div className="text-sm" style={{ color: palette.colors.textSecondary }}>{order.department}</div>
                     <div className="text-xs" style={{ color: palette.colors.textSecondary }}>
-                      {order.timestamp ? new Date(order.timestamp).toLocaleTimeString('ru-RU', { 
+                      <div>Дата заказа: {order.orderDate}</div>
+                      <div>Время заказа: {order.timestamp ? new Date(order.timestamp).toLocaleTimeString('ru-RU', { 
                         hour: '2-digit', 
                         minute: '2-digit' 
-                      }) : ''}
+                      }) : ''}</div>
                     </div>
                     <div className="text-sm mt-1" style={{ color: palette.colors.textSecondary }}>
                       {order.items?.map((item: any, idx: number) => {
