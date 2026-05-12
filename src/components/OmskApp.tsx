@@ -8,7 +8,7 @@ import Footer from './Footer';
 import ThemeSelector from './ThemeSelector';
 import { useTheme } from '../theme/ThemeContext';
 import { safeGetItem, safeSetItem, validateIncomingOrderData } from '../utils/localStorage';
-import { SkeletonCard, SkeletonForm } from './ui/Skeleton';
+import { SkeletonCard } from './ui/Skeleton';
 
 // Omsk-specific API functions that use SQLite
 const fetchOmskOrdersFromAPI = async (date: string, address: string) => {
@@ -465,11 +465,20 @@ setSelectedAggregateDate(nextDate);
                         };
                         const garnishName = garnishItem?.name || item.garnishName || resolveNameFromId(garnishes, item.garnish);
                         const sauceName = sauceItem?.name || item.sauceName || resolveNameFromId(sauces, item.sauce);
+                        // Show garnish + dish on one line if garnishInSameBox is true (applies to all orders)
+                        const shouldCombine = item.garnishInSameBox && garnishName;
+                        
                         return (
                           <div key={item.dishId || idx} className="mb-2">
                             <div className="font-medium">
-                              {item.dishName}
-                              {garnishName && <span className="font-normal"> + {garnishName}</span>}
+                              {shouldCombine ? (
+                                <span>{garnishName} + {item.dishName} <span className="text-xs text-gray-500">(вместе)</span></span>
+                              ) : (
+                                <>
+                                  {item.dishName}
+                                  {garnishName && <span className="font-normal"> + {garnishName} <span className="text-xs text-gray-500">(отдельно)</span></span>}
+                                </>
+                              )}
                               {sauceName && <span className="font-normal"> + {sauceName}</span>}
                             </div>
                             {(item.protein || item.carbs || item.fats || item.grams || item.calories) && (
@@ -481,7 +490,7 @@ setSelectedAggregateDate(nextDate);
                                 {item.calories && <span> | {item.calories}ккал</span>}
                               </div>
                             )}
-                            {(garnishItem?.composition || garnishItem?.grams || garnishItem?.calories) && (
+                            {garnishName && (garnishItem?.composition || garnishItem?.grams || garnishItem?.calories) && (
                               <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
                                 {garnishItem?.composition && <span>Состав гарнира: {garnishItem.composition} | </span>}
                                 {garnishItem?.grams && <span>{garnishItem.grams}г</span>}
@@ -489,7 +498,7 @@ setSelectedAggregateDate(nextDate);
                                 {garnishItem?.calories && <span>{garnishItem.calories}ккал</span>}
                               </div>
                             )}
-                            {(sauceItem?.composition || sauceItem?.grams || sauceItem?.calories) && (
+                            {sauceName && (sauceItem?.composition || sauceItem?.grams || sauceItem?.calories) && (
                               <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
                                 {sauceItem?.composition && <span>Состав соуса: {sauceItem.composition} | </span>}
                                 {sauceItem?.grams && <span>{sauceItem.grams}г</span>}

@@ -62,8 +62,12 @@ const SpbOrderForm: React.FC<OrderFormProps> = ({
   minDate,
   maxDate,
   currentPeriodName,
-}: OrderFormProps) => {
+}) => {
   const { palette } = useTheme();
+
+  if (!currentOrder) {
+    return <div>Loading...</div>;
+  }
   const [shake, setShake] = useState(false);
   const [showNameError, setShowNameError] = useState(false);
   const [showDeptError, setShowDeptError] = useState(false);
@@ -74,10 +78,12 @@ const SpbOrderForm: React.FC<OrderFormProps> = ({
   const [localOrderDate, setLocalOrderDate] = useState(currentOrder.orderDate);
 
   useEffect(() => {
-    setLocalEmployeeName(currentOrder.employeeName);
-    setLocalDepartment(currentOrder.department);
-    setLocalOrderDate(currentOrder.orderDate);
-  }, [currentOrder.employeeName, currentOrder.department, currentOrder.orderDate]);
+    if (currentOrder) {
+      setLocalEmployeeName(currentOrder.employeeName);
+      setLocalDepartment(currentOrder.department);
+      setLocalOrderDate(currentOrder.orderDate);
+    }
+  }, [currentOrder?.employeeName, currentOrder?.department, currentOrder?.orderDate]);
 
   useEffect(() => {
     if (selectedDate !== localOrderDate) {

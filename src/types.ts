@@ -39,6 +39,7 @@ export interface CurrentOrderItem {
   calories?: number;
   garnishGrams?: number;
   sideDishGrams?: number;
+  garnishInSameBox?: boolean; // New field to indicate if garnish should be in same box as dish
 }
 
 export interface EmployeeOrder {

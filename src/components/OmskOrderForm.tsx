@@ -43,6 +43,7 @@ interface OrderItem {
   calories?: number;
   isVegan?: boolean | number;
   isVegetarian?: boolean | number;
+  garnishInSameBox?: boolean; // New field to indicate if garnish should be in same box as dish
 }
 
 interface OmskOrderFormProps {
@@ -97,6 +98,10 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
 }) => {
   const { palette } = useTheme();
 
+  if (!currentOrder) {
+    return <div>Loading...</div>;
+  }
+
   // Floor selection state
   const [selectedFloor, setSelectedFloor] = useState<string>('');
 
@@ -144,6 +149,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
   const [selectedOther, setSelectedOther] = useState<DishItem | null>(null);
   const [selectedGarnish, setSelectedGarnish] = useState<string>('');
   const [selectedSauce, setSelectedSauce] = useState<string>('');
+  const [garnishInSameBox, setGarnishInSameBox] = useState<boolean>(false);
   const [savedOrder, setSavedOrder] = useState<any>(null);
 
   useEffect(() => {
@@ -183,34 +189,33 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
     };
     
     loadLastOrder();
-  }, [currentOrder?.employeeName, currentOrder?.department]);
+  }, [currentOrder.employeeName, currentOrder.department]);
 
   // Check if user has already ordered when current order or address changes
   useEffect(() => {
-    checkIfUserOrdered();
-  }, [currentOrder?.employeeName, currentOrder?.department, currentOrder?.orderDate, selectedAddress]);
+    const checkIfUserOrdered = async () => {
+      if (!currentOrder || !currentOrder.employeeName || !currentOrder.department || !currentOrder.orderDate || !selectedAddress || selectedAddress === '') {
+        return;
+      }
 
-  // Check if current user has already ordered today
-  const checkIfUserOrdered = async () => {
-    if (!currentOrder?.employeeName || !currentOrder?.department || !currentOrder?.orderDate || !selectedAddress) {
-      return;
-    }
-    
-    try {
-      const params = new URLSearchParams({
-        employeeName: currentOrder.employeeName,
-        department: currentOrder.department,
-        orderDate: currentOrder.orderDate,
-        address: selectedAddress
-      });
-      
-      const response = await fetch(`/api/omsk/can-order?${params}`);
-      const data = await response.json();
-      setHasOrderedToday(!data.canOrder);
-    } catch (error) {
-      console.error('Error checking if user ordered:', error);
-    }
-  };
+      try {
+        const params = new URLSearchParams({
+          employeeName: currentOrder.employeeName,
+          department: currentOrder.department,
+          orderDate: currentOrder.orderDate,
+          address: selectedAddress
+        });
+
+        const response = await fetch(`/api/omsk/can-order?${params}`);
+        const data = await response.json();
+        setHasOrderedToday(!data.canOrder);
+      } catch (error) {
+        console.error('Error checking if user ordered:', error);
+      }
+    };
+
+    checkIfUserOrdered();
+  }, [currentOrder.employeeName, currentOrder.department, currentOrder.orderDate, selectedAddress]);
 
   // Check if ordering is disabled for the current date
   const isOrderingDisabled = () => {
@@ -371,6 +376,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
     setSelectedOther(null);
     setSelectedGarnish('');
     setSelectedSauce('');
+    setGarnishInSameBox(false);
   };
 
   // Quick reorder handler
@@ -401,6 +407,10 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
             if (item.sauce) {
               const sauceMatch = sauces.find(s => s.id === item.sauce || s.id === item.sauceName);
               if (sauceMatch) setSelectedSauce(sauceMatch.id);
+            }
+            // Set garnish in same box option
+            if (item.garnishInSameBox !== undefined) {
+              setGarnishInSameBox(item.garnishInSameBox);
             }
           }
         } else if (itemCategory === 'salad') {
@@ -492,6 +502,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
           sauceGrams: sauceItem.grams,
           sauceCalories: sauceItem.calories
         } : {}),
+        garnishInSameBox: garnishInSameBox,
       });
     }
     if (selectedSalad) {
@@ -931,6 +942,23 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   );
                   })}
                 </div>
+                
+                {/* Checkbox for garnish in same box */}
+                {selectedGarnish && (
+                  <div className="mt-3 p-3 rounded-lg border" style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.cardBg }}>
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={garnishInSameBox}
+                        onChange={(e) => setGarnishInSameBox(e.target.checked)}
+                        className="mr-2"
+                      />
+                      <span className="text-sm" style={{ color: palette.colors.text }}>
+                        Упаковать гарнир вместе с горячим блюдом
+                      </span>
+                    </label>
+                  </div>
+                )}
                 
                 <h3 className="text-lg font-semibold mb-2 mt-4" style={{ color: palette.colors.text }}>
                   Соусы (бесплатно)

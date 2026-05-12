@@ -644,14 +644,18 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
                 const garnishName = garnishItem?.name || item.garnishName || item.garnish || '';
                 const sauceName = sauceItem?.name || item.sauceName || item.sauce || '';
                 
-                // Track dish summary
-                if (!dishSummary[item.dishName]) {
-                  dishSummary[item.dishName] = 0;
-                }
-                dishSummary[item.dishName] += 1;
+                // For office orders, apply garnishInSameBox logic
+                const shouldCombine = item.garnishInSameBox && garnishName;
                 
-                // Track garnish summary
-                if (garnishName) {
+                // Track dish summary
+                const dishKey = shouldCombine ? `${garnishName} + ${item.dishName}` : item.dishName;
+                if (!dishSummary[dishKey]) {
+                  dishSummary[dishKey] = 0;
+                }
+                dishSummary[dishKey] += 1;
+                
+                // Track garnish summary (only when not combined)
+                if (garnishName && !item.garnishInSameBox) {
                   if (!garnishSummary[garnishName]) {
                     garnishSummary[garnishName] = 0;
                   }
@@ -718,14 +722,18 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
               const garnishName = garnishItem?.name || item.garnishName || item.garnish || '';
               const sauceName = sauceItem?.name || item.sauceName || item.sauce || '';
               
-              // Track dish summary
-              if (!dishSummary[item.dishName]) {
-                dishSummary[item.dishName] = 0;
-              }
-              dishSummary[item.dishName] += 1;
+              // Apply garnishInSameBox logic for all orders (both office and coffee shop)
+              const shouldCombine = item.garnishInSameBox && garnishName;
               
-              // Track garnish summary
-              if (garnishName) {
+              // Track dish summary
+              const dishKey = shouldCombine ? `${garnishName} + ${item.dishName}` : item.dishName;
+              if (!dishSummary[dishKey]) {
+                dishSummary[dishKey] = 0;
+              }
+              dishSummary[dishKey] += 1;
+              
+              // Track garnish summary (only when not combined)
+              if (garnishName && !item.garnishInSameBox) {
                 if (!garnishSummary[garnishName]) {
                   garnishSummary[garnishName] = 0;
                 }
@@ -788,13 +796,14 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
           const garnishName = garnishItem?.name || item.garnishName || item.garnish || '';
           const sauceName = sauceItem?.name || item.sauceName || item.sauce || '';
           
+          // For daily totals, always keep garnishes separate from hot dishes for easier counting
           // Track dish summary
           if (!dayDishSummary[item.dishName]) {
             dayDishSummary[item.dishName] = 0;
           }
           dayDishSummary[item.dishName] += 1;
           
-          // Track garnish summary
+          // Track garnish summary (always separate for daily totals)
           if (garnishName) {
             if (!dayGarnishSummary[garnishName]) {
               dayGarnishSummary[garnishName] = 0;
