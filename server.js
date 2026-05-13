@@ -34,6 +34,9 @@ import {
   updateMenuConfig,
   getDisabledDates,
   setDisabledDates,
+  addDisabledDateRange,
+  removeDisabledDateRange,
+  updateDisabledDateRange,
   getActiveWeek,
   setActiveWeek,
   getAllWeeks,
@@ -957,9 +960,14 @@ app.post('/api/omsk/orders', express.json(), (req, res) => {
   }
 
   // Check if order date is disabled
-  const disabledRange = getDisabledDates();
-  if (disabledRange && orderDate >= disabledRange.startDate && orderDate <= disabledRange.endDate) {
-    return res.status(400).json({ error: disabledRange.message });
+  const disabledRanges = getDisabledDates();
+  if (disabledRanges && Array.isArray(disabledRanges)) {
+    const matchingRange = disabledRanges.find(range => 
+      orderDate >= range.startDate && orderDate <= range.endDate
+    );
+    if (matchingRange) {
+      return res.status(400).json({ error: matchingRange.message || 'Заказы на эту дату заблокированы' });
+    }
   }
 
   try {
@@ -1244,7 +1252,7 @@ app.put('/api/omsk/disabled-dates', requireAdmin, express.json(), (req, res) => 
   }
 });
 
-// Add POST and DELETE endpoints for disabled dates
+// Add POST endpoint for adding new disabled date ranges
 app.post('/api/omsk/disabled-dates', requireAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
@@ -1254,11 +1262,54 @@ app.post('/api/omsk/disabled-dates', requireAdmin, express.json(), (req, res) =>
     return res.status(400).json({ error: 'Start date and end date are required' });
   }
   try {
-    const result = setDisabledDates(range);
-    res.json(result);
+    const result = addDisabledDateRange(range);
+    if (result.success) {
+      res.json({ success: true, ranges: getDisabledDates() });
+    } else {
+      res.status(500).json(result);
+    }
   } catch (error) {
-    console.error('Error setting disabled dates:', error);
-    res.status(500).json({ error: 'Failed to set disabled dates' });
+    console.error('Error adding disabled date range:', error);
+    res.status(500).json({ error: 'Failed to add disabled date range' });
+  }
+});
+
+// DELETE endpoint for removing specific disabled date range
+app.delete('/api/omsk/disabled-dates/:id', requireAdmin, (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { id } = req.params;
+  try {
+    const result = removeDisabledDateRange(id);
+    if (result.success) {
+      res.json({ success: true, ranges: getDisabledDates() });
+    } else {
+      res.status(500).json(result);
+    }
+  } catch (error) {
+    console.error('Error removing disabled date range:', error);
+    res.status(500).json({ error: 'Failed to remove disabled date range' });
+  }
+});
+
+// PUT endpoint for updating specific disabled date range
+app.put('/api/omsk/disabled-dates/:id', requireAdmin, express.json(), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { id } = req.params;
+  const updatedRange = req.body;
+  try {
+    const result = updateDisabledDateRange(id, updatedRange);
+    if (result.success) {
+      res.json({ success: true, ranges: getDisabledDates() });
+    } else {
+      res.status(500).json(result);
+    }
+  } catch (error) {
+    console.error('Error updating disabled date range:', error);
+    res.status(500).json({ error: 'Failed to update disabled date range' });
   }
 });
 
@@ -1966,6 +2017,76 @@ app.put('/api/omsk/pastries', requireAdmin, express.json(), (req, res) => {
   } catch (error) {
     console.error('Error updating pastries:', error);
     res.status(500).json({ error: 'Failed to update pastries' });
+  }
+});
+
+// Add new pastry
+app.post('/api/omsk/pastries', requireAdmin, express.json(), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  try {
+    const pastry = req.body;
+    const id = `pastry_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const stmt = omskDb.prepare(`
+      INSERT INTO pastries (id, name, composition, grams, calories, protein, carbs, fats, isVegan, isVegetarian, isActive)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(
+      id,
+      pastry.name,
+      pastry.composition || null,
+      pastry.grams || 80,
+      pastry.calories || 0,
+      pastry.protein || 0,
+      pastry.carbs || 0,
+      pastry.fats || 0,
+      pastry.isVegan ? 1 : 0,
+      pastry.isVegetarian ? 1 : 0,
+      1
+    );
+    
+    // Return the created pastry
+    const createdPastry = omskDb.prepare('SELECT * FROM pastries WHERE id = ?').get(id);
+    res.json(createdPastry);
+  } catch (error) {
+    console.error('Error adding pastry:', error);
+    res.status(500).json({ error: 'Failed to add pastry' });
+  }
+});
+
+// Toggle pastry active status
+app.patch('/api/omsk/pastries/:id', requireAdmin, express.json(), (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { id } = req.params;
+  const { isActive } = req.body;
+  
+  try {
+    const stmt = omskDb.prepare('UPDATE pastries SET isActive = ? WHERE id = ?');
+    stmt.run(isActive ? 1 : 0, id);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error toggling pastry:', error);
+    res.status(500).json({ error: 'Failed to toggle pastry' });
+  }
+});
+
+// Delete pastry
+app.delete('/api/omsk/pastries/:id', requireAdmin, (req, res) => {
+  if (!omskDbReady) {
+    return res.status(503).json({ error: 'Omsk database not available' });
+  }
+  const { id } = req.params;
+  
+  try {
+    const stmt = omskDb.prepare('DELETE FROM pastries WHERE id = ?');
+    stmt.run(id);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting pastry:', error);
+    res.status(500).json({ error: 'Failed to delete pastry' });
   }
 });
 

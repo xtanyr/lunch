@@ -21,13 +21,6 @@ const Button: React.FC<ButtonProps> = ({
   
   const baseStyles = "font-semibold rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1 transition-colors duration-150 ease-in-out inline-flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed";
 
-  const variantStyles = {
-    primary: `hover:opacity-90 text-white focus:ring-[${palette.colors.primary}]`,
-    secondary: `hover:opacity-80 border focus:ring-[${palette.colors.primary}]`,
-    danger: `hover:opacity-90 text-white focus:ring-red-500`,
-    ghost: "bg-transparent hover:bg-opacity-10 focus:ring-[${palette.colors.primary}]",
-  };
-
   const sizeStyles = {
     sm: "px-3 py-1.5 text-xs",
     md: "px-5 py-2.5 text-sm",

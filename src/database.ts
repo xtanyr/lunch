@@ -533,6 +533,17 @@ export function migrateDatabase() {
       db.prepare('ALTER TABLE pastries ADD COLUMN calories INTEGER DEFAULT 0').run();
     }
 
+    // Check and add composition/protein/carbs/fats columns to pastries
+    try {
+      db.prepare('SELECT composition FROM pastries LIMIT 1').get();
+    } catch (error) {
+      console.log('Adding composition, protein, carbs, and fats columns to pastries table...');
+      db.prepare('ALTER TABLE pastries ADD COLUMN composition TEXT').run();
+      db.prepare('ALTER TABLE pastries ADD COLUMN protein REAL DEFAULT 0').run();
+      db.prepare('ALTER TABLE pastries ADD COLUMN carbs REAL DEFAULT 0').run();
+      db.prepare('ALTER TABLE pastries ADD COLUMN fats REAL DEFAULT 0').run();
+    }
+
     // Check and add grams/calories columns to week_menu_items
     try {
       db.prepare('SELECT grams FROM week_menu_items LIMIT 1').get();
@@ -1056,22 +1067,70 @@ export function getDisabledDates() {
   try {
     const stmt = db.prepare('SELECT * FROM settings WHERE key = ?');
     const result = stmt.get('disabled_dates') as { value: string } | undefined;
-    if (!result?.value) return null;
+    if (!result?.value) return [];
     try {
-      return JSON.parse(result.value);
+      const parsed = JSON.parse(result.value);
+      // Handle backward compatibility - if it's a single object, convert to array
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return [parsed];
+      }
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
-      return null;
+      return [];
     }
   } catch (error) {
     console.error('Error getting disabled dates:', error);
-    return null;
+    return [];
   }
 }
 
-export function setDisabledDates(range: any) {
+export function setDisabledDates(ranges: any[]) {
   const stmt = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
-  stmt.run('disabled_dates', JSON.stringify(range));
+  stmt.run('disabled_dates', JSON.stringify(ranges));
   return { success: true };
+}
+
+export function addDisabledDateRange(range: any) {
+  try {
+    const currentRanges = getDisabledDates();
+    const newRange = {
+      id: Date.now().toString(), // Add unique ID
+      startDate: range.startDate,
+      endDate: range.endDate,
+      message: range.message || ''
+    };
+    currentRanges.push(newRange);
+    return setDisabledDates(currentRanges);
+  } catch (error) {
+    console.error('Error adding disabled date range:', error);
+    return { success: false, error: String(error) };
+  }
+}
+
+export function removeDisabledDateRange(id: string) {
+  try {
+    const currentRanges = getDisabledDates();
+    const filteredRanges = currentRanges.filter((range: any) => range.id !== id);
+    return setDisabledDates(filteredRanges);
+  } catch (error) {
+    console.error('Error removing disabled date range:', error);
+    return { success: false, error: String(error) };
+  }
+}
+
+export function updateDisabledDateRange(id: string, updatedRange: any) {
+  try {
+    const currentRanges = getDisabledDates();
+    const index = currentRanges.findIndex((range: any) => range.id === id);
+    if (index === -1) {
+      return { success: false, error: 'Range not found' };
+    }
+    currentRanges[index] = { ...currentRanges[index], ...updatedRange };
+    return setDisabledDates(currentRanges);
+  } catch (error) {
+    console.error('Error updating disabled date range:', error);
+    return { success: false, error: String(error) };
+  }
 }
 
 export function getDatabase() {

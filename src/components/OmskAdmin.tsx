@@ -32,14 +32,15 @@ const OmskAdmin: React.FC = () => {
     navigate('/omsk');
   };
   
-  const [activeTab, setActiveTab] = useState<'weeks' | 'menu' | 'garnishes' | 'sauces' | 'vegan' | 'disabled' | 'orders' | 'logs'>('weeks');
+  const [activeTab, setActiveTab] = useState<'weeks' | 'menu' | 'garnishes' | 'sauces' | 'pastries' | 'vegan' | 'disabled' | 'orders' | 'logs'>('weeks');
   const [weeks, setWeeks] = useState<WeekMenu[]>([]);
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [garnishes, setGarnishes] = useState<any[]>([]);
   const [sauces, setSauces] = useState<any[]>([]);
   const [veganItems, setVeganItems] = useState<any[]>([]);
-  const [disabledDates, setDisabledDates] = useState<any>(null);
+  const [pastries, setPastries] = useState<any[]>([]);
+  const [disabledDates, setDisabledDates] = useState<any[]>([]);
   const [orderLogs, setOrderLogs] = useState<any[]>([]);
   const [logsDateFrom, setLogsDateFrom] = useState<string>('');
   const [logsDateTo, setLogsDateTo] = useState<string>('');
@@ -84,6 +85,19 @@ const OmskAdmin: React.FC = () => {
     composition: '',
     grams: '',
     calories: '',
+    isVegan: false,
+    isVegetarian: false
+  });
+  
+  // Form state for adding pastries
+  const [newPastry, setNewPastry] = useState({
+    name: '',
+    composition: '',
+    grams: '',
+    calories: '',
+    protein: '',
+    carbs: '',
+    fats: '',
     isVegan: false,
     isVegetarian: false
   });
@@ -173,6 +187,13 @@ const OmskAdmin: React.FC = () => {
       });
       const veganData = await veganRes.json();
       setVeganItems(Array.isArray(veganData) ? veganData : []);
+      
+      // Load pastries - use admin endpoint to include hidden items
+      const pastriesRes = await fetch('/api/omsk/admin/pastries', {
+        headers: { 'x-admin-code': adminCode }
+      });
+      const pastriesData = await pastriesRes.json();
+      setPastries(Array.isArray(pastriesData) ? pastriesData : []);
       
       // Load disabled dates
       const disabledRes = await fetch('/api/omsk/disabled-dates');
@@ -396,6 +417,80 @@ const OmskAdmin: React.FC = () => {
     }
   };
 
+  const handleAddPastry = async () => {
+    if (!newPastry.name.trim()) return;
+    
+    setSaving(true);
+    try {
+      const response = await fetch('/api/omsk/pastries', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-admin-code': getAdminCode()
+        },
+        body: JSON.stringify({ 
+          name: newPastry.name,
+          composition: newPastry.composition,
+          grams: parseInt(newPastry.grams) || 80,
+          calories: parseInt(newPastry.calories) || 0,
+          protein: parseFloat(newPastry.protein) || 0,
+          carbs: parseFloat(newPastry.carbs) || 0,
+          fats: parseFloat(newPastry.fats) || 0,
+          isVegan: newPastry.isVegan || false,
+          isVegetarian: newPastry.isVegetarian || false
+        })
+      });
+      
+      if (response.ok) {
+        const newPastryData = await response.json();
+        setPastries([...pastries, newPastryData]);
+        setNewPastry({ name: '', composition: '', grams: '', calories: '', protein: '', carbs: '', fats: '', isVegan: false, isVegetarian: false });
+      }
+    } catch (error) {
+      console.error('Failed to add pastry:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTogglePastry = async (pastryId: string) => {
+    setSaving(true);
+    try {
+      const pastry = pastries.find(p => p.id === pastryId);
+      await fetch(`/api/omsk/pastries/${pastryId}`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-admin-code': getAdminCode()
+        },
+        body: JSON.stringify({ isActive: !pastry?.isActive })
+      });
+      
+      setPastries(pastries.map(p => 
+        p.id === pastryId ? { ...p, isActive: !p.isActive } : p
+      ));
+    } catch (error) {
+      console.error('Failed to toggle pastry:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeletePastry = async (pastryId: string) => {
+    setSaving(true);
+    try {
+      await fetch(`/api/omsk/pastries/${pastryId}`, { 
+        method: 'DELETE',
+        headers: { 'x-admin-code': getAdminCode() }
+      });
+      setPastries(pastries.filter(p => p.id !== pastryId));
+    } catch (error) {
+      console.error('Failed to delete pastry:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleImportGarnishesSauces = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -550,7 +645,7 @@ const OmskAdmin: React.FC = () => {
       
       if (response.ok) {
         const result = await response.json();
-        setDisabledDates(result);
+        setDisabledDates(result.ranges || []);
         setNewDisabledDate({
           startDate: '',
           endDate: '',
@@ -564,10 +659,10 @@ const OmskAdmin: React.FC = () => {
     }
   };
 
-  const handleRemoveDisabledDate = async () => {
+  const handleRemoveDisabledDate = async (id: string) => {
     setSaving(true);
     try {
-      const response = await fetch('/api/omsk/disabled-dates', {
+      const response = await fetch(`/api/omsk/disabled-dates/${id}`, {
         method: 'DELETE',
         headers: { 
           'Content-Type': 'application/json',
@@ -576,7 +671,8 @@ const OmskAdmin: React.FC = () => {
       });
       
       if (response.ok) {
-        setDisabledDates(null);
+        const result = await response.json();
+        setDisabledDates(result.ranges || []);
       }
     } catch (error) {
       console.error('Failed to remove disabled date:', error);
@@ -685,7 +781,7 @@ const OmskAdmin: React.FC = () => {
 
       {/* Tabs */}
       <div className="flex border-b" style={{ borderColor: palette.colors.border }}>
-        {(['weeks', 'menu', 'garnishes', 'sauces', 'vegan', 'disabled', 'orders', 'logs'] as const).map(tab => (
+        {(['weeks', 'menu', 'garnishes', 'sauces', 'pastries', 'vegan', 'disabled', 'orders', 'logs'] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -696,7 +792,7 @@ const OmskAdmin: React.FC = () => {
               backgroundColor: activeTab === tab ? palette.colors.cardBg : 'transparent'
             }}
           >
-            {tab === 'weeks' ? 'Недели' : tab === 'menu' ? 'Меню' : tab === 'garnishes' ? 'Гарниры' : tab === 'sauces' ? 'Соусы' : tab === 'vegan' ? 'Дополнительные блюда' : tab === 'disabled' ? 'Блокировка заказов' : tab === 'orders' ? 'Заказы' : 'Логи'}
+            {tab === 'weeks' ? 'Недели' : tab === 'menu' ? 'Меню' : tab === 'garnishes' ? 'Гарниры' : tab === 'sauces' ? 'Соусы' : tab === 'pastries' ? 'Выпечка' : tab === 'vegan' ? 'Дополнительные блюда' : tab === 'disabled' ? 'Блокировка заказов' : tab === 'orders' ? 'Заказы' : 'Логи'}
           </button>
         ))}
       </div>
@@ -1263,6 +1359,144 @@ const OmskAdmin: React.FC = () => {
               </div>
             )}
 
+            {/* Pastries Tab */}
+            {activeTab === 'pastries' && (
+              <div className="space-y-6">
+                <h2 className="text-2xl font-bold mb-6">Управление выпечкой</h2>
+                
+                {/* Add new pastry form */}
+                <div className="p-4 rounded-lg" style={{ backgroundColor: palette.colors.cardBg, borderColor: palette.colors.border, borderWidth: 1 }}>
+                  <h3 className="font-bold mb-4">Добавить выпечку</h3>
+                  <div className="flex gap-4 mb-4">
+                    <input
+                      type="text"
+                      placeholder="Название выпечки"
+                      value={newPastry.name}
+                      onChange={e => setNewPastry({ ...newPastry, name: e.target.value })}
+                      className="flex-1 px-3 py-2 rounded border"
+                      style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Состав"
+                      value={newPastry.composition}
+                      onChange={e => setNewPastry({ ...newPastry, composition: e.target.value })}
+                      className="flex-1 px-3 py-2 rounded border"
+                      style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Вес (г)"
+                      value={newPastry.grams}
+                      onChange={e => setNewPastry({ ...newPastry, grams: e.target.value })}
+                      className="w-24 px-3 py-2 rounded border"
+                      style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Калории (ккал)"
+                      value={newPastry.calories}
+                      onChange={e => setNewPastry({ ...newPastry, calories: e.target.value })}
+                      className="w-28 px-3 py-2 rounded border"
+                      style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Белки (г)"
+                      value={newPastry.protein}
+                      onChange={e => setNewPastry({ ...newPastry, protein: e.target.value })}
+                      className="w-20 px-3 py-2 rounded border"
+                      style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Углеводы (г)"
+                      value={newPastry.carbs}
+                      onChange={e => setNewPastry({ ...newPastry, carbs: e.target.value })}
+                      className="w-24 px-3 py-2 rounded border"
+                      style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Жиры (г)"
+                      value={newPastry.fats}
+                      onChange={e => setNewPastry({ ...newPastry, fats: e.target.value })}
+                      className="w-20 px-3 py-2 rounded border"
+                      style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                    />
+                  </div>
+                  <div className="flex gap-4 mb-4 items-center">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newPastry.isVegan}
+                        onChange={e => setNewPastry({ ...newPastry, isVegan: e.target.checked })}
+                        className="w-4 h-4"
+                      />
+                      <span>Веган</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newPastry.isVegetarian}
+                        onChange={e => setNewPastry({ ...newPastry, isVegetarian: e.target.checked })}
+                        className="w-4 h-4"
+                      />
+                      <span>Вегетарианское</span>
+                    </label>
+                    <button
+                      onClick={handleAddPastry}
+                      className="px-4 py-2 rounded text-white"
+                      style={{ backgroundColor: palette.colors.primary }}
+                    >
+                      Добавить
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Pastries list */}
+                <div className="space-y-2">
+                  {pastries.map(pastry => (
+                    <div key={pastry.id} className="p-4 rounded-lg border flex justify-between items-center" style={{ backgroundColor: palette.colors.cardBg, borderColor: palette.colors.border }}>
+                      <div>
+                        <div className="font-semibold">{pastry.name}</div>
+                        {pastry.composition && (
+                          <div className="text-sm" style={{ color: palette.colors.textSecondary }}>{pastry.composition}</div>
+                        )}
+                        {(pastry.protein || pastry.carbs || pastry.fats || pastry.grams || pastry.calories) && (
+                          <div className="text-xs" style={{ color: palette.colors.textSecondary }}>
+                            {pastry.protein && <span>Б: {pastry.protein}г </span>}
+                            {pastry.carbs && <span>У: {pastry.carbs}г </span>}
+                            {pastry.fats && <span>Ж: {pastry.fats}г</span>}
+                            {pastry.grams && <span> | {pastry.grams}г</span>}
+                            {pastry.calories && <span> | {pastry.calories}ккал</span>}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleTogglePastry(pastry.id)}
+                          className="px-3 py-1 rounded text-sm"
+                          style={{ 
+                            backgroundColor: pastry.isActive ? palette.colors.primary + '20' : palette.colors.border,
+                            color: palette.colors.text
+                          }}
+                        >
+                          {pastry.isActive ? 'Активно' : 'Скрыто'}
+                        </button>
+                        <button
+                          onClick={() => handleDeletePastry(pastry.id)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Vegan Dishes Tab */}
             {activeTab === 'vegan' && (
               <div className="space-y-6">
@@ -1469,27 +1703,30 @@ const OmskAdmin: React.FC = () => {
                 {/* Current disabled dates */}
                 <div className="space-y-2">
                   <h3 className="font-bold mb-2">Текущие блокировки</h3>
-                  {disabledDates && disabledDates.startDate && disabledDates.endDate ? (
-                    <div className="p-4 rounded-lg border flex justify-between items-start" style={{ backgroundColor: palette.colors.cardBg, borderColor: palette.colors.border }}>
-                      <div>
-                        <div className="font-semibold">
-                          {new Date(disabledDates.startDate).toLocaleDateString('ru-RU')} - {new Date(disabledDates.endDate).toLocaleDateString('ru-RU')}
-                        </div>
-                        {disabledDates.message && (
-                          <div className="text-sm mt-1" style={{ color: palette.colors.textSecondary }}>
-                            Причина: {disabledDates.message}
+                  {disabledDates && disabledDates.length > 0 ? (
+                    disabledDates.map((range: any) => (
+                      <div key={range.id} className="p-4 rounded-lg border flex justify-between items-start" style={{ backgroundColor: palette.colors.cardBg, borderColor: palette.colors.border }}>
+                        <div>
+                          <div className="font-semibold">
+                            {new Date(range.startDate).toLocaleDateString('ru-RU')} - {new Date(range.endDate).toLocaleDateString('ru-RU')}
                           </div>
-                        )}
+                          {range.message && (
+                            <div className="text-sm mt-1" style={{ color: palette.colors.textSecondary }}>
+                              Причина: {range.message}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-2 ml-4">
+                          <button
+                            onClick={() => handleRemoveDisabledDate(range.id)}
+                            className="px-3 py-1 rounded text-sm bg-red-500 text-white hover:bg-red-600"
+                            disabled={saving}
+                          >
+                            Удалить
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex gap-2 ml-4">
-                        <button
-                          onClick={handleRemoveDisabledDate}
-                          className="px-3 py-1 rounded text-sm bg-red-500 text-white hover:bg-red-600"
-                        >
-                          Удалить
-                        </button>
-                      </div>
-                    </div>
+                    ))
                   ) : (
                     <div className="text-center p-8 border-2 border-dashed rounded-lg" style={{ borderColor: palette.colors.border }}>
                       <p style={{ color: palette.colors.textSecondary }}>
