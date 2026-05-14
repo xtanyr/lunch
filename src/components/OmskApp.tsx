@@ -26,8 +26,18 @@ const submitOmskOrderToAPI = async (order: any) => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...order, totalPrice })
   });
-  if (!response.ok) throw new Error('Failed to submit order');
-  return response.json();
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    body = {};
+  }
+  if (!response.ok) {
+    const errObj = body && typeof body === 'object' && body !== null ? (body as { error?: unknown }).error : undefined;
+    const msg = typeof errObj === 'string' && errObj.trim() ? errObj : 'Failed to submit order';
+    throw new Error(msg);
+  }
+  return body as EmployeeOrder;
 };
 
 const deleteOmskOrderFromAPI = async (id: string, address: string) => {
@@ -243,7 +253,8 @@ setSelectedAggregateDate(nextDate);
       showNotification('success', `Заказ для ${newOrder.employeeName} успешно добавлен!`);
     } catch (error) {
       console.error("Failed to submit order:", error);
-      showNotification('error', "Ошибка отправки заказа.");
+      const message = error instanceof Error && error.message ? error.message : 'Ошибка отправки заказа.';
+      showNotification('error', message);
     } finally {
       setIsSubmittingOrder(false);
     }

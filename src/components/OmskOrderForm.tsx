@@ -76,6 +76,32 @@ const fetchOmskMenu = async () => {
 
 const MAX_ORDER_PRICE = 400;
 
+/** Normalize API shape: array of ranges or legacy single { startDate, endDate, message }. */
+function getDisabledRanges(disabledDates: any): { startDate: string; endDate: string; message?: string }[] {
+  if (!disabledDates) return [];
+  if (Array.isArray(disabledDates)) {
+    return disabledDates.filter((r) => r && r.startDate && r.endDate);
+  }
+  if (typeof disabledDates === 'object' && disabledDates.startDate && disabledDates.endDate) {
+    return [disabledDates];
+  }
+  return [];
+}
+
+/** String YYYY-MM-DD compare matches server logic in POST /api/omsk/orders */
+function getOrderDateBlockInfo(
+  orderDate: string,
+  disabledDates: any
+): { blocked: boolean; message?: string } {
+  if (!orderDate) return { blocked: false };
+  for (const range of getDisabledRanges(disabledDates)) {
+    if (orderDate >= range.startDate && orderDate <= range.endDate) {
+      return { blocked: true, message: range.message };
+    }
+  }
+  return { blocked: false };
+}
+
 // Price by category (rubles)
 const CATEGORY_PRICES: Record<string, number> = {
   soup: 250,
@@ -217,23 +243,9 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
     checkIfUserOrdered();
   }, [currentOrder.employeeName, currentOrder.department, currentOrder.orderDate, selectedAddress]);
 
-  // Check if ordering is disabled for the current date
-  const isOrderingDisabled = () => {
-    if (!disabledDates || !disabledDates.startDate || !disabledDates.endDate) {
-      return false;
-    }
-    
-    const today = new Date();
-    const startDate = new Date(disabledDates.startDate);
-    const endDate = new Date(disabledDates.endDate);
-    
-    // Set time to midnight for accurate comparison
-    today.setHours(0, 0, 0, 0);
-    startDate.setHours(0, 0, 0, 0);
-    endDate.setHours(0, 0, 0, 0);
-    
-    return today >= startDate && today <= endDate;
-  };
+  // Match server: block when selected order date falls in any disabled range (see POST /api/omsk/orders)
+  const orderDateBlock = getOrderDateBlockInfo(currentOrder.orderDate, disabledDates);
+  const isOrderingDisabled = () => orderDateBlock.blocked;
 
   // Get dishes by category
   const soupDishes = weekMenu.filter(d => d.category === 'soup');
@@ -1259,7 +1271,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
         
         {isOrderingDisabled() && (
           <div className="mt-2 text-red-500 text-sm font-semibold">
-            {disabledDates?.message || 'Прием заказов временно недоступен'}
+            {orderDateBlock.message || 'Прием заказов временно недоступен'}
           </div>
         )}
         
