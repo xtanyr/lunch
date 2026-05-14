@@ -662,7 +662,7 @@ const OmskAdmin: React.FC = () => {
   const handleRemoveDisabledDate = async (id: string) => {
     setSaving(true);
     try {
-      const response = await fetch(`/api/omsk/disabled-dates/${id}`, {
+      const response = await fetch(`/api/omsk/disabled-dates/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         headers: { 
           'Content-Type': 'application/json',

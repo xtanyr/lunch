@@ -1063,30 +1063,61 @@ export function updateMenuItems(items: any[]) {
   return { success: false, error: 'No active week' };
 }
 
+/** Legacy blocks had no id; DELETE /:id and removeDisabledDateRange rely on ids. */
+function normalizeDisabledDateRanges(ranges: any[]): { ranges: any[]; needsPersist: boolean } {
+  let needsPersist = false;
+  const out = ranges
+    .map((r, idx) => {
+      if (!r || typeof r !== 'object' || !r.startDate || !r.endDate) return null;
+      if (!r.id || typeof r.id !== 'string') {
+        needsPersist = true;
+        return {
+          ...r,
+          id: `legacy-${idx}-${String(r.startDate)}-${String(r.endDate)}`,
+        };
+      }
+      return r;
+    })
+    .filter(Boolean) as any[];
+  return { ranges: out, needsPersist };
+}
+
 export function getDisabledDates() {
   try {
     const stmt = db.prepare('SELECT * FROM settings WHERE key = ?');
     const result = stmt.get('disabled_dates') as { value: string } | undefined;
     if (!result?.value) return [];
+    let parsed: any;
     try {
-      const parsed = JSON.parse(result.value);
-      // Handle backward compatibility - if it's a single object, convert to array
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        return [parsed];
-      }
-      return Array.isArray(parsed) ? parsed : [];
+      parsed = JSON.parse(result.value);
     } catch {
       return [];
     }
+    let ranges: any[] = [];
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      ranges = [parsed];
+    } else if (Array.isArray(parsed)) {
+      ranges = parsed;
+    } else {
+      return [];
+    }
+
+    const { ranges: normalized, needsPersist } = normalizeDisabledDateRanges(ranges);
+    if (needsPersist) {
+      const writeStmt = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+      writeStmt.run('disabled_dates', JSON.stringify(normalized));
+    }
+    return normalized;
   } catch (error) {
     console.error('Error getting disabled dates:', error);
     return [];
   }
 }
 
-export function setDisabledDates(ranges: any[]) {
+export function setDisabledDates(ranges: any) {
   const stmt = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
-  stmt.run('disabled_dates', JSON.stringify(ranges));
+  const payload = ranges == null ? [] : ranges;
+  stmt.run('disabled_dates', JSON.stringify(payload));
   return { success: true };
 }
 
