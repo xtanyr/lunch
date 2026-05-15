@@ -528,6 +528,35 @@ app.get('/api/omsk/orders-range', (req, res) => {
 });
 
 // Excel export endpoint
+function resolveGarnishSauceNames(item, garnishes, sauces) {
+  const garnishItem = item.garnish
+    ? garnishes.find((g) => g.id === item.garnish || g.name === item.garnish)
+    : null;
+  const sauceItem = item.sauce
+    ? sauces.find((s) => s.id === item.sauce || s.name === item.sauce)
+    : null;
+  const garnishName = garnishItem?.name || item.garnishName || item.garnish || '';
+  const sauceName = sauceItem?.name || item.sauceName || item.sauce || '';
+  return { garnishName, sauceName };
+}
+
+/** Update dish/garnish/sauce count maps; combine garnish+hot when garnishInSameBox. */
+function addItemToExportSummaries(item, garnishes, sauces, dishSummary, garnishSummary, sauceSummary) {
+  const { garnishName, sauceName } = resolveGarnishSauceNames(item, garnishes, sauces);
+  const shouldCombine = item.garnishInSameBox && garnishName;
+
+  const dishKey = shouldCombine ? `${garnishName} + ${item.dishName}` : item.dishName;
+  dishSummary[dishKey] = (dishSummary[dishKey] || 0) + 1;
+
+  if (garnishName && !item.garnishInSameBox) {
+    garnishSummary[garnishName] = (garnishSummary[garnishName] || 0) + 1;
+  }
+
+  if (sauceName) {
+    sauceSummary[sauceName] = (sauceSummary[sauceName] || 0) + 1;
+  }
+}
+
 app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
@@ -598,9 +627,6 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
       
       const excelData = [];
       
-      // Track dish totals for the day
-      const dishDayTotals = {};
-      
       // Process each address
       Object.keys(ordersByAddress).sort().forEach(addr => {
         const addressOrders = ordersByAddress[addr];
@@ -610,7 +636,7 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
         excelData.push([addressName]);
         
         // Check if this is an office address that needs department grouping
-        const isOfficeAddress = addr === 'office' || addr === 'office_10' || addr === 'office_14';
+        const isOfficeAddress = addr === 'office' || addr === 'office_10' || addr === 'office_14' || addr === 'office_5';
         
         if (isOfficeAddress) {
           // Group orders by department for office addresses
@@ -641,44 +667,8 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
               
               if (!order.items || !Array.isArray(order.items)) return;
               
-              order.items.forEach(item => {
-                const garnishItem = item.garnish ? garnishes.find(g => g.id === item.garnish || g.name === item.garnish) : null;
-                const sauceItem = item.sauce ? sauces.find(s => s.id === item.sauce || s.name === item.sauce) : null;
-                const garnishName = garnishItem?.name || item.garnishName || item.garnish || '';
-                const sauceName = sauceItem?.name || item.sauceName || item.sauce || '';
-                
-                // For office orders, apply garnishInSameBox logic
-                const shouldCombine = item.garnishInSameBox && garnishName;
-                
-                // Track dish summary
-                const dishKey = shouldCombine ? `${garnishName} + ${item.dishName}` : item.dishName;
-                if (!dishSummary[dishKey]) {
-                  dishSummary[dishKey] = 0;
-                }
-                dishSummary[dishKey] += 1;
-                
-                // Track garnish summary (only when not combined)
-                if (garnishName && !item.garnishInSameBox) {
-                  if (!garnishSummary[garnishName]) {
-                    garnishSummary[garnishName] = 0;
-                  }
-                  garnishSummary[garnishName] += 1;
-                }
-                
-                // Track sauce summary
-                if (sauceName) {
-                  if (!sauceSummary[sauceName]) {
-                    sauceSummary[sauceName] = 0;
-                  }
-                  sauceSummary[sauceName] += 1;
-                }
-                
-                // Track day totals
-                const dayKey = `${item.dishName}|||${garnishName || ''}|||${sauceName || ''}`;
-                if (!dishDayTotals[dayKey]) {
-                  dishDayTotals[dayKey] = { dishName: item.dishName, garnish: garnishName || '', sauce: sauceName || '', quantity: 0 };
-                }
-                dishDayTotals[dayKey].quantity += 1;
+              order.items.forEach((item) => {
+                addItemToExportSummaries(item, garnishes, sauces, dishSummary, garnishSummary, sauceSummary);
               });
             });
             
@@ -719,44 +709,8 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
             
             if (!order.items || !Array.isArray(order.items)) return;
             
-            order.items.forEach(item => {
-              const garnishItem = item.garnish ? garnishes.find(g => g.id === item.garnish || g.name === item.garnish) : null;
-              const sauceItem = item.sauce ? sauces.find(s => s.id === item.sauce || s.name === item.sauce) : null;
-              const garnishName = garnishItem?.name || item.garnishName || item.garnish || '';
-              const sauceName = sauceItem?.name || item.sauceName || item.sauce || '';
-              
-              // Apply garnishInSameBox logic for all orders (both office and coffee shop)
-              const shouldCombine = item.garnishInSameBox && garnishName;
-              
-              // Track dish summary
-              const dishKey = shouldCombine ? `${garnishName} + ${item.dishName}` : item.dishName;
-              if (!dishSummary[dishKey]) {
-                dishSummary[dishKey] = 0;
-              }
-              dishSummary[dishKey] += 1;
-              
-              // Track garnish summary (only when not combined)
-              if (garnishName && !item.garnishInSameBox) {
-                if (!garnishSummary[garnishName]) {
-                  garnishSummary[garnishName] = 0;
-                }
-                garnishSummary[garnishName] += 1;
-              }
-              
-              // Track sauce summary
-              if (sauceName) {
-                if (!sauceSummary[sauceName]) {
-                  sauceSummary[sauceName] = 0;
-                }
-                sauceSummary[sauceName] += 1;
-              }
-              
-              // Track day totals
-              const dayKey = `${item.dishName}|||${garnishName || ''}|||${sauceName || ''}`;
-              if (!dishDayTotals[dayKey]) {
-                dishDayTotals[dayKey] = { dishName: item.dishName, garnish: garnishName || '', sauce: sauceName || '', quantity: 0 };
-              }
-              dishDayTotals[dayKey].quantity += 1;
+            order.items.forEach((item) => {
+              addItemToExportSummaries(item, garnishes, sauces, dishSummary, garnishSummary, sauceSummary);
             });
           });
           
@@ -784,43 +738,15 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
         }
       });
       
-      // Add dish totals for the day at the bottom
-      // We need to recalculate to separate dishes, garnishes, and sauces
+      // Day totals — same combine rules as per-address summaries (garnishInSameBox)
       const dayDishSummary = {};
       const dayGarnishSummary = {};
       const daySauceSummary = {};
       
       dayOrders.forEach(order => {
         if (!order.items || !Array.isArray(order.items)) return;
-        
-        order.items.forEach(item => {
-          const garnishItem = item.garnish ? garnishes.find(g => g.id === item.garnish || g.name === item.garnish) : null;
-          const sauceItem = item.sauce ? sauces.find(s => s.id === item.sauce || s.name === item.sauce) : null;
-          const garnishName = garnishItem?.name || item.garnishName || item.garnish || '';
-          const sauceName = sauceItem?.name || item.sauceName || item.sauce || '';
-          
-          // For daily totals, always keep garnishes separate from hot dishes for easier counting
-          // Track dish summary
-          if (!dayDishSummary[item.dishName]) {
-            dayDishSummary[item.dishName] = 0;
-          }
-          dayDishSummary[item.dishName] += 1;
-          
-          // Track garnish summary (always separate for daily totals)
-          if (garnishName) {
-            if (!dayGarnishSummary[garnishName]) {
-              dayGarnishSummary[garnishName] = 0;
-            }
-            dayGarnishSummary[garnishName] += 1;
-          }
-          
-          // Track sauce summary
-          if (sauceName) {
-            if (!daySauceSummary[sauceName]) {
-              daySauceSummary[sauceName] = 0;
-            }
-            daySauceSummary[sauceName] += 1;
-          }
+        order.items.forEach((item) => {
+          addItemToExportSummaries(item, garnishes, sauces, dayDishSummary, dayGarnishSummary, daySauceSummary);
         });
       });
       
