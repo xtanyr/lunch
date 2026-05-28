@@ -175,7 +175,6 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
   const [selectedOther, setSelectedOther] = useState<DishItem | null>(null);
   const [selectedGarnish, setSelectedGarnish] = useState<string>('');
   const [selectedSauce, setSelectedSauce] = useState<string>('');
-  const [garnishInSameBox, setGarnishInSameBox] = useState<boolean>(false);
   const [savedOrder, setSavedOrder] = useState<any>(null);
 
   useEffect(() => {
@@ -347,6 +346,8 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
     return wouldExceedLimit('sauce');
   };
 
+  const hasSauceEligibleDish = !!selectedHotDish || !!selectedVegan || !!selectedOther;
+
   // Validate combination
   const validateCombination = (): string | null => {
     const hasSoup = !!selectedSoup;
@@ -364,11 +365,13 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
     }
     
     // Allow any combination that has at least one main item (soup, hot dish, salad, vegan, or other)
-    // Garnish and sauce are only allowed with a hot dish
+    // Garnish is only allowed with a hot dish, sauce is allowed with hot/vegan/other
     if (hasSoup || hasHot || hasSalad || hasVegan || hasOther) {
-      // If garnish or sauce is selected, must have a hot dish
-      if ((hasGarnish || hasSauce) && !hasHot) {
-        return 'Гарнир и соусы доступны только с горячим блюдом';
+      if (hasGarnish && !hasHot) {
+        return 'Гарнир доступен только с горячим блюдом';
+      }
+      if (hasSauce && !hasHot && !hasVegan && !hasOther) {
+        return 'Соусы доступны только с горячим или дополнительным блюдом';
       }
       return null;
     }
@@ -388,7 +391,6 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
     setSelectedOther(null);
     setSelectedGarnish('');
     setSelectedSauce('');
-    setGarnishInSameBox(false);
   };
 
   // Quick reorder handler
@@ -416,13 +418,9 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
               const garnishMatch = garnishes.find(g => g.id === item.garnish || g.id === item.garnishName);
               if (garnishMatch) setSelectedGarnish(garnishMatch.id);
             }
-            if (item.sauce) {
+            if (item.sauce && !selectedSauce) {
               const sauceMatch = sauces.find(s => s.id === item.sauce || s.id === item.sauceName);
               if (sauceMatch) setSelectedSauce(sauceMatch.id);
-            }
-            // Set garnish in same box option
-            if (item.garnishInSameBox !== undefined) {
-              setGarnishInSameBox(item.garnishInSameBox);
             }
           }
         } else if (itemCategory === 'salad') {
@@ -514,7 +512,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
           sauceGrams: sauceItem.grams,
           sauceCalories: sauceItem.calories
         } : {}),
-        garnishInSameBox: garnishInSameBox,
+        garnishInSameBox: true,
       });
     }
     if (selectedSalad) {
@@ -531,6 +529,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
       });
     }
     if (selectedVegan) {
+      const sauceItem = sauces.find(s => s.id === selectedSauce);
       items.push({
         dishId: selectedVegan.id,
         dishName: selectedVegan.name,
@@ -541,9 +540,17 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
         fats: selectedVegan.fats,
         grams: selectedVegan.grams,
         calories: selectedVegan.calories,
+        ...(selectedSauce && sauceItem ? {
+          sauce: sauceItem.id,
+          sauceName: sauceItem.name,
+          sauceComposition: sauceItem.composition,
+          sauceGrams: sauceItem.grams,
+          sauceCalories: sauceItem.calories
+        } : {}),
       });
     }
     if (selectedOther) {
+      const sauceItem = sauces.find(s => s.id === selectedSauce);
       items.push({
         dishId: selectedOther.id,
         dishName: selectedOther.name,
@@ -554,6 +561,13 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
         fats: selectedOther.fats,
         grams: selectedOther.grams,
         calories: selectedOther.calories,
+        ...(selectedSauce && sauceItem ? {
+          sauce: sauceItem.id,
+          sauceName: sauceItem.name,
+          sauceComposition: sauceItem.composition,
+          sauceGrams: sauceItem.grams,
+          sauceCalories: sauceItem.calories
+        } : {}),
       });
     }
 
@@ -706,9 +720,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   onClick={() => {
                     if (!wouldExceed || isSelected) {
                       setSelectedSoup(isSelected ? null : dish);
-                      if (!isSelected) {
-                        setSelectedPastry('');
-                      }
+                      setSelectedPastry('');
                     }
                   }}
                   disabled={wouldExceed && !isSelected}
@@ -793,9 +805,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   onClick={() => {
                     if (!wouldExceed || isSelected) {
                       setSelectedSoup(isSelected ? null : dish);
-                      if (!isSelected) {
-                        setSelectedPastry('');
-                      }
+                      setSelectedPastry('');
                     }
                   }}
                   disabled={wouldExceed && !isSelected}
@@ -856,6 +866,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                       setSelectedHotDish(isSelected ? null : dish);
                       setSelectedGarnish('');
                       setSelectedSauce('');
+                      setSelectedPastry('');
                     }
                   }}
                   disabled={wouldExceed && !isSelected}
@@ -899,7 +910,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
               })}
             </div>
             
-            {/* Garnish and Sauce - only show when hot dish is selected and noGarnish is not set */}
+            {/* Garnish - only show when hot dish is selected and noGarnish is not set */}
             {selectedHotDish && !selectedHotDish.noGarnish && (
               <div className="mt-4">
                 <h3 className="text-lg font-semibold mb-2" style={{ color: palette.colors.text }}>
@@ -955,75 +966,6 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   })}
                 </div>
                 
-                {/* Checkbox for garnish in same box */}
-                {selectedGarnish && (
-                  <div className="mt-3 p-3 rounded-lg border" style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.cardBg }}>
-                    <label className="flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={garnishInSameBox}
-                        onChange={(e) => setGarnishInSameBox(e.target.checked)}
-                        className="mr-2"
-                      />
-                      <span className="text-sm" style={{ color: palette.colors.text }}>
-                        Упаковать гарнир вместе с горячим блюдом
-                      </span>
-                    </label>
-                  </div>
-                )}
-                
-                <h3 className="text-lg font-semibold mb-2 mt-4" style={{ color: palette.colors.text }}>
-                  Соусы (бесплатно)
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {sauces.map(sauce => {
-                    const wouldExceed = wouldExceedLimitWithSauce();
-                    const isSelected = selectedSauce === sauce.id;
-                    return (
-                    <button
-                      key={sauce.id}
-                      onClick={() => {
-                        if (!wouldExceed || isSelected) {
-                          setSelectedSauce(isSelected ? '' : sauce.id);
-                        }
-                      }}
-                      disabled={wouldExceed && !isSelected}
-                      className={`p-3 rounded-lg border-2 text-left transition-all ${
-                        isSelected ? 'border-current' : ''
-                      } ${wouldExceed && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}`}
-                      style={{ 
-                        borderColor: isSelected ? palette.colors.primary : palette.colors.border,
-                        backgroundColor: isSelected ? palette.colors.primary + '20' : palette.colors.cardBg,
-                        color: wouldExceed && !isSelected ? palette.colors.textSecondary : palette.colors.text
-                      }}
-                    >
-                      <div className="font-medium">
-                        {sauce.name}
-                        {(sauce.isVegan || sauce.isVegetarian) ? (
-                          <span className="ml-2">
-                            {sauce.isVegan ? <span className="text-green-600">🌱</span> : null}
-                            {!sauce.isVegan && sauce.isVegetarian ? <span className="text-green-500">🥬</span> : null}
-                          </span>
-                        ) : null}
-                      </div>
-                      {sauce.composition && (
-                        <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
-                          {sauce.composition}
-                        </div>
-                      )}
-                      {(sauce.protein || sauce.carbs || sauce.fats || sauce.grams || sauce.calories) && (
-                        <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
-                          {sauce.protein && <span>Б: {sauce.protein}г </span>}
-                          {sauce.carbs && <span>У: {sauce.carbs}г </span>}
-                          {sauce.fats && <span>Ж: {sauce.fats}г</span>}
-                          {(sauce.protein || sauce.carbs || sauce.fats) && (sauce.grams || sauce.calories) && <span> | </span>}
-                          {sauce.grams && `${sauce.grams}г`}{sauce.grams && sauce.calories && ' / '}{sauce.calories && `${sauce.calories}ккал`}
-                        </div>
-                      )}
-                    </button>
-                  );
-                  })}
-                </div>
               </div>
             )}
             {selectedHotDish && selectedHotDish.noGarnish && (
@@ -1033,6 +975,64 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Sauce - show after selecting hot or additional dish */}
+        {hasSauceEligibleDish && (
+          <div>
+            <h3 className="text-lg font-semibold mb-2 mt-4" style={{ color: palette.colors.text }}>
+              Соусы (бесплатно)
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {sauces.map(sauce => {
+                const wouldExceed = wouldExceedLimitWithSauce();
+                const isSelected = selectedSauce === sauce.id;
+                return (
+                <button
+                  key={sauce.id}
+                  onClick={() => {
+                    if (!wouldExceed || isSelected) {
+                      setSelectedSauce(isSelected ? '' : sauce.id);
+                    }
+                  }}
+                  disabled={wouldExceed && !isSelected}
+                  className={`p-3 rounded-lg border-2 text-left transition-all ${
+                    isSelected ? 'border-current' : ''
+                  } ${wouldExceed && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  style={{ 
+                    borderColor: isSelected ? palette.colors.primary : palette.colors.border,
+                    backgroundColor: isSelected ? palette.colors.primary + '20' : palette.colors.cardBg,
+                    color: wouldExceed && !isSelected ? palette.colors.textSecondary : palette.colors.text
+                  }}
+                >
+                  <div className="font-medium">
+                    {sauce.name}
+                    {(sauce.isVegan || sauce.isVegetarian) ? (
+                      <span className="ml-2">
+                        {sauce.isVegan ? <span className="text-green-600">🌱</span> : null}
+                        {!sauce.isVegan && sauce.isVegetarian ? <span className="text-green-500">🥬</span> : null}
+                      </span>
+                    ) : null}
+                  </div>
+                  {sauce.composition && (
+                    <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
+                      {sauce.composition}
+                    </div>
+                  )}
+                  {(sauce.protein || sauce.carbs || sauce.fats || sauce.grams || sauce.calories) && (
+                    <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
+                      {sauce.protein && <span>Б: {sauce.protein}г </span>}
+                      {sauce.carbs && <span>У: {sauce.carbs}г </span>}
+                      {sauce.fats && <span>Ж: {sauce.fats}г</span>}
+                      {(sauce.protein || sauce.carbs || sauce.fats) && (sauce.grams || sauce.calories) && <span> | </span>}
+                      {sauce.grams && `${sauce.grams}г`}{sauce.grams && sauce.calories && ' / '}{sauce.calories && `${sauce.calories}ккал`}
+                    </div>
+                  )}
+                </button>
+              );
+              })}
+            </div>
           </div>
         )}
 
@@ -1052,6 +1052,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   onClick={() => {
                     if (!wouldExceed || isSelected) {
                       setSelectedSalad(isSelected ? null : dish);
+                      setSelectedPastry('');
                     }
                   }}
                   disabled={wouldExceed && !isSelected}
@@ -1110,6 +1111,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   onClick={() => {
                     if (!wouldExceed || isSelected) {
                       setSelectedVegan(isSelected ? null : dish);
+                      setSelectedPastry('');
                     }
                   }}
                   disabled={wouldExceed && !isSelected}
@@ -1168,6 +1170,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   onClick={() => {
                     if (!wouldExceed || isSelected) {
                       setSelectedOther(isSelected ? null : dish);
+                      setSelectedPastry('');
                     }
                   }}
                   disabled={wouldExceed && !isSelected}
