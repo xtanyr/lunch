@@ -174,7 +174,9 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
   const [selectedVegan, setSelectedVegan] = useState<DishItem | null>(null);
   const [selectedOther, setSelectedOther] = useState<DishItem | null>(null);
   const [selectedGarnish, setSelectedGarnish] = useState<string>('');
-  const [selectedSauce, setSelectedSauce] = useState<string>('');
+  const [selectedHotSauce, setSelectedHotSauce] = useState<string>('');
+  const [selectedVeganSauce, setSelectedVeganSauce] = useState<string>('');
+  const [selectedOtherSauce, setSelectedOtherSauce] = useState<string>('');
   const [savedOrder, setSavedOrder] = useState<any>(null);
 
   useEffect(() => {
@@ -265,7 +267,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
   };
 
   const totalPrice = calculateTotal();
-  const hasAnySelection = selectedSoup || selectedHotDish || selectedSalad || selectedVegan || selectedOther || !!selectedPastry || selectedGarnish || selectedSauce;
+  const hasAnySelection = selectedSoup || selectedHotDish || selectedSalad || selectedVegan || selectedOther || !!selectedPastry || selectedGarnish || selectedHotSauce || selectedVeganSauce || selectedOtherSauce;
   const canSubmit = hasAnySelection && totalPrice <= MAX_ORDER_PRICE;
 
   // Helper functions to check if adding items would exceed limit
@@ -346,7 +348,66 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
     return wouldExceedLimit('sauce');
   };
 
-  const hasSauceEligibleDish = !!selectedHotDish || !!selectedVegan || !!selectedOther;
+  const renderSauceSelector = (
+    title: string,
+    selectedSauceId: string,
+    setSelectedSauceId: React.Dispatch<React.SetStateAction<string>>
+  ) => (
+    <div className="mt-4">
+      <h3 className="text-lg font-semibold mb-2" style={{ color: palette.colors.text }}>
+        {title}
+      </h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+        {sauces.map(sauce => {
+          const wouldExceed = wouldExceedLimitWithSauce();
+          const isSelected = selectedSauceId === sauce.id;
+          return (
+          <button
+            key={sauce.id}
+            onClick={() => {
+              if (!wouldExceed || isSelected) {
+                setSelectedSauceId(isSelected ? '' : sauce.id);
+              }
+            }}
+            disabled={wouldExceed && !isSelected}
+            className={`p-3 rounded-lg border-2 text-left transition-all ${
+              isSelected ? 'border-current' : ''
+            } ${wouldExceed && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}`}
+            style={{ 
+              borderColor: isSelected ? palette.colors.primary : palette.colors.border,
+              backgroundColor: isSelected ? palette.colors.primary + '20' : palette.colors.cardBg,
+              color: wouldExceed && !isSelected ? palette.colors.textSecondary : palette.colors.text
+            }}
+          >
+            <div className="font-medium">
+              {sauce.name}
+              {(sauce.isVegan || sauce.isVegetarian) ? (
+                <span className="ml-2">
+                  {sauce.isVegan ? <span className="text-green-600">🌱</span> : null}
+                  {!sauce.isVegan && sauce.isVegetarian ? <span className="text-green-500">🥬</span> : null}
+                </span>
+              ) : null}
+            </div>
+            {sauce.composition && (
+              <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
+                {sauce.composition}
+              </div>
+            )}
+            {(sauce.protein || sauce.carbs || sauce.fats || sauce.grams || sauce.calories) && (
+              <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
+                {sauce.protein && <span>Б: {sauce.protein}г </span>}
+                {sauce.carbs && <span>У: {sauce.carbs}г </span>}
+                {sauce.fats && <span>Ж: {sauce.fats}г</span>}
+                {(sauce.protein || sauce.carbs || sauce.fats) && (sauce.grams || sauce.calories) && <span> | </span>}
+                {sauce.grams && `${sauce.grams}г`}{sauce.grams && sauce.calories && ' / '}{sauce.calories && `${sauce.calories}ккал`}
+              </div>
+            )}
+          </button>
+        );
+        })}
+      </div>
+    </div>
+  );
 
   // Validate combination
   const validateCombination = (): string | null => {
@@ -357,7 +418,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
     const hasVegan = !!selectedVegan;
     const hasOther = !!selectedOther;
     const hasGarnish = !!selectedGarnish;
-    const hasSauce = !!selectedSauce;
+    const hasSauce = !!selectedHotSauce || !!selectedVeganSauce || !!selectedOtherSauce;
     
     // Pastry requires soup or broth
     if (hasPastry && !hasSoup) {
@@ -369,6 +430,15 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
     if (hasSoup || hasHot || hasSalad || hasVegan || hasOther) {
       if (hasGarnish && !hasHot) {
         return 'Гарнир доступен только с горячим блюдом';
+      }
+      if (selectedHotSauce && !hasHot) {
+        return 'Соус для горячего доступен только с горячим блюдом';
+      }
+      if (selectedVeganSauce && !hasVegan) {
+        return 'Соус для дополнительного блюда доступен только при выборе этого блюда';
+      }
+      if (selectedOtherSauce && !hasOther) {
+        return 'Соус для раздела "Дополнительно" доступен только при выборе этого блюда';
       }
       if (hasSauce && !hasHot && !hasVegan && !hasOther) {
         return 'Соусы доступны только с горячим или дополнительным блюдом';
@@ -390,7 +460,9 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
     setSelectedVegan(null);
     setSelectedOther(null);
     setSelectedGarnish('');
-    setSelectedSauce('');
+    setSelectedHotSauce('');
+    setSelectedVeganSauce('');
+    setSelectedOtherSauce('');
   };
 
   // Quick reorder handler
@@ -418,9 +490,9 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
               const garnishMatch = garnishes.find(g => g.id === item.garnish || g.id === item.garnishName);
               if (garnishMatch) setSelectedGarnish(garnishMatch.id);
             }
-            if (item.sauce && !selectedSauce) {
+            if (item.sauce) {
               const sauceMatch = sauces.find(s => s.id === item.sauce || s.id === item.sauceName);
-              if (sauceMatch) setSelectedSauce(sauceMatch.id);
+              if (sauceMatch) setSelectedHotSauce(sauceMatch.id);
             }
           }
         } else if (itemCategory === 'salad') {
@@ -428,10 +500,22 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
           if (dish) setSelectedSalad(dish);
         } else if (itemCategory === 'vegan') {
           const dish = veganItems.find(d => d.id === item.dishId);
-          if (dish) setSelectedVegan(dish);
+          if (dish) {
+            setSelectedVegan(dish);
+            if (item.sauce) {
+              const sauceMatch = sauces.find(s => s.id === item.sauce || s.id === item.sauceName);
+              if (sauceMatch) setSelectedVeganSauce(sauceMatch.id);
+            }
+          }
         } else if (itemCategory === 'other') {
           const dish = otherItems.find(d => d.id === item.dishId);
-          if (dish) setSelectedOther(dish);
+          if (dish) {
+            setSelectedOther(dish);
+            if (item.sauce) {
+              const sauceMatch = sauces.find(s => s.id === item.sauce || s.id === item.sauceName);
+              if (sauceMatch) setSelectedOtherSauce(sauceMatch.id);
+            }
+          }
         } else if (itemCategory === 'pastry') {
           const pastry = pastries.find(p => p.id === item.dishId);
           if (pastry) setSelectedPastry(pastry.id);
@@ -487,7 +571,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
     }
     if (selectedHotDish) {
       const garnishItem = garnishes.find(g => g.id === selectedGarnish);
-      const sauceItem = sauces.find(s => s.id === selectedSauce);
+      const sauceItem = sauces.find(s => s.id === selectedHotSauce);
       items.push({
         dishId: selectedHotDish.id,
         dishName: selectedHotDish.name,
@@ -505,7 +589,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
           garnishGrams: garnishItem.grams,
           garnishCalories: garnishItem.calories
         } : {}),
-        ...(selectedSauce && sauceItem ? { 
+        ...(selectedHotSauce && sauceItem ? { 
           sauce: sauceItem.id,
           sauceName: sauceItem.name,
           sauceComposition: sauceItem.composition,
@@ -529,7 +613,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
       });
     }
     if (selectedVegan) {
-      const sauceItem = sauces.find(s => s.id === selectedSauce);
+      const sauceItem = sauces.find(s => s.id === selectedVeganSauce);
       items.push({
         dishId: selectedVegan.id,
         dishName: selectedVegan.name,
@@ -540,7 +624,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
         fats: selectedVegan.fats,
         grams: selectedVegan.grams,
         calories: selectedVegan.calories,
-        ...(selectedSauce && sauceItem ? {
+        ...(selectedVeganSauce && sauceItem ? {
           sauce: sauceItem.id,
           sauceName: sauceItem.name,
           sauceComposition: sauceItem.composition,
@@ -550,7 +634,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
       });
     }
     if (selectedOther) {
-      const sauceItem = sauces.find(s => s.id === selectedSauce);
+      const sauceItem = sauces.find(s => s.id === selectedOtherSauce);
       items.push({
         dishId: selectedOther.id,
         dishName: selectedOther.name,
@@ -561,7 +645,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
         fats: selectedOther.fats,
         grams: selectedOther.grams,
         calories: selectedOther.calories,
-        ...(selectedSauce && sauceItem ? {
+        ...(selectedOtherSauce && sauceItem ? {
           sauce: sauceItem.id,
           sauceName: sauceItem.name,
           sauceComposition: sauceItem.composition,
@@ -865,7 +949,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                     if (!wouldExceed || isSelected) {
                       setSelectedHotDish(isSelected ? null : dish);
                       setSelectedGarnish('');
-                      setSelectedSauce('');
+                      setSelectedHotSauce('');
                       setSelectedPastry('');
                     }
                   }}
@@ -966,6 +1050,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   })}
                 </div>
                 
+                {renderSauceSelector('Соусы к горячему (бесплатно)', selectedHotSauce, setSelectedHotSauce)}
               </div>
             )}
             {selectedHotDish && selectedHotDish.noGarnish && (
@@ -975,64 +1060,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                 </div>
               </div>
             )}
-          </div>
-        )}
-
-        {/* Sauce - show after selecting hot or additional dish */}
-        {hasSauceEligibleDish && (
-          <div>
-            <h3 className="text-lg font-semibold mb-2 mt-4" style={{ color: palette.colors.text }}>
-              Соусы (бесплатно)
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {sauces.map(sauce => {
-                const wouldExceed = wouldExceedLimitWithSauce();
-                const isSelected = selectedSauce === sauce.id;
-                return (
-                <button
-                  key={sauce.id}
-                  onClick={() => {
-                    if (!wouldExceed || isSelected) {
-                      setSelectedSauce(isSelected ? '' : sauce.id);
-                    }
-                  }}
-                  disabled={wouldExceed && !isSelected}
-                  className={`p-3 rounded-lg border-2 text-left transition-all ${
-                    isSelected ? 'border-current' : ''
-                  } ${wouldExceed && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}`}
-                  style={{ 
-                    borderColor: isSelected ? palette.colors.primary : palette.colors.border,
-                    backgroundColor: isSelected ? palette.colors.primary + '20' : palette.colors.cardBg,
-                    color: wouldExceed && !isSelected ? palette.colors.textSecondary : palette.colors.text
-                  }}
-                >
-                  <div className="font-medium">
-                    {sauce.name}
-                    {(sauce.isVegan || sauce.isVegetarian) ? (
-                      <span className="ml-2">
-                        {sauce.isVegan ? <span className="text-green-600">🌱</span> : null}
-                        {!sauce.isVegan && sauce.isVegetarian ? <span className="text-green-500">🥬</span> : null}
-                      </span>
-                    ) : null}
-                  </div>
-                  {sauce.composition && (
-                    <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
-                      {sauce.composition}
-                    </div>
-                  )}
-                  {(sauce.protein || sauce.carbs || sauce.fats || sauce.grams || sauce.calories) && (
-                    <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
-                      {sauce.protein && <span>Б: {sauce.protein}г </span>}
-                      {sauce.carbs && <span>У: {sauce.carbs}г </span>}
-                      {sauce.fats && <span>Ж: {sauce.fats}г</span>}
-                      {(sauce.protein || sauce.carbs || sauce.fats) && (sauce.grams || sauce.calories) && <span> | </span>}
-                      {sauce.grams && `${sauce.grams}г`}{sauce.grams && sauce.calories && ' / '}{sauce.calories && `${sauce.calories}ккал`}
-                    </div>
-                  )}
-                </button>
-              );
-              })}
-            </div>
+            {selectedHotDish && selectedHotDish.noGarnish && renderSauceSelector('Соусы к горячему (бесплатно)', selectedHotSauce, setSelectedHotSauce)}
           </div>
         )}
 
@@ -1111,6 +1139,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   onClick={() => {
                     if (!wouldExceed || isSelected) {
                       setSelectedVegan(isSelected ? null : dish);
+                      setSelectedVeganSauce('');
                       setSelectedPastry('');
                     }
                   }}
@@ -1151,6 +1180,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
               );
               })}
             </div>
+            {selectedVegan && renderSauceSelector('Соусы к дополнительному блюду (бесплатно)', selectedVeganSauce, setSelectedVeganSauce)}
           </div>
         )}
 
@@ -1170,6 +1200,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   onClick={() => {
                     if (!wouldExceed || isSelected) {
                       setSelectedOther(isSelected ? null : dish);
+                      setSelectedOtherSauce('');
                       setSelectedPastry('');
                     }
                   }}
@@ -1210,6 +1241,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
               );
               })}
             </div>
+            {selectedOther && renderSauceSelector('Соусы к блюду "Дополнительно" (бесплатно)', selectedOtherSauce, setSelectedOtherSauce)}
           </div>
         )}
 
@@ -1230,12 +1262,12 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
               <div>
                 • Горячее: {selectedHotDish.name}
                 {selectedGarnish && <span> + {garnishes.find(g => g.id === selectedGarnish)?.name}</span>}
-                {selectedSauce && <span> + {sauces.find(s => s.id === selectedSauce)?.name}</span>}
+                {selectedHotSauce && <span> + {sauces.find(s => s.id === selectedHotSauce)?.name}</span>}
               </div>
             )}
             {selectedSalad && <div>• Салат: {selectedSalad.name}</div>}
-            {selectedVegan && <div>• Веган: {selectedVegan.name}</div>}
-            {selectedOther && <div>• Другое: {selectedOther.name}</div>}
+            {selectedVegan && <div>• Веган: {selectedVegan.name}{selectedVeganSauce ? ` + ${sauces.find(s => s.id === selectedVeganSauce)?.name}` : ''}</div>}
+            {selectedOther && <div>• Другое: {selectedOther.name}{selectedOtherSauce ? ` + ${sauces.find(s => s.id === selectedOtherSauce)?.name}` : ''}</div>}
           </div>
         </div>
       )}
