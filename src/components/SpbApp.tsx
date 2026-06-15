@@ -444,8 +444,8 @@ const SpbApp: React.FC = () => {
                       })}
                     </div>
                     <div className="text-xs" style={{ color: palette.colors.textSecondary }}>
-                      <div>Дата заказа: {order.orderDate}</div>
-                      <div>Время заказа: {order.timestamp ? new Date(order.timestamp).toLocaleTimeString('ru-RU', { 
+                      <div>Дата заказа: {order.timestamp ? new Date(order.timestamp).toLocaleDateString('ru-RU') : ''}</div>
+                      <div>Время заказа: {order.timestamp ? new Date(order.timestamp).toLocaleTimeString('ru-RU', {
                         hour: '2-digit', 
                         minute: '2-digit' 
                       }) : ''}</div>
