@@ -2047,6 +2047,52 @@ app.put('/api/omsk/settings/:key', requireAdmin, express.json(), (req, res) => {
 
 // ==================== SPB API (Period-based menu, 2-day periods) ====================
 
+// Generate new SPB periods after the last existing one
+app.post('/api/spb/periods', express.json(), (req, res) => {
+  try {
+    const { count = 20 } = req.body;
+    const menuData = readSpbMenuData();
+    const periods = menuData.periods || [];
+    if (periods.length === 0) {
+      return res.status(400).json({ error: 'No existing periods to extend from' });
+    }
+
+    const last = periods[periods.length - 1];
+    const lastEnd = last.endDate.split('-').map(Number);
+    let currentDate = new Date(lastEnd[0], lastEnd[1] - 1, lastEnd[2] + 1);
+
+    const MONTH_NAMES_RU = ['январь','февраль','март','апрель','мая','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+
+    for (let i = 0; i < count; i++) {
+      const startDate = new Date(currentDate);
+      const endDate = new Date(currentDate);
+      endDate.setDate(endDate.getDate() + 1);
+
+      const periodId = `p${periods.length + i + 1}`;
+      const monthName = MONTH_NAMES_RU[startDate.getMonth()];
+
+      periods.push({
+        id: periodId,
+        name: `(${startDate.getDate()}-${endDate.getDate()} ${monthName})`,
+        startDate: formatDateLocal(startDate),
+        endDate: formatDateLocal(endDate),
+        items: [],
+        isActive: 1
+      });
+
+      currentDate.setDate(currentDate.getDate() + 2);
+    }
+
+    menuData.periods = periods;
+    writeSpbMenuData(menuData);
+
+    res.json({ success: true, added: count, total: periods.length });
+  } catch (error) {
+    console.error('Error generating SPB periods:', error);
+    res.status(500).json({ error: 'Failed to generate periods' });
+  }
+});
+
 // Get available periods for a date range (SPB)
 app.get('/api/spb/periods', (req, res) => {
   try {

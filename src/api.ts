@@ -239,3 +239,21 @@ export const updateSpbPeriodMenu = async (periodId: string, items: Dish[]): Prom
     throw new Error('Не удалось обновить меню периода.');
   }
 };
+
+export const addSpbPeriods = async (count = 20): Promise<{ success: boolean; added: number; total: number }> => {
+  try {
+    const res = await fetch(`${API_BASE}/api/spb/periods?city=spb`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ count }),
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to add periods');
+    }
+    return await res.json();
+  } catch (error) {
+    console.error('API Error (addSpbPeriods):', error);
+    throw new Error('Не удалось добавить периоды.');
+  }
+};

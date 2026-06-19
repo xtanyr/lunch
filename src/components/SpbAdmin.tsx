@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Dish, DishCategory } from '../types';
-import { fetchSpbPeriods, updateSpbPeriodMenu } from '../api';
+import { fetchSpbPeriods, updateSpbPeriodMenu, addSpbPeriods } from '../api';
 import { CITY_ADDRESSES } from '../constants';
 import AdminMenuManager from './AdminMenuManager';
 import Select from './ui/Select';
@@ -42,6 +42,7 @@ const SpbAdmin: React.FC = () => {
   const [exportEndDate, setExportEndDate] = useState<string>('');
   const [selectedExportAddress, setSelectedExportAddress] = useState<string>('all');
   const [isExporting, setIsExporting] = useState(false);
+  const [isAddingPeriods, setIsAddingPeriods] = useState(false);
 
   useEffect(() => {
     loadPeriods();
@@ -182,6 +183,21 @@ const SpbAdmin: React.FC = () => {
     }
   };
 
+  const handleAddPeriods = async () => {
+    setIsAddingPeriods(true);
+    try {
+      const result = await addSpbPeriods(20);
+      setMessage(`Добавлено ${result.added} периодов. Всего: ${result.total}`);
+      await loadPeriods();
+      setTimeout(() => setMessage(null), 3000);
+    } catch (err) {
+      console.error('Failed to add periods:', err);
+      setError('Не удалось добавить периоды');
+    } finally {
+      setIsAddingPeriods(false);
+    }
+  };
+
   const selectedPeriod = periods.find(p => p.id === selectedPeriodId);
 
   if (loading) {
@@ -224,6 +240,13 @@ const SpbAdmin: React.FC = () => {
               className="text-sm"
             >
               {showBulkImport ? 'Скрыть импорт' : 'Массовый импорт блюд'}
+            </Button>
+            <Button
+              onClick={handleAddPeriods}
+              disabled={isAddingPeriods}
+              className="text-sm bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {isAddingPeriods ? 'Добавление...' : 'Добавить 20 периодов'}
             </Button>
           </div>
           {periods.length === 0 ? (
