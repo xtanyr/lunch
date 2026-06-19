@@ -176,6 +176,14 @@ function writeSpbMenuData(menuData) {
   fs.writeFileSync(file, JSON.stringify(menuData, null, 2));
 }
 
+// Helper to format dates as YYYY-MM-DD in local time
+function formatDateLocal(date) {
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 // Generate default SPB menu with 2-day periods starting from April 28, 2026
 function generateSpbDefaultMenu() {
   const defaultSides = [
@@ -207,14 +215,6 @@ function generateSpbDefaultMenu() {
     
     const periodId = `p${i + 1}`;
     const periodName = `(${startDate.getDate()}-${endDate.getDate()} ${startDate.toLocaleDateString('ru-RU', { month: 'long' })})`;
-    
-    // Format dates as YYYY-MM-DD in local time to avoid timezone issues
-    const formatDateLocal = (date) => {
-      const year = date.getFullYear();
-      const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const day = date.getDate().toString().padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
     
     periods.push({
       id: periodId,
@@ -2059,7 +2059,7 @@ app.post('/api/spb/periods', express.json(), (req, res) => {
 
     const last = periods[periods.length - 1];
     const lastEnd = last.endDate.split('-').map(Number);
-    let currentDate = new Date(lastEnd[0], lastEnd[1] - 1, lastEnd[2] + 1);
+    const currentDate = new Date(lastEnd[0], lastEnd[1] - 1, lastEnd[2] + 1);
 
     const MONTH_NAMES_RU = ['январь','февраль','март','апрель','мая','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
 
@@ -2089,7 +2089,7 @@ app.post('/api/spb/periods', express.json(), (req, res) => {
     res.json({ success: true, added: count, total: periods.length });
   } catch (error) {
     console.error('Error generating SPB periods:', error);
-    res.status(500).json({ error: 'Failed to generate periods' });
+    res.status(500).json({ error: 'Failed to generate periods', details: String(error) });
   }
 });
 
