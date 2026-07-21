@@ -6,3 +6,5 @@ node_modules
 .kilo
 logs
 temp_backup
+.kilocode
+.qodo

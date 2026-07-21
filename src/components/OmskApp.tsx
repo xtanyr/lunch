@@ -384,6 +384,18 @@ setSelectedAggregateDate(nextDate);
             onSubmit={handleOrderSubmit}
             isSubmitting={isSubmittingOrder}
             selectedAddress={selectedAddress}
+            onNotification={(type, message) => showNotification(type, message)}
+            onRandomComplete={(date) => {
+              setSelectedAggregateDate(date);
+              loadOrders(date, selectedAddress);
+            }}
+            onOrderCreated={(order) => {
+              setAllOrders((prev) => [...prev, order]);
+            }}
+            onSubmitDirect={async (order) => {
+              const result = await submitOmskOrderToAPI(order);
+              return result;
+            }}
           />
         </section>
 

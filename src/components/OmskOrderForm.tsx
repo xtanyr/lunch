@@ -52,6 +52,10 @@ interface OmskOrderFormProps {
   onSubmit: () => void;
   isSubmitting: boolean;
   selectedAddress?: string;
+  onNotification?: (type: 'success' | 'error', message: string) => void;
+  onRandomComplete?: (date: string) => void;
+  onOrderCreated?: (order: any) => void;
+  onSubmitDirect?: (order: any) => Promise<any>;
 }
 
 // API functions
@@ -102,6 +106,191 @@ function getOrderDateBlockInfo(
   return { blocked: false };
 }
 
+function buildRandomOrderItems(menuData: {
+  weekMenu: any[];
+  veganItems: any[];
+  otherItems: any[];
+  garnishes: any[];
+  sauces: any[];
+  pastries: any[];
+}): any[] | null {
+  const { weekMenu, veganItems, otherItems, garnishes, sauces, pastries } = menuData;
+
+  const soups = weekMenu.filter((d) => d.category === 'soup');
+  const broths = weekMenu.filter((d) => d.category === 'broth');
+  const hotDishes = weekMenu.filter((d) => d.category === 'hot');
+  const saladDishes = weekMenu.filter((d) => d.category === 'salad');
+
+  const available = {
+    soup: soups.length > 0,
+    broth: broths.length > 0,
+    hot: hotDishes.length > 0,
+    salad: saladDishes.length > 0,
+    vegan: veganItems.length > 0,
+    other: otherItems.length > 0,
+    garnish: garnishes.length > 0,
+    sauce: sauces.length > 0,
+    pastry: pastries.length > 0,
+  };
+
+  type Combo = { items: string[]; price: number };
+  const allCombos: Combo[] = [];
+
+  if (available.soup && available.salad) allCombos.push({ items: ['soup', 'salad'], price: 400 });
+  if (available.hot && available.salad) allCombos.push({ items: ['hot', 'salad'], price: 400 });
+  if (available.broth && available.hot) allCombos.push({ items: ['broth', 'hot'], price: 400 });
+  if (available.hot && available.vegan) allCombos.push({ items: ['hot', 'vegan'], price: 400 });
+  if (available.hot && available.other) allCombos.push({ items: ['hot', 'other'], price: 350 });
+  if (available.broth && available.salad) allCombos.push({ items: ['broth', 'salad'], price: 300 });
+  if (available.soup) allCombos.push({ items: ['soup'], price: 250 });
+  if (available.hot) allCombos.push({ items: ['hot'], price: 250 });
+  if (available.salad) allCombos.push({ items: ['salad'], price: 150 });
+  if (available.broth) allCombos.push({ items: ['broth'], price: 150 });
+
+  if (allCombos.length === 0) return null;
+
+  allCombos.sort((a, b) => b.price - a.price);
+  const selectedCombo = allCombos[0];
+
+  const items: any[] = [];
+
+  for (const itemType of selectedCombo.items) {
+    switch (itemType) {
+      case 'soup': {
+        const dish = soups[Math.floor(Math.random() * soups.length)];
+        items.push({
+          dishId: dish.id,
+          dishName: dish.name,
+          category: dish.category,
+          price: 250,
+          protein: dish.protein,
+          carbs: dish.carbs,
+          fats: dish.fats,
+          grams: dish.grams,
+          calories: dish.calories,
+          isVegan: dish.isVegan,
+          isVegetarian: dish.isVegetarian,
+        });
+        break;
+      }
+      case 'broth': {
+        const dish = broths[Math.floor(Math.random() * broths.length)];
+        items.push({
+          dishId: dish.id,
+          dishName: dish.name,
+          category: dish.category,
+          price: 150,
+          protein: dish.protein,
+          carbs: dish.carbs,
+          fats: dish.fats,
+          grams: dish.grams,
+          calories: dish.calories,
+          isVegan: dish.isVegan,
+          isVegetarian: dish.isVegetarian,
+        });
+        break;
+      }
+      case 'hot': {
+        const dish = hotDishes[Math.floor(Math.random() * hotDishes.length)];
+        const hasGarnishOption = !dish.noGarnish && garnishes.length > 0;
+        const selectedGarnish = hasGarnishOption ? garnishes[Math.floor(Math.random() * garnishes.length)] : null;
+        const selectedSauce = sauces.length > 0 ? sauces[Math.floor(Math.random() * sauces.length)] : null;
+
+        const item: any = {
+          dishId: dish.id,
+          dishName: dish.name,
+          category: 'hot',
+          price: 250,
+          protein: dish.protein,
+          carbs: dish.carbs,
+          fats: dish.fats,
+          grams: dish.grams,
+          calories: dish.calories,
+          garnishInSameBox: true,
+        };
+
+        if (selectedGarnish) {
+          item.garnish = selectedGarnish.id;
+          item.garnishName = selectedGarnish.name;
+          item.garnishComposition = selectedGarnish.composition;
+          item.garnishGrams = selectedGarnish.grams;
+          item.garnishCalories = selectedGarnish.calories;
+        }
+
+        if (selectedSauce) {
+          item.sauce = selectedSauce.id;
+          item.sauceName = selectedSauce.name;
+          item.sauceComposition = selectedSauce.composition;
+          item.sauceGrams = selectedSauce.grams;
+          item.sauceCalories = selectedSauce.calories;
+        }
+
+        items.push(item);
+        break;
+      }
+      case 'salad': {
+        const dish = saladDishes[Math.floor(Math.random() * saladDishes.length)];
+        items.push({
+          dishId: dish.id,
+          dishName: dish.name,
+          category: 'salad',
+          price: 150,
+          protein: dish.protein,
+          carbs: dish.carbs,
+          fats: dish.fats,
+          grams: dish.grams,
+          calories: dish.calories,
+          isVegan: dish.isVegan,
+          isVegetarian: dish.isVegetarian,
+        });
+        break;
+      }
+      case 'vegan': {
+        const dish = veganItems[Math.floor(Math.random() * veganItems.length)];
+        items.push({
+          dishId: dish.id,
+          dishName: dish.name,
+          category: 'vegan',
+          price: dish.price || 150,
+          protein: dish.protein,
+          carbs: dish.carbs,
+          fats: dish.fats,
+          grams: dish.grams,
+          calories: dish.calories,
+          isVegan: dish.isVegan,
+          isVegetarian: dish.isVegetarian,
+        });
+        break;
+      }
+      case 'other': {
+        const dish = otherItems[Math.floor(Math.random() * otherItems.length)];
+        items.push({
+          dishId: dish.id,
+          dishName: dish.name,
+          category: 'other',
+          price: dish.price || 100,
+          protein: dish.protein,
+          carbs: dish.carbs,
+          fats: dish.fats,
+          grams: dish.grams,
+          calories: dish.calories,
+          isVegan: dish.isVegan,
+          isVegetarian: dish.isVegetarian,
+        });
+        break;
+      }
+    }
+  }
+
+  const hasSoupOrBroth = items.some((i) => i.category === 'soup' || i.category === 'broth');
+  if (hasSoupOrBroth && pastries.length > 0) {
+    const pastry = pastries[Math.floor(Math.random() * pastries.length)];
+    items.push({ dishId: pastry.id, dishName: pastry.name, category: 'pastry', price: 0 });
+  }
+
+  return items;
+}
+
 // Price by category (rubles)
 const CATEGORY_PRICES: Record<string, number> = {
   soup: 250,
@@ -121,6 +310,10 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
   onSubmit,
   isSubmitting,
   selectedAddress = 'office',
+  onNotification,
+  onRandomComplete,
+  onOrderCreated,
+  onSubmitDirect,
 }) => {
   const { palette } = useTheme();
 
@@ -178,6 +371,12 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
   const [selectedVeganSauce, setSelectedVeganSauce] = useState<string>('');
   const [selectedOtherSauce, setSelectedOtherSauce] = useState<string>('');
   const [savedOrder, setSavedOrder] = useState<any>(null);
+
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  const [dateInput, setDateInput] = useState<string>('');
+
+  const [randomExpanded, setRandomExpanded] = useState(false);
+  const [isGeneratingRandom, setIsGeneratingRandom] = useState(false);
 
   useEffect(() => {
     const loadMenu = async () => {
@@ -535,7 +734,126 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
     }
   };
 
-  const handleSubmit = () => {
+  const submitRandomOrderToAPI = async (order: any) => {
+    const totalPrice = order.items.reduce((sum: number, item: any) => sum + (item.price || 0), 0);
+    const response = await fetch('/api/omsk/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...order, totalPrice })
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to submit random order');
+    }
+    return response.json();
+  };
+
+  const handleRandomOrder = async () => {
+    if (selectedDates.length === 0) {
+      onNotification?.('error', 'Выберите хотя бы одну дату');
+      return;
+    }
+    if (!currentOrder.employeeName || !currentOrder.department) {
+      onNotification?.('error', 'Введите имя сотрудника и отдел');
+      return;
+    }
+
+    setIsGeneratingRandom(true);
+    try {
+      const [weekRes, veganRes, otherRes, garnishRes, sauceRes, pastryRes, disabledRes] = await Promise.all([
+        fetch('/api/omsk/active-week').then((r) => r.json()),
+        fetch('/api/omsk/vegan-items').then((r) => r.json()),
+        fetch('/api/omsk/other-items').then((r) => r.json()),
+        fetch('/api/omsk/garnishes').then((r) => r.json()),
+        fetch('/api/omsk/sauces').then((r) => r.json()),
+        fetch('/api/omsk/pastries').then((r) => r.json()),
+        fetch('/api/omsk/disabled-dates').then((r) => r.json()),
+      ]);
+
+      let weekMenu: any[] = [];
+      if (weekRes && weekRes.weekNumber) {
+        const menuRes = await fetch(`/api/omsk/week-menu/${weekRes.weekNumber}`);
+        weekMenu = await menuRes.json();
+      }
+
+      const menuData = {
+        weekMenu,
+        veganItems: veganRes,
+        otherItems: otherRes,
+        garnishes: garnishRes,
+        sauces: sauceRes,
+        pastries: pastryRes,
+        disabledDates: disabledRes,
+      };
+
+      const dates = [...selectedDates].sort();
+
+      let successCount = 0;
+      let skipCount = 0;
+      let lastOrderedDate = dates[0];
+
+      for (const date of dates) {
+        const disabledRanges = getDisabledRanges(menuData.disabledDates);
+        const isDisabled = disabledRanges.some((range) => date >= range.startDate && date <= range.endDate);
+        if (isDisabled) {
+          skipCount++;
+          continue;
+        }
+
+        try {
+          const canOrderRes = await fetch(
+            `/api/omsk/can-order?employeeName=${encodeURIComponent(currentOrder.employeeName)}&department=${encodeURIComponent(currentOrder.department)}&orderDate=${date}&address=${encodeURIComponent(selectedAddress)}`
+          );
+          const canOrderData = await canOrderRes.json();
+          if (!canOrderData.canOrder) {
+            skipCount++;
+            continue;
+          }
+        } catch (e) {
+          skipCount++;
+          continue;
+        }
+
+        const items = buildRandomOrderItems(menuData);
+        if (!items || items.length === 0) {
+          skipCount++;
+          continue;
+        }
+
+        try {
+          const order = {
+            employeeName: currentOrder.employeeName,
+            department: currentOrder.department,
+            orderDate: date,
+            items,
+            address: selectedAddress,
+          };
+
+          await submitRandomOrderToAPI(order);
+          successCount++;
+          lastOrderedDate = date;
+        } catch (e) {
+          console.error(`Failed to submit random order for ${date}:`, e);
+        }
+      }
+
+      if (successCount > 0) {
+        onNotification?.('success', `Создано ${successCount} случайных заказов${skipCount > 0 ? ` (пропущено ${skipCount})` : ''}`);
+        onRandomComplete?.(lastOrderedDate);
+      } else if (skipCount > 0) {
+        onNotification?.('error', `Не удалось создать заказы (пропущено ${skipCount} дат)`);
+      } else {
+        onNotification?.('error', 'Не удалось создать заказы');
+      }
+    } catch (error) {
+      console.error('Random order error:', error);
+      onNotification?.('error', 'Ошибка генерации случайных заказов');
+    } finally {
+      setIsGeneratingRandom(false);
+    }
+  };
+
+  const handleSubmit = async () => {
     // Validate floor selection for office orders
     if (selectedAddress === 'office' && !selectedFloor) {
       alert('Пожалуйста, выберите этаж');
@@ -655,24 +973,85 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
       });
     }
 
-    setLastOrder({
-      employeeName: currentOrder.employeeName,
-      department: currentOrder.department,
-      items,
-      address: selectedAddress === 'office' ? `office_${selectedFloor}` : selectedAddress,
-      orderDate: currentOrder.orderDate
-    });
+    const hasSelection = items.length > 0;
+    if (!hasSelection) {
+      alert('Выберите хотя бы одно блюдо');
+      return;
+    }
 
-    setCurrentOrder({
-      ...currentOrder,
-      items,
-      address: selectedAddress === 'office' ? `office_${selectedFloor}` : selectedAddress,
-    });
-    
-    // Reset all selections after order submission
-    resetSelections();
-    
-    onSubmit();
+    if (selectedDates.length === 0) {
+      alert('Добавьте хотя бы одну дату');
+      return;
+    }
+
+    const datesToSubmit = [...selectedDates];
+    const address = selectedAddress === 'office' ? `office_${selectedFloor}` : selectedAddress;
+
+    if (datesToSubmit.length === 1) {
+      const date = datesToSubmit[0];
+      setCurrentOrder((prev: any) => ({ ...prev, orderDate: date, items, address }));
+      setLastOrder({
+        employeeName: currentOrder.employeeName,
+        department: currentOrder.department,
+        items,
+        address,
+        orderDate: date
+      });
+      resetSelections();
+      onSubmit();
+      return;
+    }
+
+    if (!onSubmitDirect) {
+      alert('Пакетная отправка не настроена');
+      return;
+    }
+
+    let successCount = 0;
+    let skipCount = 0;
+
+    for (const date of datesToSubmit) {
+      try {
+        const canOrderRes = await fetch(
+          `/api/omsk/can-order?employeeName=${encodeURIComponent(currentOrder.employeeName)}&department=${encodeURIComponent(currentOrder.department)}&orderDate=${date}&address=${encodeURIComponent(selectedAddress)}`
+        );
+        const canOrderData = await canOrderRes.json();
+        if (!canOrderData.canOrder) {
+          skipCount++;
+          continue;
+        }
+
+        const order = {
+          employeeName: currentOrder.employeeName,
+          department: currentOrder.department,
+          orderDate: date,
+          items,
+          address,
+        };
+
+        const created = await onSubmitDirect(order);
+        successCount++;
+        onOrderCreated?.(created);
+      } catch (e) {
+        console.error(`Failed to submit order for ${date}:`, e);
+      }
+    }
+
+    if (successCount > 0) {
+      onNotification?.('success', `Заказ создан на ${successCount} дней${skipCount > 0 ? ` (пропущено ${skipCount})` : ''}`);
+      setCurrentOrder({
+        ...currentOrder,
+        items: [],
+        orderDate: datesToSubmit[datesToSubmit.length - 1],
+        address,
+      });
+      resetSelections();
+      setSelectedDates([]);
+    } else if (skipCount > 0) {
+      onNotification?.('error', `Не удалось создать заказы (пропущено ${skipCount} дат)`);
+    } else {
+      onNotification?.('error', 'Не удалось создать заказы');
+    }
   };
 
   if (isLoading) {
@@ -767,27 +1146,126 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
         </div>
       </div>
 
-      {/* Date */}
+      {/* Dates */}
       <div>
         <label className="block text-sm font-medium mb-1" style={{ color: palette.colors.text }}>
-          Дата *
+          Даты *
         </label>
-        <input
-          type="date"
-          value={currentOrder.orderDate}
-          onChange={(e) => setCurrentOrder({ ...currentOrder, orderDate: e.target.value })}
-          className="w-full px-4 py-2 rounded-lg border"
-          style={{ 
-            borderColor: palette.colors.border,
-            backgroundColor: palette.colors.cardBg,
-            color: palette.colors.text
-          }}
-          required
-        />
+        <div className="flex gap-2">
+          <input
+            type="date"
+            value={dateInput}
+            onChange={(e) => setDateInput(e.target.value)}
+            className="flex-1 px-4 py-2 rounded-lg border"
+            style={{ 
+              borderColor: palette.colors.border,
+              backgroundColor: palette.colors.cardBg,
+              color: palette.colors.text
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              if (!dateInput) return;
+              if (selectedDates.includes(dateInput)) {
+                setSelectedDates(prev => prev.filter(d => d !== dateInput));
+              } else {
+                setSelectedDates(prev => [...prev, dateInput].sort());
+              }
+              setDateInput('');
+            }}
+            className="px-4 py-2 rounded-lg font-semibold text-white transition-all"
+            style={{ backgroundColor: palette.colors.primary }}
+          >
+            {selectedDates.includes(dateInput) ? 'Убрать' : 'Добавить'}
+          </button>
+        </div>
+        {selectedDates.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-3">
+            {selectedDates.map(date => (
+              <span
+                key={date}
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium"
+                style={{ 
+                  backgroundColor: palette.colors.primary + '20',
+                  color: palette.colors.primary,
+                  border: `1px solid ${palette.colors.primary}`
+                }}
+              >
+                {date}
+                <button
+                  type="button"
+                  onClick={() => setSelectedDates(prev => prev.filter(d => d !== date))}
+                  className="ml-1 hover:opacity-70"
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        {selectedDates.length === 0 && (
+          <div className="text-xs mt-1 opacity-60" style={{ color: palette.colors.textSecondary }}>
+            Добавьте хотя бы одну дату
+          </div>
+        )}
       </div>
 
       {/* Dish Selection */}
       <div className="space-y-4">
+        {/* Random Order */}
+        <div className="rounded-lg border-2 overflow-hidden" style={{ borderColor: palette.colors.border }}>
+          <button
+            type="button"
+            onClick={() => setRandomExpanded(!randomExpanded)}
+            className="w-full flex items-center justify-between p-4 font-semibold transition-all"
+            style={{ 
+              backgroundColor: palette.colors.cardBg,
+              color: palette.colors.primary
+            }}
+          >
+            <span>Случайный заказ на период</span>
+            <svg 
+              className={`w-5 h-5 transition-transform duration-300 ${randomExpanded ? 'rotate-180' : ''}`}
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          
+          <div 
+            className="transition-all duration-300 ease-in-out"
+            style={{ 
+              maxHeight: randomExpanded ? '600px' : '0',
+              opacity: randomExpanded ? 1 : 0,
+              overflow: 'hidden'
+            }}
+          >
+            <div className="p-4 space-y-4" style={{ backgroundColor: palette.colors.cardBg }}>
+              <div className="text-sm" style={{ color: palette.colors.textSecondary }}>
+                {selectedDates.length > 0
+                  ? `Выбрано дат: ${selectedDates.length}. Будет создан максимально возможный заказ на каждую из них.`
+                  : 'Сначала добавьте даты в поле выбора дат выше.'}
+              </div>
+              <button
+                onClick={handleRandomOrder}
+                disabled={isGeneratingRandom || selectedDates.length === 0 || !currentOrder.employeeName || !currentOrder.department}
+                className="w-full py-3 rounded-lg font-semibold text-white transition-all disabled:opacity-50"
+                style={{
+                  backgroundColor:
+                    !isGeneratingRandom && selectedDates.length > 0 && currentOrder.employeeName && currentOrder.department
+                      ? palette.colors.primary
+                      : palette.colors.border,
+                }}
+              >
+                {isGeneratingRandom ? 'Генерация...' : 'Случайный заказ'}
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Soup / Broth */}
         {soupDishes.length > 0 && (
           <div>
