@@ -1282,7 +1282,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   onClick={() => {
                     if (!wouldExceed || isSelected) {
                       setSelectedSoup(isSelected ? null : dish);
-                      setSelectedPastry('');
+                      if (isSelected) setSelectedPastry('');
                     }
                   }}
                   disabled={wouldExceed && !isSelected}
@@ -1367,7 +1367,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   onClick={() => {
                     if (!wouldExceed || isSelected) {
                       setSelectedSoup(isSelected ? null : dish);
-                      setSelectedPastry('');
+                      if (isSelected) setSelectedPastry('');
                     }
                   }}
                   disabled={wouldExceed && !isSelected}
@@ -1428,7 +1428,6 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                       setSelectedHotDish(isSelected ? null : dish);
                       setSelectedGarnish('');
                       setSelectedHotSauce('');
-                      setSelectedPastry('');
                     }
                   }}
                   disabled={wouldExceed && !isSelected}
@@ -1558,7 +1557,6 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   onClick={() => {
                     if (!wouldExceed || isSelected) {
                       setSelectedSalad(isSelected ? null : dish);
-                      setSelectedPastry('');
                     }
                   }}
                   disabled={wouldExceed && !isSelected}
@@ -1618,7 +1616,6 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                     if (!wouldExceed || isSelected) {
                       setSelectedVegan(isSelected ? null : dish);
                       setSelectedVeganSauce('');
-                      setSelectedPastry('');
                     }
                   }}
                   disabled={wouldExceed && !isSelected}
@@ -1679,7 +1676,6 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                     if (!wouldExceed || isSelected) {
                       setSelectedOther(isSelected ? null : dish);
                       setSelectedOtherSauce('');
-                      setSelectedPastry('');
                     }
                   }}
                   disabled={wouldExceed && !isSelected}
