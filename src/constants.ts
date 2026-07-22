@@ -147,7 +147,6 @@ export const CITY_ADDRESSES: Record<string, { id: string; label: string }[]> = {
     { id: 'gagarina', label: 'Гагарина' },
     { id: 'vodniki', label: 'Водники' },
     { id: 'drujniy', label: 'Дружный' },
-    { id: 'chv', label: 'ЧВ' },
     { id: 'festival', label: 'Фестиваль' },
     { id: 'atlantida', label: 'Атлантида' },
     { id: 'sfera', label: 'Сфера' },
@@ -160,6 +159,7 @@ export const CITY_ADDRESSES: Record<string, { id: string; label: string }[]> = {
     { id: 'kvadro', label: 'Квадро' },
     { id: 'syrop', label: 'Физкультурная Сиропы' },
     { id: 'dmitrieva', label: 'Дмитриева' },
+    { id: 'frunze', label: 'Фрунзе' },
   ],
   spb: [
     { id: 'kirova', label: 'Кирова' },
