@@ -417,35 +417,44 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
     loadLastOrder();
   }, [currentOrder.employeeName, currentOrder.department]);
 
-  // Check if user has already ordered when current order or address changes
+  // Check if user has already ordered on all selected dates
   useEffect(() => {
     const checkIfUserOrdered = async () => {
-      if (!currentOrder || !currentOrder.employeeName || !currentOrder.department || !currentOrder.orderDate || !selectedAddress || selectedAddress === '') {
+      if (!currentOrder?.employeeName || !currentOrder?.department || !selectedAddress || selectedDates.length === 0) {
+        setHasOrderedToday(false);
         return;
       }
 
       try {
-        const params = new URLSearchParams({
-          employeeName: currentOrder.employeeName,
-          department: currentOrder.department,
-          orderDate: currentOrder.orderDate,
-          address: selectedAddress
-        });
-
-        const response = await fetch(`/api/omsk/can-order?${params}`);
-        const data = await response.json();
-        setHasOrderedToday(!data.canOrder);
+        const results = await Promise.all(
+          selectedDates.map(async (date) => {
+            const params = new URLSearchParams({
+              employeeName: currentOrder.employeeName,
+              department: currentOrder.department,
+              orderDate: date,
+              address: selectedAddress,
+            });
+            const response = await fetch(`/api/omsk/can-order?${params}`);
+            const data = await response.json();
+            return data.canOrder === true;
+          })
+        );
+        // Block only when every selected date already has an order
+        setHasOrderedToday(results.every((canOrder) => !canOrder));
       } catch (error) {
         console.error('Error checking if user ordered:', error);
       }
     };
 
     checkIfUserOrdered();
-  }, [currentOrder.employeeName, currentOrder.department, currentOrder.orderDate, selectedAddress]);
+  }, [currentOrder.employeeName, currentOrder.department, selectedDates, selectedAddress]);
 
-  // Match server: block when selected order date falls in any disabled range (see POST /api/omsk/orders)
-  const orderDateBlock = getOrderDateBlockInfo(currentOrder.orderDate, disabledDates);
-  const isOrderingDisabled = () => orderDateBlock.blocked;
+  // Match server: block when all selected dates fall in disabled ranges (see POST /api/omsk/orders)
+  const orderDateBlock = selectedDates.length > 0
+    ? selectedDates.map((date) => getOrderDateBlockInfo(date, disabledDates)).find((info) => info.blocked)
+    : getOrderDateBlockInfo('', disabledDates);
+  const isOrderingDisabled = () =>
+    selectedDates.length > 0 && selectedDates.every((date) => getOrderDateBlockInfo(date, disabledDates).blocked);
 
   // Get dishes by category
   const soupDishes = weekMenu.filter(d => d.category === 'soup');
