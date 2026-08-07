@@ -189,8 +189,61 @@ function readSpbMenuData() {
     const hadDuplicates = deduped.length !== parsed.periods.length;
     parsed.periods = deduped;
 
-    // Persist the cleaned-up data so duplicate ids don't reappear.
-    if (hadDuplicates) {
+    // Heal gaps: ensure periods are continuous starting from today.
+    // Previously duplicate ids dropped some periods, leaving holes in
+    // the calendar (e.g. a missing block in August). Fill the first gap
+    // we find from today onward by appending the missing 2-day periods.
+    const MONTH_NAMES_RU = ['январь','февраль','март','апрель','мая','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+    const sorted = [...parsed.periods].sort((a, b) =>
+      a.startDate < b.startDate ? -1 : a.startDate > b.startDate ? 1 : 0
+    );
+    const covered = new Set(sorted.map(p => p.startDate));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const lastStart = sorted.length
+      ? new Date(sorted[sorted.length - 1].startDate.split('-').map(Number))
+      : new Date(today);
+    lastStart.setHours(0, 0, 0, 0);
+
+    // Find the first missing 2-day period starting from today and fill
+    // every gap until we catch up to the existing last period.
+    const cursor = new Date(today);
+    let added = 0;
+    const MAX_HEAL = 365; // safety cap (days)
+    while (added < MAX_HEAL) {
+      const sd = formatDateLocal(cursor);
+      if (!covered.has(sd)) {
+        const endDate = new Date(cursor);
+        endDate.setDate(endDate.getDate() + 1);
+        const periodId = `p_${cursor.getFullYear()}${String(cursor.getMonth() + 1).padStart(2, '0')}${String(cursor.getDate()).padStart(2, '0')}`;
+        const monthName = MONTH_NAMES_RU[cursor.getMonth()];
+        sorted.push({
+          id: periodId,
+          name: `(${cursor.getDate()}-${endDate.getDate()} ${monthName} ${cursor.getFullYear()})`,
+          startDate: sd,
+          endDate: formatDateLocal(endDate),
+          items: [],
+          isActive: 1
+        });
+        covered.add(sd);
+        added++;
+      }
+      cursor.setDate(cursor.getDate() + 2); // periods are 2-day long
+      // Stop once we've passed the last existing period and the calendar
+      // is continuous up to that point.
+      if (cursor > lastStart) {
+        const nextSd = formatDateLocal(cursor);
+        if (covered.has(nextSd)) break;
+      }
+    }
+
+    const hadGap = added > 0;
+    if (hadGap) {
+      parsed.periods = sorted;
+    }
+
+    // Persist the cleaned-up / healed data so the holes don't reappear.
+    if (hadDuplicates || hadGap) {
       writeSpbMenuData(parsed);
     }
   }
@@ -2090,15 +2143,40 @@ app.post('/api/spb/periods', express.json(), (req, res) => {
       return res.status(400).json({ error: 'No existing periods to extend from' });
     }
 
-    const last = periods[periods.length - 1];
-    const lastEnd = last.endDate.split('-').map(Number);
-    const currentDate = new Date(lastEnd[0], lastEnd[1] - 1, lastEnd[2] + 1);
-
     const MONTH_NAMES_RU = ['январь','февраль','март','апрель','мая','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
 
+    // Determine where to start generating. Prefer the earliest gap
+    // starting from today so new periods fill holes instead of always
+    // appending after the last existing one. If the calendar is
+    // continuous from today, continue right after the last period.
+    const sorted = [...periods].sort((a, b) =>
+      a.startDate < b.startDate ? -1 : a.startDate > b.startDate ? 1 : 0
+    );
+    const covered = new Set(sorted.map(p => p.startDate));
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let cursor = new Date(today);
+    // Advance to the first uncovered 2-day slot from today onward.
+    while (covered.has(formatDateLocal(cursor))) {
+      cursor.setDate(cursor.getDate() + 2);
+    }
+
+    const last = sorted[sorted.length - 1];
+    const lastEnd = last.endDate.split('-').map(Number);
+    const afterLast = new Date(lastEnd[0], lastEnd[1] - 1, lastEnd[2] + 1);
+    // If the first gap is already past the last period, start there;
+    // otherwise (no gap found before the tail) continue after the tail.
+    if (cursor < afterLast) {
+      // gap is inside the existing range -> use cursor (already set)
+    } else {
+      cursor = afterLast;
+    }
+
+    let added = 0;
     for (let i = 0; i < count; i++) {
-      const startDate = new Date(currentDate);
-      const endDate = new Date(currentDate);
+      const startDate = new Date(cursor);
+      const endDate = new Date(cursor);
       endDate.setDate(endDate.getDate() + 1);
 
       const periodId = `p_${startDate.getFullYear()}${String(startDate.getMonth() + 1).padStart(2, '0')}${String(startDate.getDate()).padStart(2, '0')}`;
@@ -2113,13 +2191,14 @@ app.post('/api/spb/periods', express.json(), (req, res) => {
         isActive: 1
       });
 
-      currentDate.setDate(currentDate.getDate() + 2);
+      added++;
+      cursor.setDate(cursor.getDate() + 2);
     }
 
     menuData.periods = periods;
     writeSpbMenuData(menuData);
 
-    res.json({ success: true, added: count, total: periods.length });
+    res.json({ success: true, added, total: periods.length });
   } catch (error) {
     console.error('Error generating SPB periods:', error);
     res.status(500).json({ error: 'Failed to generate periods', details: String(error) });
