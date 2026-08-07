@@ -162,6 +162,19 @@ function readSpbMenuData() {
       return migrated;
     }
     
+    // Normalize period names: ensure the year is included so periods
+    // from different years are distinguishable in the admin dropdown.
+    if (Array.isArray(parsed.periods)) {
+      parsed.periods.forEach((p) => {
+        if (p && typeof p.name === 'string' && /\d{4}/.test(p.name)) return;
+        if (p && p.startDate) {
+          const year = p.startDate.split('-')[0];
+          const base = (p.name || '').replace(/\)$/, '').trim();
+          p.name = `${base} ${year})`;
+        }
+      });
+    }
+
     return parsed;
   } catch {
     const defaultSpbMenu = generateSpbDefaultMenu();
@@ -214,7 +227,7 @@ function generateSpbDefaultMenu() {
     endDate.setDate(endDate.getDate() + 1);
     
     const periodId = `p${i + 1}`;
-    const periodName = `(${startDate.getDate()}-${endDate.getDate()} ${startDate.toLocaleDateString('ru-RU', { month: 'long' })})`;
+    const periodName = `(${startDate.getDate()}-${endDate.getDate()} ${startDate.toLocaleDateString('ru-RU', { month: 'long' })} ${startDate.getFullYear()})`;
     
     periods.push({
       id: periodId,
@@ -2073,7 +2086,7 @@ app.post('/api/spb/periods', express.json(), (req, res) => {
 
       periods.push({
         id: periodId,
-        name: `(${startDate.getDate()}-${endDate.getDate()} ${monthName})`,
+        name: `(${startDate.getDate()}-${endDate.getDate()} ${monthName} ${startDate.getFullYear()})`,
         startDate: formatDateLocal(startDate),
         endDate: formatDateLocal(endDate),
         items: [],
@@ -2100,7 +2113,10 @@ app.get('/api/spb/periods', (req, res) => {
     const { startDate, endDate } = req.query;
     
     let periods = menuData.periods || [];
-    
+
+    // Sort chronologically so the dropdown is ordered by date
+    periods = [...periods].sort((a, b) => (a.startDate < b.startDate ? -1 : a.startDate > b.startDate ? 1 : 0));
+
     // Filter by date range if provided
     if (startDate && endDate) {
       periods = periods.filter(p => {
