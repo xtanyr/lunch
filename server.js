@@ -173,9 +173,29 @@ function readSpbMenuData() {
           p.name = `${base} ${year})`;
         }
       });
-    }
 
-    return parsed;
+    // Deduplicate periods by id. Duplicate ids in the array make the
+    // native <select> resolve a chosen option to the wrong period
+    // (the first matching value), which appeared as the dropdown
+    // "selecting the wrong date". Keep the first occurrence of each id.
+    const seen = new Set();
+    const deduped = [];
+    for (const p of parsed.periods) {
+      if (!p || p.id == null) continue;
+      if (seen.has(p.id)) continue;
+      seen.add(p.id);
+      deduped.push(p);
+    }
+    const hadDuplicates = deduped.length !== parsed.periods.length;
+    parsed.periods = deduped;
+
+    // Persist the cleaned-up data so duplicate ids don't reappear.
+    if (hadDuplicates) {
+      writeSpbMenuData(parsed);
+    }
+  }
+
+  return parsed;
   } catch {
     const defaultSpbMenu = generateSpbDefaultMenu();
     fs.writeFileSync(file, JSON.stringify(defaultSpbMenu, null, 2));
@@ -226,7 +246,7 @@ function generateSpbDefaultMenu() {
     const endDate = new Date(currentDate);
     endDate.setDate(endDate.getDate() + 1);
     
-    const periodId = `p${i + 1}`;
+    const periodId = `p_${startDate.getFullYear()}${String(startDate.getMonth() + 1).padStart(2, '0')}${String(startDate.getDate()).padStart(2, '0')}`;
     const periodName = `(${startDate.getDate()}-${endDate.getDate()} ${startDate.toLocaleDateString('ru-RU', { month: 'long' })} ${startDate.getFullYear()})`;
     
     periods.push({
@@ -2081,7 +2101,7 @@ app.post('/api/spb/periods', express.json(), (req, res) => {
       const endDate = new Date(currentDate);
       endDate.setDate(endDate.getDate() + 1);
 
-      const periodId = `p${periods.length + i + 1}`;
+      const periodId = `p_${startDate.getFullYear()}${String(startDate.getMonth() + 1).padStart(2, '0')}${String(startDate.getDate()).padStart(2, '0')}`;
       const monthName = MONTH_NAMES_RU[startDate.getMonth()];
 
       periods.push({
