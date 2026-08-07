@@ -189,61 +189,8 @@ function readSpbMenuData() {
     const hadDuplicates = deduped.length !== parsed.periods.length;
     parsed.periods = deduped;
 
-    // Heal gaps: ensure periods are continuous starting from today.
-    // Previously duplicate ids dropped some periods, leaving holes in
-    // the calendar (e.g. a missing block in August). Fill the first gap
-    // we find from today onward by appending the missing 2-day periods.
-    const MONTH_NAMES_RU = ['январь','февраль','март','апрель','мая','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
-    const sorted = [...parsed.periods].sort((a, b) =>
-      a.startDate < b.startDate ? -1 : a.startDate > b.startDate ? 1 : 0
-    );
-    const covered = new Set(sorted.map(p => p.startDate));
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const lastStart = sorted.length
-      ? new Date(sorted[sorted.length - 1].startDate.split('-').map(Number))
-      : new Date(today);
-    lastStart.setHours(0, 0, 0, 0);
-
-    // Find the first missing 2-day period starting from today and fill
-    // every gap until we catch up to the existing last period.
-    const cursor = new Date(today);
-    let added = 0;
-    const MAX_HEAL = 365; // safety cap (days)
-    while (added < MAX_HEAL) {
-      const sd = formatDateLocal(cursor);
-      if (!covered.has(sd)) {
-        const endDate = new Date(cursor);
-        endDate.setDate(endDate.getDate() + 1);
-        const periodId = `p_${cursor.getFullYear()}${String(cursor.getMonth() + 1).padStart(2, '0')}${String(cursor.getDate()).padStart(2, '0')}`;
-        const monthName = MONTH_NAMES_RU[cursor.getMonth()];
-        sorted.push({
-          id: periodId,
-          name: `(${cursor.getDate()}-${endDate.getDate()} ${monthName} ${cursor.getFullYear()})`,
-          startDate: sd,
-          endDate: formatDateLocal(endDate),
-          items: [],
-          isActive: 1
-        });
-        covered.add(sd);
-        added++;
-      }
-      cursor.setDate(cursor.getDate() + 2); // periods are 2-day long
-      // Stop once we've passed the last existing period and the calendar
-      // is continuous up to that point.
-      if (cursor > lastStart) {
-        const nextSd = formatDateLocal(cursor);
-        if (covered.has(nextSd)) break;
-      }
-    }
-
-    const hadGap = added > 0;
-    if (hadGap) {
-      parsed.periods = sorted;
-    }
-
-    // Persist the cleaned-up / healed data so the holes don't reappear.
-    if (hadDuplicates || hadGap) {
+    // Persist the cleaned-up data so duplicate ids don't reappear.
+    if (hadDuplicates) {
       writeSpbMenuData(parsed);
     }
   }
@@ -2145,33 +2092,15 @@ app.post('/api/spb/periods', express.json(), (req, res) => {
 
     const MONTH_NAMES_RU = ['январь','февраль','март','апрель','мая','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
 
-    // Determine where to start generating. Prefer the earliest gap
-    // starting from today so new periods fill holes instead of always
-    // appending after the last existing one. If the calendar is
-    // continuous from today, continue right after the last period.
+    // Always continue strictly after the last existing period, with a
+    // fixed 2-day step. This is predictable and never creates overlapping
+    // or out-of-order periods.
     const sorted = [...periods].sort((a, b) =>
       a.startDate < b.startDate ? -1 : a.startDate > b.startDate ? 1 : 0
     );
-    const covered = new Set(sorted.map(p => p.startDate));
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    let cursor = new Date(today);
-    // Advance to the first uncovered 2-day slot from today onward.
-    while (covered.has(formatDateLocal(cursor))) {
-      cursor.setDate(cursor.getDate() + 2);
-    }
-
     const last = sorted[sorted.length - 1];
     const lastEnd = last.endDate.split('-').map(Number);
-    const afterLast = new Date(lastEnd[0], lastEnd[1] - 1, lastEnd[2] + 1);
-    // If the first gap is already past the last period, start there;
-    // otherwise (no gap found before the tail) continue after the tail.
-    if (cursor < afterLast) {
-      // gap is inside the existing range -> use cursor (already set)
-    } else {
-      cursor = afterLast;
-    }
+    const cursor = new Date(lastEnd[0], lastEnd[1] - 1, lastEnd[2] + 1);
 
     let added = 0;
     for (let i = 0; i < count; i++) {
@@ -2202,6 +2131,62 @@ app.post('/api/spb/periods', express.json(), (req, res) => {
   } catch (error) {
     console.error('Error generating SPB periods:', error);
     res.status(500).json({ error: 'Failed to generate periods', details: String(error) });
+  }
+});
+
+// Rebuild SPB periods as a clean, continuous 2-day sequence starting
+// from today, covering `months` months ahead. Replaces the whole list
+// (preserving menu items where the date still exists) to recover from a
+// corrupted/duplicate/over-extended periods array.
+app.post('/api/spb/periods/rebuild', express.json(), (req, res) => {
+  try {
+    const { months = 4 } = req.body;
+    const menuData = readSpbMenuData();
+    const oldPeriods = menuData.periods || [];
+
+    const MONTH_NAMES_RU = ['январь','февраль','март','апрель','мая','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+
+    // Preserve existing menu items keyed by start date.
+    const itemsByStart = new Map();
+    for (const p of oldPeriods) {
+      if (p && p.startDate && Array.isArray(p.items) && p.items.length) {
+        itemsByStart.set(p.startDate, p.items);
+      }
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    // Rebuild starts from the original ordering anchor: August 6 of the
+    // current year (periods are 6-7, 8-9, ...), not from today.
+    const start = new Date(today.getFullYear(), 7, 6); // August 6
+    const periods = [];
+    const end = new Date(start.getFullYear(), start.getMonth() + months, start.getDate());
+    const cursor = new Date(start);
+
+    while (cursor < end) {
+      const startDate = new Date(cursor);
+      const endDate = new Date(cursor);
+      endDate.setDate(endDate.getDate() + 1);
+      const periodId = `p_${startDate.getFullYear()}${String(startDate.getMonth() + 1).padStart(2, '0')}${String(startDate.getDate()).padStart(2, '0')}`;
+      const monthName = MONTH_NAMES_RU[startDate.getMonth()];
+      periods.push({
+        id: periodId,
+        name: `(${startDate.getDate()}-${endDate.getDate()} ${monthName} ${startDate.getFullYear()})`,
+        startDate: formatDateLocal(startDate),
+        endDate: formatDateLocal(endDate),
+        items: itemsByStart.get(formatDateLocal(startDate)) || [],
+        isActive: 1
+      });
+      cursor.setDate(cursor.getDate() + 2);
+    }
+
+    menuData.periods = periods;
+    writeSpbMenuData(menuData);
+
+    res.json({ success: true, total: periods.length, from: formatDateLocal(start), to: periods[periods.length - 1].endDate });
+  } catch (error) {
+    console.error('Error rebuilding SPB periods:', error);
+    res.status(500).json({ error: 'Failed to rebuild periods', details: String(error) });
   }
 });
 

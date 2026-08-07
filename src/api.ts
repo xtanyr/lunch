@@ -257,3 +257,21 @@ export const addSpbPeriods = async (count = 20): Promise<{ success: boolean; add
     throw new Error('Не удалось добавить периоды.');
   }
 };
+
+export const rebuildSpbPeriods = async (months = 4): Promise<{ success: boolean; total: number; from: string; to: string }> => {
+  try {
+    const res = await fetch(`${API_BASE}/api/spb/periods/rebuild?city=spb`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ months }),
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to rebuild periods');
+    }
+    return await res.json();
+  } catch (error) {
+    console.error('API Error (rebuildSpbPeriods):', error);
+    throw new Error('Не удалось пересобрать периоды.');
+  }
+};

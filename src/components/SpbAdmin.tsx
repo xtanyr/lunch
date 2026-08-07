@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Dish, DishCategory } from '../types';
-import { fetchSpbPeriods, updateSpbPeriodMenu, addSpbPeriods } from '../api';
+import { fetchSpbPeriods, updateSpbPeriodMenu, addSpbPeriods, rebuildSpbPeriods } from '../api';
 import { CITY_ADDRESSES } from '../constants';
 import AdminMenuManager from './AdminMenuManager';
 import Select from './ui/Select';
@@ -198,6 +198,26 @@ const SpbAdmin: React.FC = () => {
     }
   };
 
+  const [isRebuilding, setIsRebuilding] = useState(false);
+
+  const handleRebuild = async () => {
+    if (!window.confirm('Пересобрать периоды заново с сегодняшнего дня? Все периоды будут заменены непрерывным списком (меню сохранится по датам).')) {
+      return;
+    }
+    setIsRebuilding(true);
+    try {
+      const result = await rebuildSpbPeriods(4);
+      setMessage(`Периоды пересобраны: ${result.total} шт. (${result.from} — ${result.to})`);
+      await loadPeriods();
+      setTimeout(() => setMessage(null), 4000);
+    } catch (err) {
+      console.error('Failed to rebuild periods:', err);
+      setError('Не удалось пересобрать периоды');
+    } finally {
+      setIsRebuilding(false);
+    }
+  };
+
   const selectedPeriod = periods.find(p => p.id === selectedPeriodId);
 
   if (loading) {
@@ -247,6 +267,13 @@ const SpbAdmin: React.FC = () => {
               className="text-sm bg-blue-600 hover:bg-blue-700 text-white"
             >
               {isAddingPeriods ? 'Добавление...' : 'Добавить 20 периодов'}
+            </Button>
+            <Button
+              onClick={handleRebuild}
+              disabled={isRebuilding}
+              className="text-sm bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isRebuilding ? 'Пересборка...' : 'Пересобрать периоды'}
             </Button>
           </div>
           {periods.length === 0 ? (
