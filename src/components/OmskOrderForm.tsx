@@ -138,14 +138,14 @@ function buildRandomOrderItems(menuData: {
 
   if (available.soup && available.salad) allCombos.push({ items: ['soup', 'salad'], price: 450 });
   if (available.hot && available.salad) allCombos.push({ items: ['hot', 'salad'], price: 450 });
-  if (available.broth && available.hot) allCombos.push({ items: ['broth', 'hot'], price: 400 });
+  if (available.broth && available.hot) allCombos.push({ items: ['broth', 'hot'], price: 450 });
   if (available.hot && available.vegan) allCombos.push({ items: ['hot', 'vegan'], price: 400 });
   if (available.hot && available.other) allCombos.push({ items: ['hot', 'other'], price: 450 });
-  if (available.broth && available.salad) allCombos.push({ items: ['broth', 'salad'], price: 350 });
+  if (available.broth && available.salad) allCombos.push({ items: ['broth', 'salad'], price: 400 });
   if (available.soup) allCombos.push({ items: ['soup'], price: 250 });
   if (available.hot) allCombos.push({ items: ['hot'], price: 250 });
   if (available.salad) allCombos.push({ items: ['salad'], price: 200 });
-  if (available.broth) allCombos.push({ items: ['broth'], price: 150 });
+  if (available.broth) allCombos.push({ items: ['broth'], price: 200 });
 
   if (allCombos.length === 0) return null;
 
@@ -179,7 +179,7 @@ function buildRandomOrderItems(menuData: {
           dishId: dish.id,
           dishName: dish.name,
           category: dish.category,
-          price: 150,
+          price: 200,
           protein: dish.protein,
           carbs: dish.carbs,
           fats: dish.fats,
@@ -294,7 +294,7 @@ function buildRandomOrderItems(menuData: {
 // Price by category (rubles)
 const CATEGORY_PRICES: Record<string, number> = {
   soup: 250,
-  broth: 150,
+  broth: 200,
   hot: 250,
   salad: 200,
   vegan: 150,
