@@ -251,7 +251,7 @@ function buildRandomOrderItems(menuData: {
           dishId: dish.id,
           dishName: dish.name,
           category: 'vegan',
-          price: dish.price || 150,
+          price: dish.price || 200,
           protein: dish.protein,
           carbs: dish.carbs,
           fats: dish.fats,
@@ -297,7 +297,7 @@ const CATEGORY_PRICES: Record<string, number> = {
   broth: 200,
   hot: 250,
   salad: 200,
-  vegan: 150,
+  vegan: 200,
   other: 200,
   pastry: 0, // Free with soup/broth
   garnish: 0, // Free with hot
