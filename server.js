@@ -590,6 +590,48 @@ function addItemToExportSummaries(item, garnishes, sauces, dishSummary, garnishS
   }
 }
 
+// Base prices by category (mirror OmskOrderForm CATEGORY_PRICES on the client)
+const OMSK_CATEGORY_PRICES = {
+  soup: 250,
+  broth: 200,
+  hot: 250,
+  salad: 200,
+  vegan: 200,
+  other: 200,
+  pastry: 0,
+  garnish: 0,
+  sauce: 0,
+};
+
+/**
+ * Recompute a dish's price at export time from the CURRENT menu, so that
+ * admin price changes in the menu ("docs") apply to old orders as well,
+ * instead of relying on the price snapshot stored when the order was placed.
+ */
+function computeCurrentItemPrice(item, priceMaps) {
+  const category = item.category;
+  if (category === 'garnish' || category === 'sauce' || category === 'pastry') return 0;
+  if (category === 'vegan') {
+    const p = priceMaps.vegan[item.dishId];
+    if (typeof p === 'number' && p > 0) return p;
+    return typeof item.price === 'number' && item.price > 0 ? item.price : OMSK_CATEGORY_PRICES.vegan;
+  }
+  if (category === 'other') {
+    const p = priceMaps.other[item.dishId];
+    if (typeof p === 'number' && p > 0) return p;
+    return typeof item.price === 'number' && item.price > 0 ? item.price : OMSK_CATEGORY_PRICES.other;
+  }
+  // soup / broth / hot / salad — use current week-menu price if set, else category base price
+  const p = priceMaps.week[item.dishId];
+  if (typeof p === 'number' && p > 0) return p;
+  return OMSK_CATEGORY_PRICES[category] || 0;
+}
+
+function computeCurrentOrderTotal(order, priceMaps) {
+  if (!order.items || !Array.isArray(order.items)) return order.totalPrice || 0;
+  return order.items.reduce((sum, item) => sum + computeCurrentItemPrice(item, priceMaps), 0);
+}
+
 app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
@@ -605,7 +647,22 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
     // Get garnishes and sauces for name lookup
     const garnishes = getGarnishes();
     const sauces = getSauces();
-    
+
+    // Build CURRENT price maps from the live menu so that price changes in the
+    // menu apply to old orders at export time (instead of stored snapshots).
+    const activeWeek = getActiveWeek();
+    const weekMenuItems = activeWeek ? getWeekMenuItems(activeWeek.weekNumber) : [];
+    const veganItemsAll = getVeganItems();
+    const otherItemsAll = getOtherItems();
+    const priceMaps = {
+      week: {},
+      vegan: {},
+      other: {},
+    };
+    weekMenuItems.forEach(d => { priceMaps.week[d.id] = d.price; });
+    veganItemsAll.forEach(d => { priceMaps.vegan[d.id] = d.price; });
+    otherItemsAll.forEach(d => { priceMaps.other[d.id] = d.price; });
+
     // Create lookup maps
     const garnishMap = {};
     garnishes.forEach(g => garnishMap[g.id] = g.name);
@@ -696,7 +753,7 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
             let deptTotal = 0;
             
             deptOrders.forEach(order => {
-              deptTotal += order.totalPrice || 0;
+              deptTotal += computeCurrentOrderTotal(order, priceMaps);
               
               if (!order.items || !Array.isArray(order.items)) return;
               
@@ -738,7 +795,7 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
           
           // Process all orders to collect summaries
           addressOrders.forEach(order => {
-            addressTotal += order.totalPrice || 0;
+            addressTotal += computeCurrentOrderTotal(order, priceMaps);
             
             if (!order.items || !Array.isArray(order.items)) return;
             
@@ -827,7 +884,7 @@ app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
     orders.forEach(order => {
       const addr = order.address || 'unknown';
       const orderDate = order.orderDate;
-      const totalPrice = order.totalPrice || 0;
+      const totalPrice = computeCurrentOrderTotal(order, priceMaps);
 
       if (!addressDailyTotals[addr]) {
         addressDailyTotals[addr] = {};
