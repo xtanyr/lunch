@@ -106,6 +106,14 @@ function getOrderDateBlockInfo(
   return { blocked: false };
 }
 
+/** Pick a random dish from the list, preferring dishes not in avoidIds (for day-to-day variety). */
+function pickRandomDish(dishes: any[], avoidIds: string[] = []): any | null {
+  if (!dishes || dishes.length === 0) return null;
+  const filtered = avoidIds.length > 0 ? dishes.filter((d) => !avoidIds.includes(d.id)) : [];
+  const pool = filtered.length > 0 ? filtered : dishes;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 function buildRandomOrderItems(menuData: {
   weekMenu: any[];
   veganItems: any[];
@@ -113,7 +121,7 @@ function buildRandomOrderItems(menuData: {
   garnishes: any[];
   sauces: any[];
   pastries: any[];
-}): any[] | null {
+}, avoidDishIds: string[] = []): any[] | null {
   const { weekMenu, veganItems, otherItems, garnishes, sauces, pastries } = menuData;
 
   const soups = weekMenu.filter((d) => d.category === 'soup');
@@ -157,7 +165,7 @@ function buildRandomOrderItems(menuData: {
   for (const itemType of selectedCombo.items) {
     switch (itemType) {
       case 'soup': {
-        const dish = soups[Math.floor(Math.random() * soups.length)];
+        const dish = pickRandomDish(soups, avoidDishIds);
         items.push({
           dishId: dish.id,
           dishName: dish.name,
@@ -174,7 +182,7 @@ function buildRandomOrderItems(menuData: {
         break;
       }
       case 'broth': {
-        const dish = broths[Math.floor(Math.random() * broths.length)];
+        const dish = pickRandomDish(broths, avoidDishIds);
         items.push({
           dishId: dish.id,
           dishName: dish.name,
@@ -191,7 +199,7 @@ function buildRandomOrderItems(menuData: {
         break;
       }
       case 'hot': {
-        const dish = hotDishes[Math.floor(Math.random() * hotDishes.length)];
+        const dish = pickRandomDish(hotDishes, avoidDishIds);
         const hasGarnishOption = !dish.noGarnish && garnishes.length > 0;
         const selectedGarnish = hasGarnishOption ? garnishes[Math.floor(Math.random() * garnishes.length)] : null;
         const selectedSauce = sauces.length > 0 ? sauces[Math.floor(Math.random() * sauces.length)] : null;
@@ -229,7 +237,7 @@ function buildRandomOrderItems(menuData: {
         break;
       }
       case 'salad': {
-        const dish = saladDishes[Math.floor(Math.random() * saladDishes.length)];
+        const dish = pickRandomDish(saladDishes, avoidDishIds);
         items.push({
           dishId: dish.id,
           dishName: dish.name,
@@ -246,7 +254,7 @@ function buildRandomOrderItems(menuData: {
         break;
       }
       case 'vegan': {
-        const dish = veganItems[Math.floor(Math.random() * veganItems.length)];
+        const dish = pickRandomDish(veganItems, avoidDishIds);
         items.push({
           dishId: dish.id,
           dishName: dish.name,
@@ -263,7 +271,7 @@ function buildRandomOrderItems(menuData: {
         break;
       }
       case 'other': {
-        const dish = otherItems[Math.floor(Math.random() * otherItems.length)];
+        const dish = pickRandomDish(otherItems, avoidDishIds);
         items.push({
           dishId: dish.id,
           dishName: dish.name,
@@ -800,6 +808,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
       let successCount = 0;
       let skipCount = 0;
       let lastOrderedDate = dates[0];
+      let previousDayDishIds: string[] = [];
 
       for (const date of dates) {
         const disabledRanges = getDisabledRanges(menuData.disabledDates);
@@ -823,11 +832,14 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
           continue;
         }
 
-        const items = buildRandomOrderItems(menuData);
+        const items = buildRandomOrderItems(menuData, previousDayDishIds);
         if (!items || items.length === 0) {
           skipCount++;
           continue;
         }
+
+        // Remember chosen dishes so the next day avoids repeating them
+        previousDayDishIds = items.map((i: any) => i.dishId).filter(Boolean);
 
         try {
           const order = {
@@ -1008,6 +1020,12 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
       });
       resetSelections();
       onSubmit();
+      // Pre-fill the date field with the next day for quick re-ordering
+      const baseDate = new Date(`${date}T00:00:00`);
+      baseDate.setDate(baseDate.getDate() + 1);
+      const nextDay = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(baseDate.getDate()).padStart(2, '0')}`;
+      setSelectedDates([]);
+      setDateInput(nextDay);
       return;
     }
 
