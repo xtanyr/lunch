@@ -1020,12 +1020,12 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
       });
       resetSelections();
       onSubmit();
-      // Pre-fill the date field with the next day for quick re-ordering
+      // Auto-select the next day so the user can re-order without clicking "Добавить"
       const baseDate = new Date(`${date}T00:00:00`);
       baseDate.setDate(baseDate.getDate() + 1);
       const nextDay = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(baseDate.getDate()).padStart(2, '0')}`;
-      setSelectedDates([]);
-      setDateInput(nextDay);
+      setDateInput('');
+      setSelectedDates([nextDay]);
       return;
     }
 
