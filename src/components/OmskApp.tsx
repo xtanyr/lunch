@@ -135,19 +135,11 @@ const OmskApp: React.FC = () => {
     setFetchError(null);
     try {
       const orders = await fetchOmskOrdersFromAPI(date, address);
-      
-      // Validate and sanitize incoming orders from external sources
-      const validatedOrders = Array.isArray(orders) 
-        ? orders.filter((order: any) => {
-            const validation = validateIncomingOrderData(order);
-            if (!validation.valid) {
-              console.warn(`Filtered out invalid order:`, validation.errors, order);
-              return false;
-            }
-            return true;
-          })
-        : [];
-      
+
+      // Show every order (do not hide any based on validation), so the site
+      // matches the Excel export which includes all stored orders.
+      const validatedOrders = Array.isArray(orders) ? orders : [];
+
       setAllOrders(validatedOrders);
     } catch (error) {
       console.error("Failed to fetch orders:", error);
