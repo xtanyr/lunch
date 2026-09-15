@@ -121,7 +121,7 @@ function buildRandomOrderItems(menuData: {
   garnishes: any[];
   sauces: any[];
   pastries: any[];
-}, avoidDishIds: string[] = []): any[] | null {
+}, avoidDishIds: string[] = [], avoidCategories: string[] = []): any[] | null {
   const { weekMenu, veganItems, otherItems, garnishes, sauces, pastries } = menuData;
 
   const soups = weekMenu.filter((d) => d.category === 'soup');
@@ -142,7 +142,7 @@ function buildRandomOrderItems(menuData: {
   };
 
   type Combo = { items: string[]; price: number };
-  const allCombos: Combo[] = [];
+  let allCombos: Combo[] = [];
 
   if (available.soup && available.salad) allCombos.push({ items: ['soup', 'salad'], price: 450 });
   if (available.hot && available.salad) allCombos.push({ items: ['hot', 'salad'], price: 450 });
@@ -154,6 +154,11 @@ function buildRandomOrderItems(menuData: {
   if (available.hot) allCombos.push({ items: ['hot'], price: 250 });
   if (available.salad) allCombos.push({ items: ['salad'], price: 200 });
   if (available.broth) allCombos.push({ items: ['broth'], price: 200 });
+
+  if (avoidCategories.length > 0) {
+    const filteredCombos = allCombos.filter((combo) => !combo.items.some((i) => avoidCategories.includes(i)));
+    if (filteredCombos.length > 0) allCombos = filteredCombos;
+  }
 
   if (allCombos.length === 0) return null;
 
@@ -809,6 +814,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
       let skipCount = 0;
       let lastOrderedDate = dates[0];
       let previousDayDishIds: string[] = [];
+      let previousDayCategories: string[] = [];
 
       for (const date of dates) {
         const disabledRanges = getDisabledRanges(menuData.disabledDates);
@@ -832,14 +838,17 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
           continue;
         }
 
-        const items = buildRandomOrderItems(menuData, previousDayDishIds);
+        const items = buildRandomOrderItems(menuData, previousDayDishIds, previousDayCategories);
         if (!items || items.length === 0) {
           skipCount++;
           continue;
         }
 
-        // Remember chosen dishes so the next day avoids repeating them
+        // Remember chosen dishes/categories so the next day avoids repeating them
         previousDayDishIds = items.map((i: any) => i.dishId).filter(Boolean);
+        previousDayCategories = items
+          .map((i: any) => i.category)
+          .filter((c: string) => c && !['garnish', 'sauce', 'pastry'].includes(c));
 
         try {
           const order = {
