@@ -18,6 +18,9 @@ export default defineConfig({
     },
     sourcemap: true,
   },
+  preview: {
+    allowedHosts: ['lunch.scr-tech.ru'],
+  },
   test: {
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
   },
