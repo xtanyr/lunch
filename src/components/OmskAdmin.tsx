@@ -65,6 +65,10 @@ const OmskAdmin: React.FC = () => {
     isVegetarian: false,
     noGarnish: false
   });
+
+  // Form state for editing dishes
+  const [editingDishId, setEditingDishId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<any>(null);
   
   // Form state for adding garnishes
   const [newGarnish, setNewGarnish] = useState({
@@ -267,6 +271,41 @@ const OmskAdmin: React.FC = () => {
       setDishes(dishes.filter(d => d.id !== dishId));
     } catch (error) {
       console.error('Failed to delete dish:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleStartEdit = (dish: any) => {
+    setEditingDishId(dish.id);
+    setEditForm({ ...dish });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingDishId(null);
+    setEditForm(null);
+  };
+
+  const handleUpdateDish = async () => {
+    if (!editingDishId || !editForm?.name) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/omsk/dishes/${editingDishId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-code': getAdminCode()
+        },
+        body: JSON.stringify(editForm)
+      });
+      if (response.ok) {
+        const updated = await response.json();
+        setDishes(dishes.map(d => d.id === editingDishId ? updated : d));
+        setEditingDishId(null);
+        setEditForm(null);
+      }
+    } catch (error) {
+      console.error('Failed to update dish:', error);
     } finally {
       setSaving(false);
     }
@@ -1011,6 +1050,76 @@ const OmskAdmin: React.FC = () => {
                   </button>
                 </div>
 
+                {editingDishId && editForm && (
+                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="p-6 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" style={{ backgroundColor: palette.colors.cardBg, borderColor: palette.colors.border, borderWidth: 1 }}>
+                      <h3 className="font-bold mb-4">Редактировать блюдо</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <input
+                          type="text"
+                          placeholder="Название блюда"
+                          value={editForm.name || ''}
+                          onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                          className="px-3 py-2 rounded border"
+                          style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                        />
+                        <select
+                          value={editForm.category || 'hot'}
+                          onChange={e => setEditForm({ ...editForm, category: e.target.value })}
+                          className="px-3 py-2 rounded border"
+                          style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                        >
+                          {categories.map(cat => (
+                            <option key={cat} value={cat}>{categoryLabels[cat]}</option>
+                          ))}
+                        </select>
+                        <select
+                          value={editForm.weekNumber || 1}
+                          onChange={e => setEditForm({ ...editForm, weekNumber: parseInt(e.target.value) })}
+                          className="px-3 py-2 rounded border"
+                          style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                        >
+                          {[1,2,3,4,5].map(w => (
+                            <option key={w} value={w}>Неделя {w}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                        <textarea
+                          placeholder="Состав"
+                          value={editForm.composition || ''}
+                          onChange={e => setEditForm({ ...editForm, composition: e.target.value })}
+                          className="px-3 py-2 rounded border"
+                          style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }}
+                        />
+                        <input type="number" placeholder="Белки (г)" value={editForm.protein ?? ''} onChange={e => setEditForm({ ...editForm, protein: e.target.value })} className="px-3 py-2 rounded border" style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }} />
+                        <input type="number" placeholder="Углеводы (г)" value={editForm.carbs ?? ''} onChange={e => setEditForm({ ...editForm, carbs: e.target.value })} className="px-3 py-2 rounded border" style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }} />
+                        <input type="number" placeholder="Жиры (г)" value={editForm.fats ?? ''} onChange={e => setEditForm({ ...editForm, fats: e.target.value })} className="px-3 py-2 rounded border" style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }} />
+                        <input type="number" placeholder="Вес (г)" value={editForm.grams ?? ''} onChange={e => setEditForm({ ...editForm, grams: e.target.value })} className="px-3 py-2 rounded border" style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }} />
+                        <input type="number" placeholder="Калории (ккал)" value={editForm.calories ?? ''} onChange={e => setEditForm({ ...editForm, calories: e.target.value })} className="px-3 py-2 rounded border" style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.background, color: palette.colors.text }} />
+                      </div>
+                      <div className="flex gap-4 mb-4 items-center">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" checked={!!editForm.isVegan} onChange={e => setEditForm({ ...editForm, isVegan: e.target.checked })} className="w-4 h-4" />
+                          <span>Веган</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" checked={!!editForm.isVegetarian} onChange={e => setEditForm({ ...editForm, isVegetarian: e.target.checked })} className="w-4 h-4" />
+                          <span>Вегетарианское</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" checked={!!editForm.noGarnish} onChange={e => setEditForm({ ...editForm, noGarnish: e.target.checked })} className="w-4 h-4" />
+                          <span>Без гарнира</span>
+                        </label>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={handleUpdateDish} disabled={saving} className="px-4 py-2 rounded text-white font-medium" style={{ backgroundColor: palette.colors.primary }}>{saving ? 'Сохранение...' : 'Сохранить'}</button>
+                        <button onClick={handleCancelEdit} className="px-4 py-2 rounded" style={{ backgroundColor: palette.colors.border, color: palette.colors.text }}>Отмена</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Dishes by category */}
                 {categories.map(category => {
                   const categoryDishes = dishes.filter(d => d.category === category);
@@ -1079,6 +1188,13 @@ const OmskAdmin: React.FC = () => {
                                 }}
                               >
                                 {dish.noGarnish ? 'Без гарнира' : 'Гарнир'}
+                              </button>
+                              <button
+                                onClick={() => handleStartEdit(dish)}
+                                className="text-xs px-2 py-1 rounded"
+                                style={{ backgroundColor: palette.colors.primary + '20', color: palette.colors.text }}
+                              >
+                                Редактировать
                               </button>
                               <button
                                 onClick={() => handleDeleteDish(dish.id)}

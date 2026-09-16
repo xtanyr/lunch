@@ -14,7 +14,9 @@
     "prod:start": "node --input-type=module -e \"import { mkdirSync } from 'node:fs'; mkdirSync('logs', { recursive: true });\" && pm2 start ecosystem.config.cjs",
     "prod:restart": "pm2 restart all",
     "prod:stop": "pm2 stop all",
-    "prod:logs": "pm2 logs"
+    "prod:logs": "pm2 logs",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
@@ -36,9 +38,11 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.3.4",
+    "@vitest/coverage-v8": "^5.0.1",
     "concurrently": "^9.2.1",
     "tsx": "^4.21.0",
     "typescript": "~5.7.2",
-    "vite": "^6.2.0"
+    "vite": "^6.2.0",
+    "vitest": "^5.0.1"
   }
 }

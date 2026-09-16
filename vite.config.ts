@@ -18,4 +18,7 @@ export default defineConfig({
     },
     sourcemap: true,
   },
+  test: {
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+  },
 })
