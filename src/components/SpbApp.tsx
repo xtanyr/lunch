@@ -97,6 +97,8 @@ const SpbApp: React.FC = () => {
   const [currentPeriod, setCurrentPeriod] = useState<{ id: string; name: string } | null>(null);
   const [isLoadingMenu, setIsLoadingMenu] = useState<boolean>(true);
   const [sides, setSides] = useState<any[]>([]);
+  const [orderMenuItems, setOrderMenuItems] = useState<MenuItemWithPeriod[]>([]);
+  const [isLoadingOrderMenu, setIsLoadingOrderMenu] = useState<boolean>(true);
   
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
   
@@ -147,6 +149,29 @@ const SpbApp: React.FC = () => {
   useEffect(() => {
     loadMenuForDate(selectedOrderDate);
   }, [selectedOrderDate, loadMenuForDate]);
+
+  // The orders list has its own date, independent of the new order form.
+  useEffect(() => {
+    let active = true;
+    setOrderMenuItems([]);
+    setIsLoadingOrderMenu(true);
+
+    const loadOrderMenu = async () => {
+      try {
+        const response = await fetch(`/api/spb/menu?date=${encodeURIComponent(selectedAggregateDate)}&city=spb`);
+        if (!response.ok) throw new Error('Failed to fetch orders menu');
+        const data = await response.json();
+        if (active) setOrderMenuItems(data.items || []);
+      } catch (error) {
+        if (active) console.error('Failed to load SPB orders menu:', error);
+      } finally {
+        if (active) setIsLoadingOrderMenu(false);
+      }
+    };
+
+    loadOrderMenu();
+    return () => { active = false; };
+  }, [selectedAggregateDate]);
 
   const loadOrders = useCallback(async (date: string, address: string) => {
     setIsLoadingOrders(true);
@@ -414,7 +439,7 @@ const SpbApp: React.FC = () => {
             />
           </div>
           
-          {isLoadingOrders ? (
+          {isLoadingOrders || isLoadingOrderMenu ? (
             <div className="space-y-2">
               {[1,2,3].map(i => (
                 <div key={i} className="p-4 rounded-lg border" style={{ backgroundColor: palette.colors.cardBg, borderColor: palette.colors.border }}>
@@ -444,7 +469,7 @@ const SpbApp: React.FC = () => {
                     <div className="text-sm" style={{ color: palette.colors.textSecondary }}>{order.department}</div>
                     <div className="text-xs mt-1" style={{ color: palette.colors.textSecondary }}>
                       {order.items.map((item, idx) => {
-                        const dish = menuItems.find(d => d.id === item.dishId);
+                        const dish = orderMenuItems.find(d => d.id === item.dishId);
                         return (
                           <div key={idx}>
                             • {dish?.name || 'Блюдо'}

@@ -59,7 +59,6 @@ async function startServer() {
     }
     await new Promise(resolve => setTimeout(resolve, 100));
   }
-  child.kill();
   throw new Error(`Server did not become ready: ${output}`);
 }
 
@@ -70,7 +69,8 @@ function processPath(): string {
 async function stopProcesses() {
   await Promise.all(activeProcesses.splice(0).map(child => new Promise<void>(resolve => {
     if (child.exitCode !== null || child.signalCode !== null) return resolve();
-    child.once('exit', () => resolve());
+    // tsx's inherited streams can outlive its exit while Windows releases SQLite handles.
+    child.once('close', () => resolve());
     child.kill();
   })));
   for (const directory of temporaryDirectories.splice(0)) {
@@ -177,7 +177,7 @@ describe('admin route protection', () => {
     const deniedDelete = await fetch(`${baseUrl}/api/orders/${created.id}?city=other&address=office_10`, { method: 'DELETE' });
     expect(deniedDelete.status).toBe(401);
     const wrongTokenDelete = await fetch(`${baseUrl}/api/orders/${created.id}?city=other&address=office_10`, {
-      method: 'DELETE', headers: { 'x-order-cancellation-token': `${created.cancellationToken.slice(0, -1)}0` },
+      method: 'DELETE', headers: { 'x-order-cancellation-token': `${created.cancellationToken.slice(0, -1)}${created.cancellationToken.endsWith('0') ? '1' : '0'}` },
     });
     expect(wrongTokenDelete.status).toBe(401);
     const validDelete = await fetch(`${baseUrl}/api/orders/${created.id}?city=other&address=office_10`, {
