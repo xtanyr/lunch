@@ -8,6 +8,7 @@ import Footer from './Footer';
 import ThemeSelector from '../components/ThemeSelector';
 import { useTheme } from '../theme/ThemeContext';
 import { safeGetItem, safeSetItem } from '../utils/localStorage';
+import { clearOrderCancellationToken, getOrderCancellationToken, hasOrderCancellationToken, storeOrderCancellationToken } from '../utils/orderCancellation';
 
 const fetchSpbOrdersFromAPI = async (date: string, address: string) => {
   const response = await fetch(`/api/spb/orders/${date}?address=${encodeURIComponent(address)}&city=spb`);
@@ -25,14 +26,21 @@ const submitSpbOrderToAPI = async (orderData: any) => {
     }),
   });
   if (!response.ok) throw new Error('Failed to submit order');
-  return response.json();
+  const order = await response.json() as EmployeeOrder & { cancellationToken?: unknown };
+  storeOrderCancellationToken(order.id, order.cancellationToken);
+  delete order.cancellationToken;
+  return order;
 };
 
 const deleteSpbOrderFromAPI = async (id: string, address: string) => {
+  const token = getOrderCancellationToken(id);
   const response = await fetch(`/api/spb/orders/${id}?address=${encodeURIComponent(address)}&city=spb`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    credentials: 'same-origin',
+    headers: token ? { 'x-order-cancellation-token': token } : {},
   });
   if (!response.ok) throw new Error('Failed to delete order');
+  clearOrderCancellationToken(id);
 };
 
 const getTodayDateString = (): string => {
@@ -79,6 +87,7 @@ const SpbApp: React.FC = () => {
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'delete-success'; message: string } | null>(null);
   
   const [selectedAggregateDate, setSelectedAggregateDate] = useState<string>(getTodayDateString());
+  const [selectedOrderDate, setSelectedOrderDate] = useState<string>(getTodayDateString());
   const [isLoadingOrders, setIsLoadingOrders] = useState<boolean>(true);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState<boolean>(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -136,8 +145,8 @@ const SpbApp: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    loadMenuForDate(selectedAggregateDate);
-  }, [selectedAggregateDate, loadMenuForDate]);
+    loadMenuForDate(selectedOrderDate);
+  }, [selectedOrderDate, loadMenuForDate]);
 
   const loadOrders = useCallback(async (date: string, address: string) => {
     setIsLoadingOrders(true);
@@ -221,6 +230,7 @@ const SpbApp: React.FC = () => {
       currentDate.setDate(currentDate.getDate() + 1);
       const nextDate = currentDate.toISOString().split('T')[0];
       setSelectedAggregateDate(nextDate);
+      setSelectedOrderDate(nextDate);
       
       safeSetItem('spb_employeeName', currentEmployeeOrder.employeeName);
       safeSetItem('spb_department', currentEmployeeOrder.department);
@@ -363,8 +373,8 @@ const SpbApp: React.FC = () => {
             menuItems={menuItems}
             sideDishes={sides}
             isLoadingMenu={isLoadingMenu}
-            selectedDate={selectedAggregateDate}
-            onDateChange={setSelectedAggregateDate}
+            selectedDate={selectedOrderDate}
+            onDateChange={setSelectedOrderDate}
             minDate={getTodayDateString()}
             maxDate={maxDate}
             currentPeriodName={currentPeriod?.name}
@@ -398,7 +408,6 @@ const SpbApp: React.FC = () => {
               type="date"
               value={selectedAggregateDate}
               onChange={(e) => setSelectedAggregateDate(e.target.value)}
-              min={getTodayDateString()}
               max={maxDate}
               className="px-4 py-2 rounded-lg border w-full sm:w-auto min-h-[44px]"
               style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.cardBg, color: palette.colors.text }}
@@ -449,16 +458,16 @@ const SpbApp: React.FC = () => {
                         hour: '2-digit', 
                         minute: '2-digit' 
                       }) : ''}</div>
-                      <div>Адрес доставки: {selectedAddress === 'coffee-shop' ? 'Кофейня' : selectedAddress === 'canteen' ? 'Столовая' : 'Офис'}</div>
+                      <div>Адрес доставки: {(CITY_ADDRESSES.spb || []).find(address => address.id === order.address)?.label || order.address || 'Адрес не указан'}</div>
                     </div>
                   </div>
-                  <button
+                  {hasOrderCancellationToken(order.id) && <button
                     onClick={() => handleDeleteOrder(order.id)}
                     className="text-red-500 hover:text-red-700"
                     disabled={deletingOrderId === order.id}
                   >
                     ✕
-                  </button>
+                  </button>}
                 </div>
               ))}
             </div>

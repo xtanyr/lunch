@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../theme/ThemeContext';
+import { logoutAdmin } from '../utils/adminSession';
 
 interface Dish {
   id: string;
@@ -23,15 +24,11 @@ interface WeekMenu {
 const OmskAdmin: React.FC = () => {
   const navigate = useNavigate();
   const { palette } = useTheme();
-  
-  // Get admin code from localStorage for API authentication
-  const getAdminCode = () => localStorage.getItem('omskAdminCodeEntered') || '';
-  
+
   const handleLogout = () => {
-    localStorage.removeItem('omskAdminCodeEntered');
-    navigate('/omsk');
+    void logoutAdmin('omsk').catch(() => undefined).finally(() => navigate('/omsk'));
   };
-  
+
   const [activeTab, setActiveTab] = useState<'weeks' | 'menu' | 'garnishes' | 'sauces' | 'pastries' | 'vegan' | 'disabled' | 'orders' | 'logs'>('weeks');
   const [weeks, setWeeks] = useState<WeekMenu[]>([]);
   const [dishes, setDishes] = useState<Dish[]>([]);
@@ -46,10 +43,10 @@ const OmskAdmin: React.FC = () => {
   const [logsDateTo, setLogsDateTo] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  
+
   // Selected week for viewing its dishes
   const [selectedWeekForMenu, setSelectedWeekForMenu] = useState<number | null>(null);
-  
+
   // Form state for adding dishes
   const [newDish, setNewDish] = useState({
     name: '',
@@ -69,7 +66,7 @@ const OmskAdmin: React.FC = () => {
   // Form state for editing dishes
   const [editingDishId, setEditingDishId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<any>(null);
-  
+
   // Form state for adding garnishes
   const [newGarnish, setNewGarnish] = useState({
     name: '',
@@ -82,7 +79,7 @@ const OmskAdmin: React.FC = () => {
     isVegan: false,
     isVegetarian: false
   });
-  
+
   // Form state for adding sauces
   const [newSauce, setNewSauce] = useState({
     name: '',
@@ -92,7 +89,7 @@ const OmskAdmin: React.FC = () => {
     isVegan: false,
     isVegetarian: false
   });
-  
+
   // Form state for adding pastries
   const [newPastry, setNewPastry] = useState({
     name: '',
@@ -105,7 +102,7 @@ const OmskAdmin: React.FC = () => {
     isVegan: false,
     isVegetarian: false
   });
-  
+
   // Form state for adding vegan items
   const [newVeganItem, setNewVeganItem] = useState({
     name: '',
@@ -119,20 +116,20 @@ const OmskAdmin: React.FC = () => {
     isVegan: false,
     isVegetarian: false
   });
-  
+
   // Form state for disabled dates
   const [newDisabledDate, setNewDisabledDate] = useState({
     startDate: '',
     endDate: '',
     message: ''
   });
-  
+
   // Date for orders
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   });
-  
+
   // Date range for export
   const [exportStartDate, setExportStartDate] = useState(() => {
     const today = new Date();
@@ -140,14 +137,14 @@ const OmskAdmin: React.FC = () => {
     weekAgo.setDate(today.getDate() - 7);
     return `${weekAgo.getFullYear()}-${String(weekAgo.getMonth() + 1).padStart(2, '0')}-${String(weekAgo.getDate()).padStart(2, '0')}`;
   });
-  
+
   const [exportEndDate, setExportEndDate] = useState(() => {
     const today = new Date();
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   });
-  
+
   const [selectedExportAddress, setSelectedExportAddress] = useState('all');
-  
+
   const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
@@ -157,53 +154,51 @@ const OmskAdmin: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const adminCode = getAdminCode();
-      
       // Load weeks
       const weeksRes = await fetch('/api/omsk/weeks');
       const weeksData = await weeksRes.json();
       setWeeks(weeksData);
-      
+
       // Load dishes - use admin endpoint to include hidden dishes
       const dishesRes = await fetch('/api/omsk/admin/dishes', {
-        headers: { 'x-admin-code': adminCode }
+        headers: {  }
       });
       const dishesData = await dishesRes.json();
       setDishes(Array.isArray(dishesData) ? dishesData : []);
-      
+
       // Load garnishes - use admin endpoint to include hidden items
       const garnishesRes = await fetch('/api/omsk/admin/garnishes', {
-        headers: { 'x-admin-code': adminCode }
+        headers: {  }
       });
       const garnishesData = await garnishesRes.json();
       setGarnishes(Array.isArray(garnishesData) ? garnishesData : []);
-      
+
       // Load sauces - use admin endpoint to include hidden items
       const saucesRes = await fetch('/api/omsk/admin/sauces', {
-        headers: { 'x-admin-code': adminCode }
+        headers: {  }
       });
       const saucesData = await saucesRes.json();
       setSauces(Array.isArray(saucesData) ? saucesData : []);
-      
+
       // Load vegan items - use admin endpoint to include hidden items
       const veganRes = await fetch('/api/omsk/admin/vegan-items', {
-        headers: { 'x-admin-code': adminCode }
+        headers: {  }
       });
       const veganData = await veganRes.json();
       setVeganItems(Array.isArray(veganData) ? veganData : []);
-      
+
       // Load pastries - use admin endpoint to include hidden items
       const pastriesRes = await fetch('/api/omsk/admin/pastries', {
-        headers: { 'x-admin-code': adminCode }
+        headers: {  }
       });
       const pastriesData = await pastriesRes.json();
       setPastries(Array.isArray(pastriesData) ? pastriesData : []);
-      
+
       // Load disabled dates
       const disabledRes = await fetch('/api/omsk/disabled-dates');
       const disabledData = await disabledRes.json();
       setDisabledDates(disabledData);
-      
+
       // Load orders
       const ordersRes = await fetch(`/api/omsk/orders/${selectedDate}?address=all`);
       const ordersData = await ordersRes.json();
@@ -220,9 +215,9 @@ const OmskAdmin: React.FC = () => {
     try {
       const response = await fetch('/api/omsk/active-week', {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'x-admin-code': getAdminCode()
+
         },
         body: JSON.stringify({ weekNumber })
       });
@@ -238,14 +233,14 @@ const OmskAdmin: React.FC = () => {
 
   const handleSaveDish = async () => {
     if (!newDish.name || !newDish.category) return;
-    
+
     setSaving(true);
     try {
       const response = await fetch('/api/omsk/dishes', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'x-admin-code': getAdminCode()
+
         },
         body: JSON.stringify(newDish)
       });
@@ -264,9 +259,9 @@ const OmskAdmin: React.FC = () => {
   const handleDeleteDish = async (dishId: string) => {
     setSaving(true);
     try {
-      await fetch(`/api/omsk/dishes/${dishId}`, { 
+      await fetch(`/api/omsk/dishes/${dishId}`, {
         method: 'DELETE',
-        headers: { 'x-admin-code': getAdminCode() }
+        headers: {  }
       });
       setDishes(dishes.filter(d => d.id !== dishId));
     } catch (error) {
@@ -294,7 +289,7 @@ const OmskAdmin: React.FC = () => {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-code': getAdminCode()
+
         },
         body: JSON.stringify(editForm)
       });
@@ -313,16 +308,16 @@ const OmskAdmin: React.FC = () => {
 
   const handleAddGarnish = async () => {
     if (!newGarnish.name.trim()) return;
-    
+
     setSaving(true);
     try {
       const response = await fetch('/api/omsk/garnishes', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'x-admin-code': getAdminCode()
+
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           name: newGarnish.name,
           composition: newGarnish.composition,
           grams: parseInt(newGarnish.grams) || 50,
@@ -334,7 +329,7 @@ const OmskAdmin: React.FC = () => {
           isVegetarian: newGarnish.isVegetarian || false
         })
       });
-      
+
       if (response.ok) {
         const newGarnishData = await response.json();
         setGarnishes([...garnishes, newGarnishData]);
@@ -353,14 +348,14 @@ const OmskAdmin: React.FC = () => {
       const garnish = garnishes.find(g => g.id === garnishId);
       await fetch(`/api/omsk/garnishes/${garnishId}`, {
         method: 'PATCH',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'x-admin-code': getAdminCode()
+
         },
         body: JSON.stringify({ isActive: !garnish?.isActive })
       });
-      
-      setGarnishes(garnishes.map(g => 
+
+      setGarnishes(garnishes.map(g =>
         g.id === garnishId ? { ...g, isActive: !g.isActive } : g
       ));
     } catch (error) {
@@ -373,9 +368,9 @@ const OmskAdmin: React.FC = () => {
   const handleDeleteGarnish = async (garnishId: string) => {
     setSaving(true);
     try {
-      await fetch(`/api/omsk/garnishes/${garnishId}`, { 
+      await fetch(`/api/omsk/garnishes/${garnishId}`, {
         method: 'DELETE',
-        headers: { 'x-admin-code': getAdminCode() }
+        headers: {  }
       });
       setGarnishes(garnishes.filter(g => g.id !== garnishId));
     } catch (error) {
@@ -387,16 +382,16 @@ const OmskAdmin: React.FC = () => {
 
   const handleAddSauce = async () => {
     if (!newSauce.name.trim()) return;
-    
+
     setSaving(true);
     try {
       const response = await fetch('/api/omsk/sauces', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'x-admin-code': getAdminCode()
+
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           name: newSauce.name,
           composition: newSauce.composition,
           grams: parseInt(newSauce.grams) || 30,
@@ -405,7 +400,7 @@ const OmskAdmin: React.FC = () => {
           isVegetarian: newSauce.isVegetarian || false
         })
       });
-      
+
       if (response.ok) {
         const newSauceData = await response.json();
         setSauces([...sauces, newSauceData]);
@@ -424,14 +419,14 @@ const OmskAdmin: React.FC = () => {
       const sauce = sauces.find(s => s.id === sauceId);
       await fetch(`/api/omsk/sauces/${sauceId}`, {
         method: 'PATCH',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'x-admin-code': getAdminCode()
+
         },
         body: JSON.stringify({ isActive: !sauce?.isActive })
       });
-      
-      setSauces(sauces.map(s => 
+
+      setSauces(sauces.map(s =>
         s.id === sauceId ? { ...s, isActive: !s.isActive } : s
       ));
     } catch (error) {
@@ -444,9 +439,9 @@ const OmskAdmin: React.FC = () => {
   const handleDeleteSauce = async (sauceId: string) => {
     setSaving(true);
     try {
-      await fetch(`/api/omsk/sauces/${sauceId}`, { 
+      await fetch(`/api/omsk/sauces/${sauceId}`, {
         method: 'DELETE',
-        headers: { 'x-admin-code': getAdminCode() }
+        headers: {  }
       });
       setSauces(sauces.filter(s => s.id !== sauceId));
     } catch (error) {
@@ -458,16 +453,16 @@ const OmskAdmin: React.FC = () => {
 
   const handleAddPastry = async () => {
     if (!newPastry.name.trim()) return;
-    
+
     setSaving(true);
     try {
       const response = await fetch('/api/omsk/pastries', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'x-admin-code': getAdminCode()
+
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           name: newPastry.name,
           composition: newPastry.composition,
           grams: parseInt(newPastry.grams) || 80,
@@ -479,7 +474,7 @@ const OmskAdmin: React.FC = () => {
           isVegetarian: newPastry.isVegetarian || false
         })
       });
-      
+
       if (response.ok) {
         const newPastryData = await response.json();
         setPastries([...pastries, newPastryData]);
@@ -498,14 +493,14 @@ const OmskAdmin: React.FC = () => {
       const pastry = pastries.find(p => p.id === pastryId);
       await fetch(`/api/omsk/pastries/${pastryId}`, {
         method: 'PATCH',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'x-admin-code': getAdminCode()
+
         },
         body: JSON.stringify({ isActive: !pastry?.isActive })
       });
-      
-      setPastries(pastries.map(p => 
+
+      setPastries(pastries.map(p =>
         p.id === pastryId ? { ...p, isActive: !p.isActive } : p
       ));
     } catch (error) {
@@ -518,9 +513,9 @@ const OmskAdmin: React.FC = () => {
   const handleDeletePastry = async (pastryId: string) => {
     setSaving(true);
     try {
-      await fetch(`/api/omsk/pastries/${pastryId}`, { 
+      await fetch(`/api/omsk/pastries/${pastryId}`, {
         method: 'DELETE',
-        headers: { 'x-admin-code': getAdminCode() }
+        headers: {  }
       });
       setPastries(pastries.filter(p => p.id !== pastryId));
     } catch (error) {
@@ -538,7 +533,7 @@ const OmskAdmin: React.FC = () => {
     try {
       const response = await fetch('/api/omsk/import/garnishes-sauces', {
         method: 'POST',
-        headers: { 'x-admin-code': getAdminCode() },
+        headers: {  },
         body: file
       });
 
@@ -547,8 +542,8 @@ const OmskAdmin: React.FC = () => {
         alert(result.message || 'Импорт успешен!');
         // Refresh data using admin endpoints to include hidden items
         const [garnishesRes, saucesRes] = await Promise.all([
-          fetch('/api/omsk/admin/garnishes', { headers: { 'x-admin-code': getAdminCode() } }),
-          fetch('/api/omsk/admin/sauces', { headers: { 'x-admin-code': getAdminCode() } })
+          fetch('/api/omsk/admin/garnishes', { headers: {  } }),
+          fetch('/api/omsk/admin/sauces', { headers: {  } })
         ]);
         const garnishesData = await garnishesRes.json();
         const saucesData = await saucesRes.json();
@@ -572,14 +567,14 @@ const OmskAdmin: React.FC = () => {
       alert('Название и цена обязательны');
       return;
     }
-    
+
     setSaving(true);
     try {
       const response = await fetch('/api/omsk/vegan-items', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'x-admin-code': getAdminCode()
+
         },
         body: JSON.stringify({
           name: newVeganItem.name,
@@ -594,7 +589,7 @@ const OmskAdmin: React.FC = () => {
           isVegetarian: newVeganItem.isVegetarian || false
         })
       });
-      
+
       if (response.ok) {
         const newVeganData = await response.json();
         setVeganItems([...veganItems, newVeganData]);
@@ -624,14 +619,14 @@ const OmskAdmin: React.FC = () => {
       const item = veganItems.find(i => i.id === itemId);
       await fetch(`/api/omsk/vegan-items/${itemId}`, {
         method: 'PATCH',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'x-admin-code': getAdminCode()
+
         },
         body: JSON.stringify({ isActive: !item?.isActive })
       });
-      
-      setVeganItems(veganItems.map(i => 
+
+      setVeganItems(veganItems.map(i =>
         i.id === itemId ? { ...i, isActive: !i.isActive } : i
       ));
     } catch (error) {
@@ -644,9 +639,9 @@ const OmskAdmin: React.FC = () => {
   const handleDeleteVeganItem = async (itemId: string) => {
     setSaving(true);
     try {
-      await fetch(`/api/omsk/vegan-items/${itemId}`, { 
+      await fetch(`/api/omsk/vegan-items/${itemId}`, {
         method: 'DELETE',
-        headers: { 'x-admin-code': getAdminCode() }
+        headers: {  }
       });
       setVeganItems(veganItems.filter(i => i.id !== itemId));
     } catch (error) {
@@ -661,19 +656,19 @@ const OmskAdmin: React.FC = () => {
       alert('Начальная и конечная даты обязательны');
       return;
     }
-    
+
     if (new Date(newDisabledDate.startDate) > new Date(newDisabledDate.endDate)) {
       alert('Начальная дата не может быть позже конечной');
       return;
     }
-    
+
     setSaving(true);
     try {
       const response = await fetch('/api/omsk/disabled-dates', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'x-admin-code': getAdminCode()
+
         },
         body: JSON.stringify({
           startDate: newDisabledDate.startDate,
@@ -681,7 +676,7 @@ const OmskAdmin: React.FC = () => {
           message: newDisabledDate.message
         })
       });
-      
+
       if (response.ok) {
         const result = await response.json();
         setDisabledDates(result.ranges || []);
@@ -703,12 +698,12 @@ const OmskAdmin: React.FC = () => {
     try {
       const response = await fetch(`/api/omsk/disabled-dates/${encodeURIComponent(id)}`, {
         method: 'DELETE',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'x-admin-code': getAdminCode()
+
         }
       });
-      
+
       if (response.ok) {
         const result = await response.json();
         setDisabledDates(result.ranges || []);
@@ -725,9 +720,9 @@ const OmskAdmin: React.FC = () => {
     try {
       await fetch(`/api/omsk/dishes/${dish.id}`, {
         method: 'PATCH',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'x-admin-code': getAdminCode()
+
         },
         body: JSON.stringify({ isActive: !dish.isActive })
       });
@@ -747,17 +742,17 @@ const OmskAdmin: React.FC = () => {
         endDate: exportEndDate,
         address: selectedExportAddress || 'all'
       });
-      
+
       const response = await fetch(`/api/omsk/export/excel?${params}`, {
         headers: {
-          'x-admin-code': getAdminCode()
+
         }
       });
-      
+
       if (!response.ok) {
         throw new Error('Export failed');
       }
-      
+
       // Create blob from response and download
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -768,7 +763,7 @@ const OmskAdmin: React.FC = () => {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
     } catch (error) {
       console.error('Export failed:', error);
       alert('Ошибка экспорта');
@@ -790,7 +785,7 @@ const OmskAdmin: React.FC = () => {
   };
 
   return (
-    <div 
+    <div
       className="min-h-screen flex flex-col"
       style={{ backgroundColor: palette.colors.background, color: palette.colors.text }}
     >
@@ -825,7 +820,7 @@ const OmskAdmin: React.FC = () => {
             key={tab}
             onClick={() => setActiveTab(tab)}
             className="px-6 py-3 font-medium transition"
-            style={{ 
+            style={{
               borderBottom: activeTab === tab ? `2px solid ${palette.colors.primary}` : '2px solid transparent',
               color: activeTab === tab ? palette.colors.primary : palette.colors.textSecondary,
               backgroundColor: activeTab === tab ? palette.colors.cardBg : 'transparent'
@@ -852,15 +847,15 @@ const OmskAdmin: React.FC = () => {
                       onClick={() => setActiveWeek(week.weekNumber)}
                       disabled={saving}
                       className="p-6 rounded-lg border-2 transition-all"
-                      style={{ 
+                      style={{
                         borderColor: week.isActive ? palette.colors.primary : palette.colors.border,
                         backgroundColor: week.isActive ? palette.colors.primary + '20' : palette.colors.cardBg
                       }}
                     >
                       <div className="text-2xl font-bold mb-2">Неделя {week.weekNumber}</div>
-                      <div 
+                      <div
                         className="text-sm px-3 py-1 rounded-full"
-                        style={{ 
+                        style={{
                           backgroundColor: week.isActive ? palette.colors.primary : palette.colors.border,
                           color: week.isActive ? 'white' : palette.colors.textSecondary
                         }}
@@ -870,7 +865,7 @@ const OmskAdmin: React.FC = () => {
                     </button>
                   ))}
                 </div>
-                
+
                 <div className="mt-8 p-4 rounded-lg" style={{ backgroundColor: palette.colors.cardBg }}>
                   <h3 className="font-bold mb-2">Текущая неделя</h3>
                   <p>Активная неделя: <strong>Неделя {weeks.find(w => w.isActive)?.weekNumber || '-'}</strong></p>
@@ -888,7 +883,7 @@ const OmskAdmin: React.FC = () => {
                         key={week.weekNumber}
                         onClick={() => setSelectedWeekForMenu(week.weekNumber)}
                         className="px-4 py-2 rounded"
-                        style={{ 
+                        style={{
                           backgroundColor: selectedWeekForMenu === week.weekNumber ? palette.colors.primary : palette.colors.border,
                           color: selectedWeekForMenu === week.weekNumber ? 'white' : palette.colors.text
                         }}
@@ -897,7 +892,7 @@ const OmskAdmin: React.FC = () => {
                       </button>
                     ))}
                   </div>
-                  
+
                   {selectedWeekForMenu && (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {categories.map(cat => {
@@ -927,7 +922,7 @@ const OmskAdmin: React.FC = () => {
             {activeTab === 'menu' && (
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold mb-6">Управление меню</h2>
-                
+
                 {/* Add new dish form */}
                 <div className="p-4 rounded-lg" style={{ backgroundColor: palette.colors.cardBg, borderColor: palette.colors.border, borderWidth: 1 }}>
                   <h3 className="font-bold mb-4">Добавить блюдо</h3>
@@ -1134,7 +1129,7 @@ const OmskAdmin: React.FC = () => {
                           <div
                             key={dish.id}
                             className="p-3 rounded flex justify-between items-center"
-                            style={{ 
+                            style={{
                               backgroundColor: palette.colors.cardBg,
                               borderColor: palette.colors.border,
                               borderWidth: 1
@@ -1158,7 +1153,7 @@ const OmskAdmin: React.FC = () => {
                               <button
                                 onClick={() => toggleDishActive(dish)}
                                 className="text-xs px-2 py-1 rounded"
-                                style={{ 
+                                style={{
                                   backgroundColor: dish.isActive ? palette.colors.primary + '20' : palette.colors.border,
                                   color: palette.colors.text
                                 }}
@@ -1170,9 +1165,9 @@ const OmskAdmin: React.FC = () => {
                                   try {
                                     await fetch(`/api/omsk/dishes/${dish.id}`, {
                                       method: 'PATCH',
-                                      headers: { 
+                                      headers: {
                                         'Content-Type': 'application/json',
-                                        'x-admin-code': getAdminCode()
+
                                       },
                                       body: JSON.stringify({ noGarnish: !dish.noGarnish })
                                     });
@@ -1182,7 +1177,7 @@ const OmskAdmin: React.FC = () => {
                                   }
                                 }}
                                 className="text-xs px-2 py-1 rounded"
-                                style={{ 
+                                style={{
                                   backgroundColor: dish.noGarnish ? '#ef4444' + '30' : palette.colors.border,
                                   color: dish.noGarnish ? '#ef4444' : palette.colors.text
                                 }}
@@ -1236,7 +1231,7 @@ const OmskAdmin: React.FC = () => {
                     </label>
                   </div>
                 </div>
-                
+
                 {/* Add new garnish form */}
                 <div className="p-4 rounded-lg" style={{ backgroundColor: palette.colors.cardBg, borderColor: palette.colors.border, borderWidth: 1 }}>
                   <h3 className="font-bold mb-4">Добавить гарнир</h3>
@@ -1326,7 +1321,7 @@ const OmskAdmin: React.FC = () => {
                     </button>
                   </div>
                 </div>
-                
+
                 {/* Garnishes list */}
                 <div className="space-y-2">
                   {garnishes.map(garnish => (
@@ -1350,7 +1345,7 @@ const OmskAdmin: React.FC = () => {
                         <button
                           onClick={() => handleToggleGarnish(garnish.id)}
                           className="px-3 py-1 rounded text-sm"
-                          style={{ 
+                          style={{
                             backgroundColor: garnish.isActive ? palette.colors.primary + '20' : palette.colors.border,
                             color: palette.colors.text
                           }}
@@ -1374,7 +1369,7 @@ const OmskAdmin: React.FC = () => {
             {activeTab === 'sauces' && (
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold mb-6">Управление соусами</h2>
-                
+
                 {/* Add new sauce form */}
                 <div className="p-4 rounded-lg" style={{ backgroundColor: palette.colors.cardBg, borderColor: palette.colors.border, borderWidth: 1 }}>
                   <h3 className="font-bold mb-4">Добавить соус</h3>
@@ -1440,7 +1435,7 @@ const OmskAdmin: React.FC = () => {
                     </button>
                   </div>
                 </div>
-                
+
                 {/* Sauces list */}
                 <div className="space-y-2">
                   {sauces.map(sauce => (
@@ -1455,7 +1450,7 @@ const OmskAdmin: React.FC = () => {
                         <button
                           onClick={() => handleToggleSauce(sauce.id)}
                           className="px-3 py-1 rounded text-sm"
-                          style={{ 
+                          style={{
                             backgroundColor: sauce.isActive ? palette.colors.primary + '20' : palette.colors.border,
                             color: palette.colors.text
                           }}
@@ -1479,7 +1474,7 @@ const OmskAdmin: React.FC = () => {
             {activeTab === 'pastries' && (
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold mb-6">Управление выпечкой</h2>
-                
+
                 {/* Add new pastry form */}
                 <div className="p-4 rounded-lg" style={{ backgroundColor: palette.colors.cardBg, borderColor: palette.colors.border, borderWidth: 1 }}>
                   <h3 className="font-bold mb-4">Добавить выпечку</h3>
@@ -1569,7 +1564,7 @@ const OmskAdmin: React.FC = () => {
                     </button>
                   </div>
                 </div>
-                
+
                 {/* Pastries list */}
                 <div className="space-y-2">
                   {pastries.map(pastry => (
@@ -1593,7 +1588,7 @@ const OmskAdmin: React.FC = () => {
                         <button
                           onClick={() => handleTogglePastry(pastry.id)}
                           className="px-3 py-1 rounded text-sm"
-                          style={{ 
+                          style={{
                             backgroundColor: pastry.isActive ? palette.colors.primary + '20' : palette.colors.border,
                             color: palette.colors.text
                           }}
@@ -1617,7 +1612,7 @@ const OmskAdmin: React.FC = () => {
             {activeTab === 'vegan' && (
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold mb-6">Управление дополнительными блюдами</h2>
-                
+
                 {/* Add new vegan item form */}
                 <div className="p-4 rounded-lg" style={{ backgroundColor: palette.colors.cardBg, borderColor: palette.colors.border, borderWidth: 1 }}>
                   <h3 className="font-bold mb-4">Добавить дополнительное блюдо</h3>
@@ -1715,7 +1710,7 @@ const OmskAdmin: React.FC = () => {
                     </button>
                   </div>
                 </div>
-                
+
                 {/* Vegan items list */}
                 <div className="space-y-2">
                   {veganItems.map(item => (
@@ -1740,7 +1735,7 @@ const OmskAdmin: React.FC = () => {
                         <button
                           onClick={() => handleToggleVeganItem(item.id)}
                           className="px-3 py-1 rounded text-sm"
-                          style={{ 
+                          style={{
                             backgroundColor: item.isActive ? palette.colors.primary + '20' : palette.colors.border,
                             color: palette.colors.text
                           }}
@@ -1764,7 +1759,7 @@ const OmskAdmin: React.FC = () => {
             {activeTab === 'disabled' && (
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold mb-6">Управление блокировкой заказов</h2>
-                
+
                 {/* Add new disabled date range form */}
                 <div className="p-4 rounded-lg" style={{ backgroundColor: palette.colors.cardBg, borderColor: palette.colors.border, borderWidth: 1 }}>
                   <h3 className="font-bold mb-4">Добавить период блокировки</h3>
@@ -1815,7 +1810,7 @@ const OmskAdmin: React.FC = () => {
                     Добавить блокировку
                   </button>
                 </div>
-                
+
                 {/* Current disabled dates */}
                 <div className="space-y-2">
                   <h3 className="font-bold mb-2">Текущие блокировки</h3>
@@ -1880,7 +1875,7 @@ const OmskAdmin: React.FC = () => {
                     </button>
                   </div>
                 </div>
-                
+
                 {/* Date range for export */}
                 <div className="flex flex-wrap items-center gap-4 mb-4">
                   <span style={{ color: palette.colors.text }}>Экспорт за период:</span>
@@ -1931,12 +1926,12 @@ const OmskAdmin: React.FC = () => {
                         <span>Всего заказов: <strong>{orders.length}</strong></span>
                       </div>
                     </div>
-                    
+
                     {orders.map(order => (
                       <div
                         key={order.id}
                         className="p-4 rounded-lg"
-                        style={{ 
+                        style={{
                           backgroundColor: palette.colors.cardBg,
                           borderColor: palette.colors.border,
                           borderWidth: 1
@@ -1995,7 +1990,7 @@ const OmskAdmin: React.FC = () => {
                         if (logsDateFrom) params.append('startDate', logsDateFrom);
                         if (logsDateTo) params.append('endDate', logsDateTo);
                         const res = await fetch(`/api/omsk/order-logs?${params}`, {
-                          headers: { 'x-admin-code': getAdminCode() }
+                          headers: {  }
                         });
                         const data = await res.json();
                         setOrderLogs(Array.isArray(data) ? data : []);
@@ -2015,11 +2010,11 @@ const OmskAdmin: React.FC = () => {
                 ) : (
                   <div className="space-y-2">
                     {orderLogs.map((log, index) => (
-                      <div 
+                      <div
                         key={log.id || index}
                         className="p-4 rounded-lg border"
-                        style={{ 
-                          backgroundColor: palette.colors.cardBg, 
+                        style={{
+                          backgroundColor: palette.colors.cardBg,
                           borderColor: palette.colors.border,
                           borderLeftWidth: '4px',
                           borderLeftColor: log.action === 'created' ? '#22c55e' : '#ef4444'
@@ -2046,7 +2041,7 @@ const OmskAdmin: React.FC = () => {
                         </div>
                         {log.details && (
                           <div className="text-xs mt-2 p-2 rounded" style={{ backgroundColor: palette.colors.background }}>
-                            <span style={{ color: palette.colors.textSecondary }}>Состав:</span> 
+                            <span style={{ color: palette.colors.textSecondary }}>Состав:</span>
                             {(() => {
                               try {
                                 const items = JSON.parse(log.details);

@@ -1,10 +1,24 @@
-# Ignore data folder
-data
-dist
-node_modules
+# Runtime data and local backups
+/data/
+/logs/
+/temp_backup/
+*.log
+
+# Dependencies and generated output
+node_modules/
+/dist/
+/coverage/
+*.tsbuildinfo
+
+# Environment secrets (keep example files trackable)
 .env
-.kilo
-logs
-temp_backup
-.kilocode
-.qodo
+.env.*
+!.env.example
+!.env.*.example
+
+# Local tool state and generated project graph
+/.kilo/
+/.kilocode/
+/.qodo/
+/.superpowers/
+/project-graph/

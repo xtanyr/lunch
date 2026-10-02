@@ -5,6 +5,7 @@ import { CITY_ADDRESSES } from '../constants';
 import AdminMenuManager from './AdminMenuManager';
 import Select from './ui/Select';
 import Button from './ui/Button';
+import { logoutAdmin } from '../utils/adminSession';
 
 interface Period {
   id: string;
@@ -220,6 +221,11 @@ const SpbAdmin: React.FC = () => {
 
   const selectedPeriod = periods.find(p => p.id === selectedPeriodId);
 
+  const handleLogout = async () => {
+    await logoutAdmin('generic').catch(() => undefined);
+    window.location.href = '/spb';
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -236,7 +242,10 @@ const SpbAdmin: React.FC = () => {
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-black">Админка Санкт-Петербург</h1>
-          <a href="/" className="text-sm text-blue-600 hover:underline">← На главную</a>
+          <div className="flex items-center gap-4">
+            <a href="/" className="text-sm text-blue-600 hover:underline">← На главную</a>
+            <button type="button" onClick={() => void handleLogout()} className="text-sm text-gray-700 hover:text-black underline">Выйти</button>
+          </div>
         </div>
 
         {error && (

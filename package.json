@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "verify:build": "npm run build && node scripts/check-build-output.mjs",
     "preview": "vite preview",
     "server": "tsx server.js",
     "start": "concurrently \"npm run server\" \"npm run dev\"",
@@ -16,7 +17,8 @@
     "prod:stop": "pm2 stop all",
     "prod:logs": "pm2 logs",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

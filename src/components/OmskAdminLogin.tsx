@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../theme/ThemeContext';
 import Button from './ui/Button';
 import Input from './ui/Input';
+import { loginAdmin } from '../utils/adminSession';
 
 const OmskAdminLogin: React.FC = () => {
   const navigate = useNavigate();
@@ -17,24 +18,15 @@ const OmskAdminLogin: React.FC = () => {
     setError('');
     
     try {
-      const response = await fetch('/api/omsk/admin/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.valid) {
-          localStorage.setItem('omskAdminCodeEntered', code);
-          window.location.href = '/omsk/admin';
-        } else {
-          setError('Неверный код доступа');
-        }
+      const result = await loginAdmin('omsk', code);
+      if (result.valid) {
+        window.location.href = '/omsk/admin';
       } else {
-        setError('Ошибка проверки кода');
+        setError(result.retryAfterSeconds
+          ? `Слишком много попыток. Попробуйте снова через ${result.retryAfterSeconds} сек.`
+          : 'Неверный код доступа');
       }
-    } catch (err) {
+    } catch {
       setError('Ошибка соединения с сервером');
     } finally {
       setIsLoading(false);

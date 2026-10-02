@@ -1,19 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { EmployeeOrder, CurrentOrderItem, AggregatedOrderItem, Dish } from './types';
 import { MENU_ITEMS, SIDE_DISHES, DEPARTMENTS, CITY_ADDRESSES, CITIES } from './constants';
 import OrderForm from './components/OrderForm';
 import IndividualOrdersList from './components/IndividualOrdersList';
 import AggregatedOrderSummary from './components/AggregatedOrderSummary';
-import AdminPage from './components/AdminPage';
-import AdminAccess from './components/AdminAccess';
-import CitySelector from './components/CitySelector';
-import OmskApp from './components/OmskApp';
-import OmskAdmin from './components/OmskAdmin';
-import OmskAdminLogin from './components/OmskAdminLogin';
-import SpbApp from './components/SpbApp';
-import SpbAdmin from './components/SpbAdmin';
-import SpbAdminLogin from './components/SpbAdminLogin';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import { fetchOrdersFromAPI, submitOrderToAPI, deleteOrderFromAPI, fetchMenuItems, fetchSideDishes, fetchMenuConfig } from './api';
@@ -21,36 +12,36 @@ import ConfirmModal from './components/ui/ConfirmModal';
 import Select from './components/ui/Select';
 import Input from './components/ui/Input';
 import { ThemeProvider, useTheme } from './theme/ThemeContext';
+import { clearLegacyAdminCodes, verifyAdminSession } from './utils/adminSession';
+
+const AdminPage = lazy(() => import('./components/AdminPage'));
+const AdminAccess = lazy(() => import('./components/AdminAccess'));
+const CitySelector = lazy(() => import('./components/CitySelector'));
+const OmskApp = lazy(() => import('./components/OmskApp'));
+const OmskAdmin = lazy(() => import('./components/OmskAdmin'));
+const OmskAdminLogin = lazy(() => import('./components/OmskAdminLogin'));
+const SpbApp = lazy(() => import('./components/SpbApp'));
+const SpbAdmin = lazy(() => import('./components/SpbAdmin'));
+const SpbAdminLogin = lazy(() => import('./components/SpbAdminLogin'));
 
 // Component to verify admin authentication server-side
 const RequireOmskAdmin: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const code = localStorage.getItem('omskAdminCodeEntered');
   const [isValid, setIsValid] = useState<boolean | null>(null);
   const navigate = useNavigate();
   
   useEffect(() => {
-    if (!code) {
-      navigate('/omsk/admin/login');
-      return;
-    }
-    
-    fetch('/api/omsk/admin/verify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code })
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (!data.valid) {
-          localStorage.removeItem('omskAdminCodeEntered');
-          navigate('/omsk/admin/login');
-        }
-        setIsValid(data.valid);
-      })
-      .catch(() => {
-        setIsValid(false);
-      });
-  }, [code, navigate]);
+    let active = true;
+    verifyAdminSession('omsk').then(valid => {
+      if (!active) return;
+      setIsValid(valid);
+      if (!valid) navigate('/omsk/admin/login', { replace: true });
+    }).catch(() => {
+      if (!active) return;
+      setIsValid(false);
+      navigate('/omsk/admin/login', { replace: true });
+    });
+    return () => { active = false; };
+  }, [navigate]);
   
   if (isValid === null || isValid === false) {
     return <div className="min-h-screen flex items-center justify-center">Проверка...</div>;
@@ -61,18 +52,22 @@ const RequireOmskAdmin: React.FC<{ children: React.ReactNode }> = ({ children })
 
 // Component to verify SPB admin authentication
 const RequireSpbAdmin: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const code = localStorage.getItem('spbAdminCodeEntered');
   const [isValid, setIsValid] = useState<boolean | null>(null);
   const navigate = useNavigate();
   
   useEffect(() => {
-    if (!code) {
-      navigate('/spb/admin/login');
-      return;
-    }
-    
-    setIsValid(true);
-  }, [code, navigate]);
+    let active = true;
+    verifyAdminSession('generic').then(valid => {
+      if (!active) return;
+      setIsValid(valid);
+      if (!valid) navigate('/spb/admin/login', { replace: true });
+    }).catch(() => {
+      if (!active) return;
+      setIsValid(false);
+      navigate('/spb/admin/login', { replace: true });
+    });
+    return () => { active = false; };
+  }, [navigate]);
   
   if (isValid === null || isValid === false) {
     return <div className="min-h-screen flex items-center justify-center">Проверка...</div>;
@@ -83,33 +78,22 @@ const RequireSpbAdmin: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
 // Component to verify generic admin authentication server-side
 const RequireAdmin: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const code = localStorage.getItem('adminCodeEntered');
   const [isValid, setIsValid] = useState<boolean | null>(null);
   const navigate = useNavigate();
   
   useEffect(() => {
-    if (!code) {
-      navigate('/admin/login');
-      return;
-    }
-    
-    fetch('/api/admin/verify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code })
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (!data.valid) {
-          localStorage.removeItem('adminCodeEntered');
-          navigate('/admin/login');
-        }
-        setIsValid(data.valid);
-      })
-      .catch(() => {
-        setIsValid(false);
-      });
-  }, [code, navigate]);
+    let active = true;
+    verifyAdminSession('generic').then(valid => {
+      if (!active) return;
+      setIsValid(valid);
+      if (!valid) navigate('/admin/login', { replace: true });
+    }).catch(() => {
+      if (!active) return;
+      setIsValid(false);
+      navigate('/admin/login', { replace: true });
+    });
+    return () => { active = false; };
+  }, [navigate]);
   
   if (isValid === null || isValid === false) {
     return <div className="min-h-screen flex items-center justify-center">Проверка...</div>;
@@ -145,6 +129,8 @@ const normalizeAddress = (address: string): string => {
 };
 
 const App: React.FC = () => {
+  useEffect(() => clearLegacyAdminCodes(), []);
+
   const initialEmployeeOrderState: Omit<EmployeeOrder, 'id' | 'timestamp'> & { items: CurrentOrderItem[] } = {
     employeeName: '',
     department: '',
@@ -701,6 +687,7 @@ const App: React.FC = () => {
 };
 
   return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Загрузка…</div>}>
     <Routes>
       <Route path="/" element={
         <ThemeProvider>
@@ -762,6 +749,7 @@ const App: React.FC = () => {
         </ThemeProvider>
       } />
     </Routes>
+    </Suspense>
   );
 };
 

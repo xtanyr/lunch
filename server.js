@@ -5,20 +5,12 @@ import cors from 'cors';
 import { fileURLToPath } from 'url';
 import XLSX from 'xlsx';
 import dotenv from 'dotenv';
+import { createAdminAuth } from './src/server/adminAuth.ts';
+import { createOrderDeletionToken, matchesOrderDeletionToken } from './src/server/orderDeletion.ts';
 
 dotenv.config();
 
-// Admin code - must be set via environment variable OMSK_ADMIN_CODE
-const OMSK_ADMIN_CODE = process.env.OMSK_ADMIN_CODE;
-
-// Admin authentication middleware
-const requireAdmin = (req, res, next) => {
-  const code = req.headers['x-admin-code'];
-  if (code !== OMSK_ADMIN_CODE) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  next();
-};
+const GENERIC_ADMIN_CODE = process.env.GENERIC_ADMIN_CODE;
 import { 
   initOmskDatabase, 
   getOrdersByDate, 
@@ -76,48 +68,45 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const ORDERS_FILE = path.join(__dirname, 'data', 'orders.json');
-const MENU_FILE = path.join(__dirname, 'data', 'menu.json');
-const CONFIG_FILE = path.join(__dirname, 'data', 'config.json');
-const DISABLED_DATES_FILE = path.join(__dirname, 'data', 'disabled_dates.json');
+const trustedProxyAddresses = process.env.LUNCH_TRUST_PROXY
+  ?.split(',')
+  .map(address => address.trim())
+  .filter(Boolean);
+app.set('trust proxy', trustedProxyAddresses?.length ? trustedProxyAddresses : 'loopback');
+const DATA_DIR = path.resolve(process.env.LUNCH_DATA_DIR || path.join(__dirname, 'data'));
+const ORDERS_FILE = path.join(DATA_DIR, 'orders.json');
+const MENU_FILE = path.join(DATA_DIR, 'menu.json');
+const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
+const DISABLED_DATES_FILE = path.join(DATA_DIR, 'disabled_dates.json');
+const adminAuth = createAdminAuth({
+  codes: { omsk: process.env.OMSK_ADMIN_CODE, generic: GENERIC_ADMIN_CODE },
+  secureCookies: process.env.NODE_ENV === 'production',
+});
+const requireOmskAdmin = adminAuth.require('omsk');
+const requireGenericAdmin = adminAuth.require('generic');
 
 app.use(cors());
 app.use(express.json());
 
-// Admin login verification endpoint
-app.post('/api/omsk/admin/verify', express.json(), (req, res) => {
-  const { code } = req.body;
-  if (code === OMSK_ADMIN_CODE) {
-    res.json({ valid: true });
-  } else {
-    res.status(401).json({ valid: false, error: 'Invalid code' });
-  }
-});
-
-// Generic admin verification endpoint (for cities other than Omsk and SPB)
-const GENERIC_ADMIN_CODE = process.env.GENERIC_ADMIN_CODE || process.env.VITE_ADMIN_CODE;
-app.post('/api/admin/verify', express.json(), (req, res) => {
-  const { code } = req.body;
-  if (code === GENERIC_ADMIN_CODE) {
-    res.json({ valid: true });
-  } else {
-    res.status(401).json({ valid: false, error: 'Invalid code' });
-  }
-});
+// Admin login, cookie verification, and logout endpoints.
+app.post('/api/omsk/admin/verify', adminAuth.verify('omsk'));
+app.post('/api/admin/verify', adminAuth.verify('generic'));
+app.post('/api/omsk/admin/logout', adminAuth.logout('omsk'));
+app.post('/api/admin/logout', adminAuth.logout('generic'));
 
 // Serve static files from the dist directory
 app.use(express.static(path.join(__dirname, 'dist')));
 app.use('/m7', express.static(path.join(__dirname, 'm7')));
 
 // Ensure data directory exists
-const dataDir = path.join(__dirname, 'data');
+const dataDir = DATA_DIR;
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
 // Helper to read SPB menu data (period-based)
 function readSpbMenuData() {
-  const file = path.join(__dirname, 'data', 'menu_spb.json');
+  const file = path.join(DATA_DIR, 'menu_spb.json');
   if (!fs.existsSync(file)) {
     const defaultSpbMenu = generateSpbDefaultMenu();
     fs.writeFileSync(file, JSON.stringify(defaultSpbMenu, null, 2));
@@ -205,7 +194,7 @@ function readSpbMenuData() {
 
 // Helper to write SPB menu data
 function writeSpbMenuData(menuData) {
-  const file = path.join(__dirname, 'data', 'menu_spb.json');
+  const file = path.join(DATA_DIR, 'menu_spb.json');
   fs.writeFileSync(file, JSON.stringify(menuData, null, 2));
 }
 
@@ -336,7 +325,7 @@ const initializeDefaultData = () => {
   }
   
   // Initialize SPB period-based menu
-  const spbMenuFile = path.join(__dirname, 'data', 'menu_spb.json');
+  const spbMenuFile = path.join(DATA_DIR, 'menu_spb.json');
   if (!fs.existsSync(spbMenuFile)) {
     const defaultSpbMenu = generateSpbDefaultMenu();
     fs.writeFileSync(spbMenuFile, JSON.stringify(defaultSpbMenu, null, 2));
@@ -351,23 +340,23 @@ function toSafeSegment(value) {
 
 function getMenuFileByCity(city) {
   const safeCity = toSafeSegment(city);
-  return path.join(__dirname, 'data', `menu_${safeCity}.json`);
+  return path.join(DATA_DIR, `menu_${safeCity}.json`);
 }
 
 function getConfigFileByCity(city) {
   const safeCity = toSafeSegment(city);
-  return path.join(__dirname, 'data', `config_${safeCity}.json`);
+  return path.join(DATA_DIR, `config_${safeCity}.json`);
 }
 
 function getDisabledDatesFile(city) {
   const safeCity = toSafeSegment(city);
-  return path.join(__dirname, 'data', `disabled_dates_${safeCity}.json`);
+  return path.join(DATA_DIR, `disabled_dates_${safeCity}.json`);
 }
 
 function getOrdersFile(city, address) {
   const safeCity = toSafeSegment(city);
   const safeAddr = (!address || address === 'office') ? 'office' : toSafeSegment(address);
-  return path.join(__dirname, 'data', `orders_${safeCity}_${safeAddr}.json`);
+  return path.join(DATA_DIR, `orders_${safeCity}_${safeAddr}.json`);
 }
 
 // Helper to read orders from file by address
@@ -386,6 +375,12 @@ function readOrders(address, city) {
 function writeOrders(orders, address, city) {
   const file = getOrdersFile(city, address);
   fs.writeFileSync(file, JSON.stringify(orders, null, 2));
+}
+
+function withoutCancellationTokenHash(order) {
+  const publicOrder = { ...order };
+  delete publicOrder.cancellationTokenHash;
+  return publicOrder;
 }
 
 // Helper to read menu data
@@ -542,7 +537,7 @@ app.get('/api/omsk/orders/last', (req, res) => {
 });
 
 // New endpoint for date range orders (for Excel export)
-app.get('/api/omsk/orders-range', (req, res) => {
+app.get('/api/omsk/orders-range', requireOmskAdmin, (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -632,7 +627,7 @@ function computeCurrentOrderTotal(order, priceMaps) {
   return order.items.reduce((sum, item) => sum + computeCurrentItemPrice(item, priceMaps), 0);
 }
 
-app.get('/api/omsk/export/excel', requireAdmin, (req, res) => {
+app.get('/api/omsk/export/excel', requireOmskAdmin, (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -987,6 +982,7 @@ app.post('/api/omsk/orders', express.json(), (req, res) => {
   }
 
   try {
+    const cancellation = createOrderDeletionToken();
     const newOrder = {
       id: `order-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       employeeName,
@@ -997,6 +993,7 @@ app.post('/api/omsk/orders', express.json(), (req, res) => {
       city: 'omsk',
       timestamp: new Date().toISOString(),
       totalPrice,
+      cancellationTokenHash: cancellation.tokenHash,
       floor: floor || ''
     };
     createOrder(newOrder);
@@ -1004,7 +1001,7 @@ app.post('/api/omsk/orders', express.json(), (req, res) => {
     // Log the order creation with IP
     addOrderLog(newOrder.id, 'created', employeeName, department, JSON.stringify(items), clientIp);
     
-    res.status(201).json(newOrder);
+    res.status(201).json({ ...withoutCancellationTokenHash(newOrder), cancellationToken: cancellation.token });
   } catch (error) {
     console.error('Error creating Omsk order:', error);
     res.status(500).json({ error: 'Failed to create order' });
@@ -1019,8 +1016,15 @@ app.delete('/api/omsk/orders/:id', (req, res) => {
   const clientIp = req.headers['x-forwarded-for']?.toString().split(',')[0] || req.socket?.remoteAddress || 'unknown';
   try {
     // Get order details before deletion for logging
-    const orderStmt = omskDb.prepare('SELECT employeeName, department, items FROM orders WHERE id = ?');
+    const orderStmt = omskDb.prepare('SELECT employeeName, department, items, cancellationTokenHash FROM orders WHERE id = ?');
     const order = orderStmt.get(id);
+
+    const isAdmin = adminAuth.hasSession(req, 'omsk');
+    const cancellationToken = req.headers['x-order-cancellation-token'];
+    if (!isAdmin && (!order || !matchesOrderDeletionToken(cancellationToken, order.cancellationTokenHash))) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    if (!order) return res.status(404).json({ error: 'Order not found' });
     
     deleteOrder(id);
     
@@ -1035,7 +1039,7 @@ app.delete('/api/omsk/orders/:id', (req, res) => {
 });
 
 // Get order logs
-app.get('/api/omsk/order-logs', requireAdmin, (req, res) => {
+app.get('/api/omsk/order-logs', requireOmskAdmin, (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1070,7 +1074,7 @@ app.get('/api/omsk/dishes', (req, res) => {
 });
 
 // Admin endpoint - returns ALL dishes including hidden ones
-app.get('/api/omsk/admin/dishes', requireAdmin, (req, res) => {
+app.get('/api/omsk/admin/dishes', requireOmskAdmin, (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1083,7 +1087,7 @@ app.get('/api/omsk/admin/dishes', requireAdmin, (req, res) => {
   }
 });
 
-app.post('/api/omsk/dishes', requireAdmin, express.json(), (req, res) => {
+app.post('/api/omsk/dishes', requireOmskAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1127,7 +1131,7 @@ app.post('/api/omsk/dishes', requireAdmin, express.json(), (req, res) => {
   }
 });
 
-app.patch('/api/omsk/dishes/:id', requireAdmin, express.json(), (req, res) => {
+app.patch('/api/omsk/dishes/:id', requireOmskAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1148,7 +1152,7 @@ app.patch('/api/omsk/dishes/:id', requireAdmin, express.json(), (req, res) => {
   }
 });
 
-app.delete('/api/omsk/dishes/:id', requireAdmin, (req, res) => {
+app.delete('/api/omsk/dishes/:id', requireOmskAdmin, (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1190,7 +1194,7 @@ app.get('/api/omsk/menu/sides', (req, res) => {
   }
 });
 
-app.put('/api/omsk/menu/items', requireAdmin, express.json(), (req, res) => {
+app.put('/api/omsk/menu/items', requireOmskAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1221,7 +1225,7 @@ app.get('/api/omsk/menu/config', (req, res) => {
   }
 });
 
-app.put('/api/omsk/menu/config', requireAdmin, express.json(), (req, res) => {
+app.put('/api/omsk/menu/config', requireOmskAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1251,7 +1255,7 @@ app.get('/api/omsk/disabled-dates', (req, res) => {
   }
 });
 
-app.put('/api/omsk/disabled-dates', requireAdmin, express.json(), (req, res) => {
+app.put('/api/omsk/disabled-dates', requireOmskAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1269,7 +1273,7 @@ app.put('/api/omsk/disabled-dates', requireAdmin, express.json(), (req, res) => 
 });
 
 // Add POST endpoint for adding new disabled date ranges
-app.post('/api/omsk/disabled-dates', requireAdmin, express.json(), (req, res) => {
+app.post('/api/omsk/disabled-dates', requireOmskAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1291,7 +1295,7 @@ app.post('/api/omsk/disabled-dates', requireAdmin, express.json(), (req, res) =>
 });
 
 // DELETE endpoint for removing specific disabled date range
-app.delete('/api/omsk/disabled-dates/:id', requireAdmin, (req, res) => {
+app.delete('/api/omsk/disabled-dates/:id', requireOmskAdmin, (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1310,7 +1314,7 @@ app.delete('/api/omsk/disabled-dates/:id', requireAdmin, (req, res) => {
 });
 
 // PUT endpoint for updating specific disabled date range
-app.put('/api/omsk/disabled-dates/:id', requireAdmin, express.json(), (req, res) => {
+app.put('/api/omsk/disabled-dates/:id', requireOmskAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1329,7 +1333,7 @@ app.put('/api/omsk/disabled-dates/:id', requireAdmin, express.json(), (req, res)
   }
 });
 
-app.delete('/api/omsk/disabled-dates', requireAdmin, (req, res) => {
+app.delete('/api/omsk/disabled-dates', requireOmskAdmin, (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1370,7 +1374,7 @@ app.get('/api/omsk/active-week', (req, res) => {
   }
 });
 
-app.put('/api/omsk/active-week', requireAdmin, express.json(), (req, res) => {
+app.put('/api/omsk/active-week', requireOmskAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1401,7 +1405,7 @@ app.get('/api/omsk/week-menu/:weekNumber', (req, res) => {
   }
 });
 
-app.put('/api/omsk/week-menu/:weekNumber', requireAdmin, express.json(), (req, res) => {
+app.put('/api/omsk/week-menu/:weekNumber', requireOmskAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1417,7 +1421,7 @@ app.put('/api/omsk/week-menu/:weekNumber', requireAdmin, express.json(), (req, r
 });
 
 // Admin endpoint - returns ALL week menu items including hidden ones
-app.get('/api/omsk/admin/week-menu/:weekNumber', requireAdmin, (req, res) => {
+app.get('/api/omsk/admin/week-menu/:weekNumber', requireOmskAdmin, (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1445,7 +1449,7 @@ app.get('/api/omsk/vegan-items', (req, res) => {
 });
 
 // Admin endpoint - returns ALL vegan items including hidden ones
-app.get('/api/omsk/admin/vegan-items', requireAdmin, (req, res) => {
+app.get('/api/omsk/admin/vegan-items', requireOmskAdmin, (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1458,7 +1462,7 @@ app.get('/api/omsk/admin/vegan-items', requireAdmin, (req, res) => {
   }
 });
 
-app.put('/api/omsk/vegan-items', requireAdmin, express.json(), (req, res) => {
+app.put('/api/omsk/vegan-items', requireOmskAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1473,7 +1477,7 @@ app.put('/api/omsk/vegan-items', requireAdmin, express.json(), (req, res) => {
 });
 
 // Add individual vegan item endpoints
-app.post('/api/omsk/vegan-items', requireAdmin, express.json(), (req, res) => {
+app.post('/api/omsk/vegan-items', requireOmskAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1504,7 +1508,7 @@ app.post('/api/omsk/vegan-items', requireAdmin, express.json(), (req, res) => {
   }
 });
 
-app.patch('/api/omsk/vegan-items/:id', requireAdmin, express.json(), (req, res) => {
+app.patch('/api/omsk/vegan-items/:id', requireOmskAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1521,7 +1525,7 @@ app.patch('/api/omsk/vegan-items/:id', requireAdmin, express.json(), (req, res) 
   }
 });
 
-app.delete('/api/omsk/vegan-items/:id', requireAdmin, (req, res) => {
+app.delete('/api/omsk/vegan-items/:id', requireOmskAdmin, (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1552,7 +1556,7 @@ app.get('/api/omsk/other-items', (req, res) => {
 });
 
 // Admin endpoint - returns ALL other items including hidden ones
-app.get('/api/omsk/admin/other-items', requireAdmin, (req, res) => {
+app.get('/api/omsk/admin/other-items', requireOmskAdmin, (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1565,7 +1569,7 @@ app.get('/api/omsk/admin/other-items', requireAdmin, (req, res) => {
   }
 });
 
-app.put('/api/omsk/other-items', requireAdmin, express.json(), (req, res) => {
+app.put('/api/omsk/other-items', requireOmskAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1593,7 +1597,7 @@ app.get('/api/omsk/garnishes', (req, res) => {
 });
 
 // Admin endpoint - returns ALL garnishes including hidden ones
-app.get('/api/omsk/admin/garnishes', requireAdmin, (req, res) => {
+app.get('/api/omsk/admin/garnishes', requireOmskAdmin, (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1606,7 +1610,7 @@ app.get('/api/omsk/admin/garnishes', requireAdmin, (req, res) => {
   }
 });
 
-app.put('/api/omsk/garnishes', requireAdmin, express.json(), (req, res) => {
+app.put('/api/omsk/garnishes', requireOmskAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1621,7 +1625,7 @@ app.put('/api/omsk/garnishes', requireAdmin, express.json(), (req, res) => {
 });
 
 // Add individual garnish endpoints
-app.post('/api/omsk/garnishes', requireAdmin, express.json(), (req, res) => {
+app.post('/api/omsk/garnishes', requireOmskAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1641,7 +1645,7 @@ const { name, grams, calories, composition, isVegan, isVegetarian, protein, carb
   }
 });
 
-app.patch('/api/omsk/garnishes/:id', requireAdmin, express.json(), (req, res) => {
+app.patch('/api/omsk/garnishes/:id', requireOmskAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1658,7 +1662,7 @@ app.patch('/api/omsk/garnishes/:id', requireAdmin, express.json(), (req, res) =>
   }
 });
 
-app.delete('/api/omsk/garnishes/:id', requireAdmin, (req, res) => {
+app.delete('/api/omsk/garnishes/:id', requireOmskAdmin, (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1689,7 +1693,7 @@ app.get('/api/omsk/sauces', (req, res) => {
 });
 
 // Admin endpoint - returns ALL sauces including hidden ones
-app.get('/api/omsk/admin/sauces', requireAdmin, (req, res) => {
+app.get('/api/omsk/admin/sauces', requireOmskAdmin, (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1702,7 +1706,7 @@ app.get('/api/omsk/admin/sauces', requireAdmin, (req, res) => {
   }
 });
 
-app.put('/api/omsk/sauces', requireAdmin, express.json(), (req, res) => {
+app.put('/api/omsk/sauces', requireOmskAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1717,7 +1721,7 @@ app.put('/api/omsk/sauces', requireAdmin, express.json(), (req, res) => {
 });
 
 // Add individual sauce endpoints
-app.post('/api/omsk/sauces', requireAdmin, express.json(), (req, res) => {
+app.post('/api/omsk/sauces', requireOmskAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1737,7 +1741,7 @@ app.post('/api/omsk/sauces', requireAdmin, express.json(), (req, res) => {
   }
 });
 
-app.patch('/api/omsk/sauces/:id', requireAdmin, express.json(), (req, res) => {
+app.patch('/api/omsk/sauces/:id', requireOmskAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1754,7 +1758,7 @@ app.patch('/api/omsk/sauces/:id', requireAdmin, express.json(), (req, res) => {
   }
 });
 
-app.delete('/api/omsk/sauces/:id', requireAdmin, (req, res) => {
+app.delete('/api/omsk/sauces/:id', requireOmskAdmin, (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1772,7 +1776,7 @@ app.delete('/api/omsk/sauces/:id', requireAdmin, (req, res) => {
 });
 
 // Excel import for garnishes and sauces
-app.post('/api/omsk/import/garnishes-sauces', requireAdmin, express.raw({ type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', limit: '10mb' }), (req, res) => {
+app.post('/api/omsk/import/garnishes-sauces', requireOmskAdmin, express.raw({ type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', limit: '10mb' }), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1838,7 +1842,7 @@ app.post('/api/omsk/import/garnishes-sauces', requireAdmin, express.raw({ type: 
 });
 
 // Admin endpoint to force-run old garnish/sauce migration
-app.post('/api/omsk/admin/migrate-garnish-sauce', requireAdmin, (req, res) => {
+app.post('/api/omsk/admin/migrate-garnish-sauce', requireOmskAdmin, (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -1947,7 +1951,7 @@ app.post('/api/omsk/admin/migrate-garnish-sauce', requireAdmin, (req, res) => {
 });
 
 // Export garnishes and sauces to Excel template
-app.get('/api/omsk/export/garnishes-sauces-template', requireAdmin, (req, res) => {
+app.get('/api/omsk/export/garnishes-sauces-template', requireOmskAdmin, (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -2009,7 +2013,7 @@ app.get('/api/omsk/pastries', (req, res) => {
 });
 
 // Admin endpoint - returns ALL pastries including hidden ones
-app.get('/api/omsk/admin/pastries', requireAdmin, (req, res) => {
+app.get('/api/omsk/admin/pastries', requireOmskAdmin, (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -2022,7 +2026,7 @@ app.get('/api/omsk/admin/pastries', requireAdmin, (req, res) => {
   }
 });
 
-app.put('/api/omsk/pastries', requireAdmin, express.json(), (req, res) => {
+app.put('/api/omsk/pastries', requireOmskAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -2037,7 +2041,7 @@ app.put('/api/omsk/pastries', requireAdmin, express.json(), (req, res) => {
 });
 
 // Add new pastry
-app.post('/api/omsk/pastries', requireAdmin, express.json(), (req, res) => {
+app.post('/api/omsk/pastries', requireOmskAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -2072,7 +2076,7 @@ app.post('/api/omsk/pastries', requireAdmin, express.json(), (req, res) => {
 });
 
 // Toggle pastry active status
-app.patch('/api/omsk/pastries/:id', requireAdmin, express.json(), (req, res) => {
+app.patch('/api/omsk/pastries/:id', requireOmskAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -2090,7 +2094,7 @@ app.patch('/api/omsk/pastries/:id', requireAdmin, express.json(), (req, res) => 
 });
 
 // Delete pastry
-app.delete('/api/omsk/pastries/:id', requireAdmin, (req, res) => {
+app.delete('/api/omsk/pastries/:id', requireOmskAdmin, (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -2106,7 +2110,7 @@ app.delete('/api/omsk/pastries/:id', requireAdmin, (req, res) => {
   }
 });
 
-app.get('/api/omsk/settings/:key', (req, res) => {
+app.get('/api/omsk/settings/:key', requireOmskAdmin, (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -2120,7 +2124,7 @@ app.get('/api/omsk/settings/:key', (req, res) => {
   }
 });
 
-app.put('/api/omsk/settings/:key', requireAdmin, express.json(), (req, res) => {
+app.put('/api/omsk/settings/:key', requireOmskAdmin, express.json(), (req, res) => {
   if (!omskDbReady) {
     return res.status(503).json({ error: 'Omsk database not available' });
   }
@@ -2138,7 +2142,7 @@ app.put('/api/omsk/settings/:key', requireAdmin, express.json(), (req, res) => {
 // ==================== SPB API (Period-based menu, 2-day periods) ====================
 
 // Generate new SPB periods after the last existing one
-app.post('/api/spb/periods', express.json(), (req, res) => {
+app.post('/api/spb/periods', requireGenericAdmin, express.json(), (req, res) => {
   try {
     const { count = 20 } = req.body;
     const menuData = readSpbMenuData();
@@ -2195,7 +2199,7 @@ app.post('/api/spb/periods', express.json(), (req, res) => {
 // from today, covering `months` months ahead. Replaces the whole list
 // (preserving menu items where the date still exists) to recover from a
 // corrupted/duplicate/over-extended periods array.
-app.post('/api/spb/periods/rebuild', express.json(), (req, res) => {
+app.post('/api/spb/periods/rebuild', requireGenericAdmin, express.json(), (req, res) => {
   try {
     const { months = 4 } = req.body;
     const menuData = readSpbMenuData();
@@ -2299,7 +2303,7 @@ app.get('/api/spb/menu/:periodId', (req, res) => {
 });
 
 // Admin: Update menu items for a specific SPB period
-app.put('/api/spb/menu/:periodId', express.json(), (req, res) => {
+app.put('/api/spb/menu/:periodId', requireGenericAdmin, express.json(), (req, res) => {
   try {
     const { periodId } = req.params;
     const items = req.body;
@@ -2359,7 +2363,12 @@ app.get('/api/spb/menu', (req, res) => {
 app.get('/api/spb/orders/:date', (req, res) => {
   const { address } = req.query;
   const { date } = req.params;
-  const orders = readOrders(address, 'spb').filter(o => o.orderDate === date);
+  if (typeof address !== 'string' || !address.trim()) {
+    return res.status(400).json({ error: 'Address is required' });
+  }
+  const orders = readOrders(address, 'spb')
+    .filter(order => order.orderDate === date && (!order.address || order.address === address))
+    .map(order => withoutCancellationTokenHash(order.address ? order : { ...order, address }));
   res.json(orders);
 });
 
@@ -2393,6 +2402,7 @@ app.post('/api/spb/orders', express.json(), (req, res) => {
     return res.status(400).json({ error: 'Вы уже сделали заказ на этот день' });
   }
   
+  const cancellation = createOrderDeletionToken();
   const newOrder = {
     id: `order-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     employeeName,
@@ -2402,28 +2412,34 @@ app.post('/api/spb/orders', express.json(), (req, res) => {
     address,
     city: 'spb',
     timestamp: new Date().toISOString(),
-    floor: floor || ''
+    floor: floor || '',
+    cancellationTokenHash: cancellation.tokenHash
   };
   orders.push(newOrder);
   writeOrders(orders, address, 'spb');
-  res.status(201).json(newOrder);
+  res.status(201).json({ ...withoutCancellationTokenHash(newOrder), cancellationToken: cancellation.token });
 });
 
 app.delete('/api/spb/orders/:id', (req, res) => {
   const { id } = req.params;
   const { address } = req.query;
   let orders = readOrders(address, 'spb');
-  const initialLength = orders.length;
-  orders = orders.filter(order => order.id !== id);
-  if (orders.length === initialLength) {
+  const order = orders.find(item => item.id === id);
+  const isAdmin = adminAuth.hasSession(req, 'generic');
+  const cancellationToken = req.headers['x-order-cancellation-token'];
+  if (!isAdmin && (!order || !matchesOrderDeletionToken(cancellationToken, order.cancellationTokenHash))) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  if (!order) {
     return res.status(404).json({ error: 'Order not found' });
   }
+  orders = orders.filter(item => item.id !== id);
   writeOrders(orders, address, 'spb');
   res.status(204).end();
 });
 
 // SPB Excel export endpoint
-app.get('/api/spb/export/excel', (req, res) => {
+app.get('/api/spb/export/excel', requireGenericAdmin, (req, res) => {
   const { startDate, endDate, address } = req.query;
   
   if (!startDate || !endDate) {
@@ -2655,7 +2671,7 @@ app.get('/api/spb/disabled-dates', (req, res) => {
   res.json(range);
 });
 
-app.put('/api/spb/disabled-dates', express.json(), (req, res) => {
+app.put('/api/spb/disabled-dates', requireGenericAdmin, express.json(), (req, res) => {
   const range = req.body;
   if (range && (typeof range !== 'object' || !range.startDate || !range.endDate || !range.message)) {
     return res.status(400).json({ error: 'Invalid range format' });
@@ -2669,7 +2685,7 @@ app.get('/api/orders/:date', (req, res) => {
   const { address, city } = req.query;
   const { date } = req.params;
   const orders = readOrders(address, city).filter(o => o.orderDate === date);
-  res.json(orders);
+  res.json(orders.map(withoutCancellationTokenHash));
 });
 
 app.post('/api/orders', express.json(), (req, res) => {
@@ -2685,6 +2701,7 @@ app.post('/api/orders', express.json(), (req, res) => {
   }
 
   const orders = readOrders(address, city);
+  const cancellation = createOrderDeletionToken();
   const newOrder = {
     id: `order-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     employeeName,
@@ -2694,21 +2711,27 @@ app.post('/api/orders', express.json(), (req, res) => {
     address,
     city: city || 'omsk',
     timestamp: new Date().toISOString(),
+    cancellationTokenHash: cancellation.tokenHash,
   };
   orders.push(newOrder);
   writeOrders(orders, address, city);
-  res.status(201).json(newOrder);
+  res.status(201).json({ ...withoutCancellationTokenHash(newOrder), cancellationToken: cancellation.token });
 });
 
 app.delete('/api/orders/:id', (req, res) => {
   const { id } = req.params;
   const { address, city } = req.query;
   let orders = readOrders(address, city);
-  const initialLength = orders.length;
-  orders = orders.filter(order => order.id !== id);
-  if (orders.length === initialLength) {
+  const order = orders.find(item => item.id === id);
+  const isAdmin = adminAuth.hasSession(req, 'generic');
+  const cancellationToken = req.headers['x-order-cancellation-token'];
+  if (!isAdmin && (!order || !matchesOrderDeletionToken(cancellationToken, order.cancellationTokenHash))) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  if (!order) {
     return res.status(404).json({ error: 'Order not found' });
   }
+  orders = orders.filter(item => item.id !== id);
   writeOrders(orders, address, city);
   res.status(204).end();
 });
@@ -2736,7 +2759,7 @@ app.get('/api/menu/sides', (req, res) => {
   }
 });
 
-app.put('/api/menu/items', (req, res) => {
+app.put('/api/menu/items', requireGenericAdmin, (req, res) => {
   try {
     const { city } = req.query;
     const payload = req.body;
@@ -2814,7 +2837,7 @@ app.get('/api/menu/config', (req, res) => {
   }
 });
 
-app.put('/api/menu/config', (req, res) => {
+app.put('/api/menu/config', requireGenericAdmin, (req, res) => {
   try {
     const { city } = req.query;
     const config = req.body;
@@ -2849,7 +2872,7 @@ app.get('/api/disabled-dates', (req, res) => {
   }
 });
 
-app.put('/api/disabled-dates', (req, res) => {
+app.put('/api/disabled-dates', requireGenericAdmin, (req, res) => {
   try {
     const { city } = req.query;
     const range = req.body;

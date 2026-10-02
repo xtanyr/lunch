@@ -1,4 +1,5 @@
 import { EmployeeOrder, CurrentOrderItem, Dish, SideDish, MenuConfig } from './types';
+import { clearOrderCancellationToken, getOrderCancellationToken, storeOrderCancellationToken } from './utils/orderCancellation';
 
 const API_BASE = window.location.origin;
 
@@ -45,7 +46,9 @@ export const submitOrderToAPI = async (
       }),
     });
     if (!res.ok) throw new Error('Failed to submit order');
-    const order = await res.json();
+    const order = await res.json() as EmployeeOrder & { cancellationToken?: unknown };
+    storeOrderCancellationToken(order.id, order.cancellationToken);
+    delete order.cancellationToken;
     return {
       ...order,
       timestamp: order.timestamp ? new Date(order.timestamp) : new Date(),
@@ -59,8 +62,14 @@ export const submitOrderToAPI = async (
 export const deleteOrderFromAPI = async (id: string, address?: string): Promise<void> => {
   let url = `${API_BASE}/api/orders/${id}?${getCityParam()}`;
   if (address) url += `&address=${encodeURIComponent(address)}`;
-  const res = await fetch(url, { method: 'DELETE' });
+  const token = getOrderCancellationToken(id);
+  const res = await fetch(url, {
+    method: 'DELETE',
+    credentials: 'same-origin',
+    headers: token ? { 'x-order-cancellation-token': token } : {},
+  });
   if (!res.ok) throw new Error('Failed to delete order');
+  clearOrderCancellationToken(id);
 };
 
 export const fetchOrdersForDateRange = async (startDate: string, endDate: string, address?: string): Promise<{ [date: string]: EmployeeOrder[] }> => {

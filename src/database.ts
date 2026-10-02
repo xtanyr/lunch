@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Ensure data directory exists
-const dataDir = path.join(__dirname, '..', 'data');
+const dataDir = path.resolve(process.env.LUNCH_DATA_DIR || path.join(__dirname, '..', 'data'));
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
@@ -36,7 +36,8 @@ export function initOmskDatabase() {
         address TEXT NOT NULL,
         city TEXT DEFAULT 'omsk',
         timestamp TEXT NOT NULL,
-        totalPrice REAL
+        totalPrice REAL,
+        cancellationTokenHash TEXT
       );
 
       -- Week-based menu items (5 weeks)
@@ -579,6 +580,13 @@ export function migrateDatabase() {
       db.prepare('ALTER TABLE orders ADD COLUMN totalPrice REAL DEFAULT 0').run();
     }
 
+    try {
+      db.prepare('SELECT cancellationTokenHash FROM orders LIMIT 1').get();
+    } catch (error) {
+      console.log('Adding cancellation-token hash column to orders table...');
+      db.prepare('ALTER TABLE orders ADD COLUMN cancellationTokenHash TEXT').run();
+    }
+
     console.log('Database migration completed successfully');
   } catch (error) {
     console.error('Database migration failed:', error);
@@ -890,7 +898,6 @@ export function getOrdersByDate(date: string, address: string) {
 
 export function getOrdersByDateRange(startDate: string, endDate: string, address: string) {
   try {
-    console.log('getOrdersByDateRange called:', { startDate, endDate, address });
     let query = `SELECT * FROM orders WHERE orderDate >= ? AND orderDate <= ?`;
     const params: string[] = [startDate, endDate];
     
@@ -908,11 +915,8 @@ export function getOrdersByDateRange(startDate: string, endDate: string, address
     
     query += ` ORDER BY orderDate DESC, timestamp DESC`;
     
-    console.log('Query:', query, 'Params:', params);
-    
     const stmt = db.prepare(query);
     const results = stmt.all(...params);
-    console.log('Results:', results.length);
     return results.map(parseOrderItems);
   } catch (error) {
     console.error('Error getting orders by date range:', error);
@@ -946,10 +950,9 @@ export function hasUserOrderedToday(employeeName: string, department: string, or
 
 export function createOrder(order: any) {
   try {
-    console.log('Inserting order into database:', order);
     const stmt = db.prepare(`
-      INSERT INTO orders (id, employeeName, department, orderDate, items, address, city, timestamp, totalPrice)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO orders (id, employeeName, department, orderDate, items, address, city, timestamp, totalPrice, cancellationTokenHash)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     stmt.run(
       order.id,
@@ -960,9 +963,9 @@ export function createOrder(order: any) {
       order.address,
       order.city || 'omsk',
       order.timestamp,
-      order.totalPrice || 0
+      order.totalPrice || 0,
+      order.cancellationTokenHash || null
     );
-    console.log('Order inserted successfully:', order);
     return order;
   } catch (error) {
     console.error('Error creating order:', error);
@@ -981,14 +984,16 @@ export function deleteOrder(id: string) {
 }
 
 function parseOrderItems(order: any) {
+  const publicOrder = { ...order };
+  delete publicOrder.cancellationTokenHash;
   try {
     return {
-      ...order,
+      ...publicOrder,
       items: JSON.parse(order.items)
     };
   } catch (error) {
     console.error('Error parsing order items:', error);
-    return { ...order, items: [] };
+    return { ...publicOrder, items: [] };
   }
 }
 

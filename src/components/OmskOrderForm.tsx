@@ -4,6 +4,7 @@ import { CITY_ADDRESSES, FLOOR_10_DEPARTMENTS, FLOOR_14_DEPARTMENTS, FLOOR_5_DEP
 import { SkeletonForm } from './ui/Skeleton';
 import { getLastOrder, setLastOrder } from '../utils/localStorage';
 import { buildRandomOrderItems } from '../utils/omskRandomOrder';
+import { getDisabledRanges, getSelectedDateBlockInfo } from '../utils/orderDateBlock';
 
 // Types for the new Omsk ordering system
 interface DishItem {
@@ -70,44 +71,16 @@ const fetchOmskMenu = async () => {
     fetch('/api/omsk/pastries').then(r => r.json()),
     fetch('/api/omsk/disabled-dates').then(r => r.json()),
   ]);
-  
+
   let weekMenu: DishItem[] = [];
   if (week && week.weekNumber) {
     weekMenu = await fetch(`/api/omsk/week-menu/${week.weekNumber}`).then(r => r.json());
   }
-  
+
   return { weekMenu, veganItems: vegan, otherItems: other, garnishes, sauces, pastries, disabledDates: disabled };
 };
 
 const MAX_ORDER_PRICE = 450;
-
-/** Normalize API shape: array of ranges or legacy single { startDate, endDate, message }. */
-function getDisabledRanges(disabledDates: any): { startDate: string; endDate: string; message?: string }[] {
-  if (!disabledDates) return [];
-  if (Array.isArray(disabledDates)) {
-    return disabledDates.filter((r) => r && r.startDate && r.endDate);
-  }
-  if (typeof disabledDates === 'object' && disabledDates.startDate && disabledDates.endDate) {
-    return [disabledDates];
-  }
-  return [];
-}
-
-/** String YYYY-MM-DD compare matches server logic in POST /api/omsk/orders */
-function getOrderDateBlockInfo(
-  orderDate: string,
-  disabledDates: any
-): { blocked: boolean; message?: string } {
-  if (!orderDate) return { blocked: false };
-  for (const range of getDisabledRanges(disabledDates)) {
-    if (orderDate >= range.startDate && orderDate <= range.endDate) {
-      return { blocked: true, message: range.message };
-    }
-  }
-  return { blocked: false };
-}
-
-
 
 // Price by category (rubles)
 const CATEGORY_PRICES: Record<string, number> = {
@@ -149,12 +122,12 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
     if (selectedFloor === '5') return FLOOR_5_DEPARTMENTS;
     return FLOOR_10_DEPARTMENTS;
   };
-  
+
   // Get coffee shop name for the selected address
-  const coffeeShop = selectedAddress !== 'office' 
+  const coffeeShop = selectedAddress !== 'office'
     ? CITY_ADDRESSES.omsk?.find(a => a.id === selectedAddress)?.label || ''
     : '';
-  
+
   // Auto-set department when coffee shop is selected
   useEffect(() => {
     if (selectedAddress !== 'office' && coffeeShop) {
@@ -163,9 +136,9 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
       setCurrentOrder((prev: any) => ({ ...prev, address: selectedAddress }));
     }
   }, [selectedAddress, setCurrentOrder]);
-  
+
   const isCoffeeShop = selectedAddress !== 'office';
-  
+
   const [weekMenu, setWeekMenu] = useState<DishItem[]>([]);
   const [veganItems, setVeganItems] = useState<DishItem[]>([]);
   const [otherItems, setOtherItems] = useState<DishItem[]>([]);
@@ -221,7 +194,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
       if (!currentOrder?.employeeName || !currentOrder?.department) {
         return;
       }
-      
+
       try {
         const saved = await getLastOrder(currentOrder.employeeName, currentOrder.department);
         if (saved && saved.items && saved.items.length > 0) {
@@ -231,7 +204,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
         console.error('Error loading last order:', error);
       }
     };
-    
+
     loadLastOrder();
   }, [currentOrder.employeeName, currentOrder.department]);
 
@@ -268,11 +241,8 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
   }, [currentOrder.employeeName, currentOrder.department, selectedDates, selectedAddress]);
 
   // Match server: block when all selected dates fall in disabled ranges (see POST /api/omsk/orders)
-  const orderDateBlock = selectedDates.length > 0
-    ? selectedDates.map((date) => getOrderDateBlockInfo(date, disabledDates)).find((info) => info.blocked)
-    : getOrderDateBlockInfo('', disabledDates);
-  const isOrderingDisabled = () =>
-    selectedDates.length > 0 && selectedDates.every((date) => getOrderDateBlockInfo(date, disabledDates).blocked);
+  const orderDateBlock = getSelectedDateBlockInfo(selectedDates, disabledDates);
+  const isOrderingDisabled = orderDateBlock.blocked;
 
   // Get dishes by category
   const soupDishes = weekMenu.filter(d => d.category === 'soup');
@@ -299,7 +269,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
   // Helper functions to check if adding items would exceed limit
   const wouldExceedLimit = (category: string, currentItemPrice?: number) => {
     let newTotal = totalPrice;
-    
+
     // Add price for the item we're considering
     if (currentItemPrice) {
       newTotal += currentItemPrice;
@@ -307,7 +277,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
       // Use category price if no specific item price provided
       newTotal += CATEGORY_PRICES[category] || 0;
     }
-    
+
     return newTotal > MAX_ORDER_PRICE;
   };
 
@@ -399,7 +369,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
             className={`p-3 rounded-lg border-2 text-left transition-all ${
               isSelected ? 'border-current' : ''
             } ${wouldExceed && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}`}
-            style={{ 
+            style={{
               borderColor: isSelected ? palette.colors.primary : palette.colors.border,
               backgroundColor: isSelected ? palette.colors.primary + '20' : palette.colors.cardBg,
               color: wouldExceed && !isSelected ? palette.colors.textSecondary : palette.colors.text
@@ -445,12 +415,12 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
     const hasOther = !!selectedOther;
     const hasGarnish = !!selectedGarnish;
     const hasSauce = !!selectedHotSauce || !!selectedVeganSauce || !!selectedOtherSauce;
-    
+
     // Pastry requires soup or broth
     if (hasPastry && !hasSoup) {
       return 'Выпечка только к супу или бульону';
     }
-    
+
     // Allow any combination that has at least one main item (soup, hot dish, salad, vegan, or other)
     // Garnish is only allowed with a hot dish, sauce is allowed with hot/vegan/other
     if (hasSoup || hasHot || hasSalad || hasVegan || hasOther) {
@@ -471,7 +441,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
       }
       return null;
     }
-    
+
     return null; // Allow empty order
   };
 
@@ -494,17 +464,17 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
   // Quick reorder handler
   const handleQuickReorder = () => {
     if (!savedOrder) return;
-    
+
     setCurrentOrder((prev: any) => ({
       ...prev,
       employeeName: savedOrder.employeeName || prev.employeeName,
       department: savedOrder.department || prev.department,
     }));
-    
+
     if (savedOrder.items && savedOrder.items.length > 0) {
       savedOrder.items.forEach((item: any) => {
         const itemCategory = item.category;
-        
+
         if (itemCategory === 'soup' || itemCategory === 'broth') {
           const dish = weekMenu.find(d => d.id === item.dishId);
           if (dish) setSelectedSoup(dish);
@@ -548,12 +518,12 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
         }
       });
     }
-    
+
     if (savedOrder.orderDate && savedOrder.orderDate !== currentOrder.orderDate) {
       const savedDate = new Date(savedOrder.orderDate);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
+
       if (savedDate < today) {
         const newDate = today.toISOString().split('T')[0];
         setCurrentOrder((prev: any) => ({ ...prev, orderDate: newDate }));
@@ -701,7 +671,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
 
     // Build order items
     const items: OrderItem[] = [];
-    
+
     if (selectedSoup) {
       items.push({
         dishId: selectedSoup.id,
@@ -735,14 +705,14 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
         fats: selectedHotDish.fats,
         grams: selectedHotDish.grams,
         calories: selectedHotDish.calories,
-        ...(selectedGarnish && garnishItem ? { 
+        ...(selectedGarnish && garnishItem ? {
           garnish: garnishItem.id,
           garnishName: garnishItem.name,
           garnishComposition: garnishItem.composition,
           garnishGrams: garnishItem.grams,
           garnishCalories: garnishItem.calories
         } : {}),
-        ...(selectedHotSauce && sauceItem ? { 
+        ...(selectedHotSauce && sauceItem ? {
           sauce: sauceItem.id,
           sauceName: sauceItem.name,
           sauceComposition: sauceItem.composition,
@@ -920,7 +890,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
             value={currentOrder.employeeName}
             onChange={(e) => setCurrentOrder({ ...currentOrder, employeeName: e.target.value })}
             className="w-full px-4 py-2 rounded-lg border"
-            style={{ 
+            style={{
               borderColor: palette.colors.border,
               backgroundColor: palette.colors.cardBg,
               color: palette.colors.text
@@ -938,7 +908,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
               value={coffeeShop}
               readOnly
               className="w-full px-4 py-2 rounded-lg border"
-              style={{ 
+              style={{
                 borderColor: palette.colors.border,
                 backgroundColor: palette.colors.cardBg,
                 color: palette.colors.text,
@@ -954,7 +924,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   setCurrentOrder((prev: any) => ({ ...prev, department: '' }));
                 }}
                 className="w-full px-4 py-2 rounded-lg border mb-2"
-                style={{ 
+                style={{
                   borderColor: !selectedFloor ? '#ef4444' : palette.colors.border,
                   backgroundColor: palette.colors.cardBg,
                   color: palette.colors.text
@@ -970,7 +940,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                 value={currentOrder.department}
                 onChange={(e) => setCurrentOrder({ ...currentOrder, department: e.target.value })}
                 className="w-full px-4 py-2 rounded-lg border"
-                style={{ 
+                style={{
                   borderColor: palette.colors.border,
                   backgroundColor: palette.colors.cardBg,
                   color: palette.colors.text
@@ -998,7 +968,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
             value={dateInput}
             onChange={(e) => setDateInput(e.target.value)}
             className="flex-1 px-4 py-2 rounded-lg border"
-            style={{ 
+            style={{
               borderColor: palette.colors.border,
               backgroundColor: palette.colors.cardBg,
               color: palette.colors.text
@@ -1027,7 +997,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
               <span
                 key={date}
                 className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium"
-                style={{ 
+                style={{
                   backgroundColor: palette.colors.primary + '20',
                   color: palette.colors.primary,
                   border: `1px solid ${palette.colors.primary}`
@@ -1060,25 +1030,25 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
             type="button"
             onClick={() => setRandomExpanded(!randomExpanded)}
             className="w-full flex items-center justify-between p-4 font-semibold transition-all"
-            style={{ 
+            style={{
               backgroundColor: palette.colors.cardBg,
               color: palette.colors.primary
             }}
           >
             <span>Случайный заказ на период</span>
-            <svg 
+            <svg
               className={`w-5 h-5 transition-transform duration-300 ${randomExpanded ? 'rotate-180' : ''}`}
-              fill="none" 
-              stroke="currentColor" 
+              fill="none"
+              stroke="currentColor"
               viewBox="0 0 24 24"
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
-          
-          <div 
+
+          <div
             className="transition-all duration-300 ease-in-out"
-            style={{ 
+            style={{
               maxHeight: randomExpanded ? '600px' : '0',
               opacity: randomExpanded ? 1 : 0,
               overflow: 'hidden'
@@ -1130,7 +1100,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   className={`p-3 rounded-lg border-2 text-left transition-all ${
                     isSelected ? 'border-current' : ''
                   } ${wouldExceed && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}`}
-                  style={{ 
+                  style={{
                     borderColor: isSelected ? palette.colors.primary : palette.colors.border,
                     backgroundColor: isSelected ? palette.colors.primary + '20' : palette.colors.cardBg,
                     color: wouldExceed && !isSelected ? palette.colors.textSecondary : palette.colors.text
@@ -1163,7 +1133,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
               );
               })}
             </div>
-            
+
             {/* Pastry option - appears when soup/broth is selected */}
             {selectedSoup && pastries.length > 0 && (
               <div className="mt-3">
@@ -1174,7 +1144,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   value={selectedPastry}
                   onChange={(e) => setSelectedPastry(e.target.value)}
                   className="mt-1 w-full px-3 py-2 rounded-lg border"
-                  style={{ 
+                  style={{
                     borderColor: palette.colors.border,
                     backgroundColor: palette.colors.cardBg,
                     color: palette.colors.text
@@ -1215,7 +1185,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   className={`p-3 rounded-lg border-2 text-left transition-all ${
                     isSelected ? 'border-current' : ''
                   } ${wouldExceed && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}`}
-                  style={{ 
+                  style={{
                     borderColor: isSelected ? palette.colors.primary : palette.colors.border,
                     backgroundColor: isSelected ? palette.colors.primary + '20' : palette.colors.cardBg,
                     color: wouldExceed && !isSelected ? palette.colors.textSecondary : palette.colors.text
@@ -1275,7 +1245,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   className={`p-3 rounded-lg border-2 text-left transition-all ${
                     isSelected ? 'border-current' : ''
                   } ${wouldExceed && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}`}
-                  style={{ 
+                  style={{
                     borderColor: isSelected ? palette.colors.primary : palette.colors.border,
                     backgroundColor: isSelected ? palette.colors.primary + '20' : palette.colors.cardBg,
                     color: wouldExceed && !isSelected ? palette.colors.textSecondary : palette.colors.text
@@ -1311,7 +1281,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
               );
               })}
             </div>
-            
+
             {/* Garnish - only show when hot dish is selected and noGarnish is not set */}
             {selectedHotDish && !selectedHotDish.noGarnish && (
               <div className="mt-4">
@@ -1334,7 +1304,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                       className={`p-3 rounded-lg border-2 text-left transition-all ${
                         isSelected ? 'border-current' : ''
                       } ${wouldExceed && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}`}
-                      style={{ 
+                      style={{
                         borderColor: isSelected ? palette.colors.primary : palette.colors.border,
                         backgroundColor: isSelected ? palette.colors.primary + '20' : palette.colors.cardBg,
                         color: wouldExceed && !isSelected ? palette.colors.textSecondary : palette.colors.text
@@ -1367,7 +1337,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   );
                   })}
                 </div>
-                
+
                 {renderSauceSelector('Соусы к горячему (бесплатно)', selectedHotSauce, setSelectedHotSauce)}
               </div>
             )}
@@ -1404,7 +1374,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   className={`p-3 rounded-lg border-2 text-left transition-all ${
                     isSelected ? 'border-current' : ''
                   } ${wouldExceed && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}`}
-                  style={{ 
+                  style={{
                     borderColor: isSelected ? palette.colors.primary : palette.colors.border,
                     backgroundColor: isSelected ? palette.colors.primary + '20' : palette.colors.cardBg,
                     color: wouldExceed && !isSelected ? palette.colors.textSecondary : palette.colors.text
@@ -1463,7 +1433,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   className={`p-3 rounded-lg border-2 text-left transition-all ${
                     isSelected ? 'border-current' : ''
                   } ${wouldExceed && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}`}
-                  style={{ 
+                  style={{
                     borderColor: isSelected ? palette.colors.primary : palette.colors.border,
                     backgroundColor: isSelected ? palette.colors.primary + '20' : palette.colors.cardBg,
                     color: wouldExceed && !isSelected ? palette.colors.textSecondary : palette.colors.text
@@ -1523,7 +1493,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
                   className={`p-3 rounded-lg border-2 text-left transition-all ${
                     isSelected ? 'border-current' : ''
                   } ${wouldExceed && !isSelected ? 'opacity-40 cursor-not-allowed' : ''}`}
-                  style={{ 
+                  style={{
                     borderColor: isSelected ? palette.colors.primary : palette.colors.border,
                     backgroundColor: isSelected ? palette.colors.primary + '20' : palette.colors.cardBg,
                     color: wouldExceed && !isSelected ? palette.colors.textSecondary : palette.colors.text
@@ -1562,9 +1532,9 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
 
       {/* Order Summary */}
       {hasAnySelection && (
-        <div 
+        <div
           className="p-4 rounded-lg"
-          style={{ 
+          style={{
             backgroundColor: palette.colors.cardBg,
             border: `2px solid ${palette.colors.border}`
           }}
@@ -1588,43 +1558,43 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
       )}
 
       {/* Price Summary */}
-      <div 
+      <div
         className="p-4 rounded-lg"
-        style={{ 
+        style={{
           backgroundColor: palette.colors.cardBg,
           border: `2px solid ${palette.colors.border}`
         }}
       >
         <div className="flex justify-between items-center mb-2">
           <span className="font-semibold" style={{ color: palette.colors.text }}>Итого:</span>
-          <span 
+          <span
             className="text-2xl font-bold"
-            style={{ 
-              color: totalPrice > MAX_ORDER_PRICE ? '#ef4444' : palette.colors.primary 
+            style={{
+              color: totalPrice > MAX_ORDER_PRICE ? '#ef4444' : palette.colors.primary
             }}
           >
             {totalPrice > 0 ? '✓' : '—'}
           </span>
         </div>
-        
+
         {validationError && (
           <div className="mt-2 text-red-500 text-sm">
             {validationError}
           </div>
         )}
-        
+
         {totalPrice > MAX_ORDER_PRICE && (
           <div className="mt-2 text-red-500 text-sm">
             Превышена максимальная сумма заказа!
           </div>
         )}
-        
-        {isOrderingDisabled() && (
+
+        {isOrderingDisabled && (
           <div className="mt-2 text-red-500 text-sm font-semibold">
             {orderDateBlock.message || 'Прием заказов временно недоступен'}
           </div>
         )}
-        
+
         {hasOrderedToday && (
           <div className="mt-2 text-red-500 text-sm font-semibold">
             Вы уже сделали заказ на этот день
@@ -1638,7 +1608,7 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
           type="button"
           onClick={handleQuickReorder}
           className="w-full py-3 rounded-lg font-semibold border-2 transition-all hover:opacity-90"
-          style={{ 
+          style={{
             borderColor: palette.colors.primary,
             color: palette.colors.primary,
             backgroundColor: 'transparent'
@@ -1651,13 +1621,13 @@ const OmskOrderForm: React.FC<OmskOrderFormProps> = ({
       {/* Submit Button */}
       <button
         onClick={handleSubmit}
-        disabled={!canSubmit || isSubmitting || !!validationError || isOrderingDisabled() || hasOrderedToday}
+        disabled={!canSubmit || isSubmitting || !!validationError || isOrderingDisabled || hasOrderedToday}
         className="w-full py-3 rounded-lg font-semibold text-white transition-all disabled:opacity-50"
-        style={{ 
-          backgroundColor: canSubmit && !validationError && !isOrderingDisabled() && !hasOrderedToday ? palette.colors.primary : palette.colors.border 
+        style={{
+          backgroundColor: canSubmit && !validationError && !isOrderingDisabled && !hasOrderedToday ? palette.colors.primary : palette.colors.border
         }}
       >
-        {hasOrderedToday ? 'Уже заказано' : isOrderingDisabled() ? 'Заказы заблокированы' : isSubmitting ? 'Отправка...' : 'Оформить заказ'}
+        {hasOrderedToday ? 'Уже заказано' : isOrderingDisabled ? 'Заказы заблокированы' : isSubmitting ? 'Отправка...' : 'Оформить заказ'}
       </button>
     </div>
   </div>

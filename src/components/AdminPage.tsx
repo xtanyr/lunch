@@ -6,6 +6,7 @@ import AdminMenuManager from './AdminMenuManager';
 import AdminMenuConfig from './AdminMenuConfig';
 import AdminOrderControl from './AdminOrderControl';
 import Select from './ui/Select';
+import { logoutAdmin } from '../utils/adminSession';
 
 const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'items' | 'config' | 'orders'>('items');
@@ -26,6 +27,11 @@ const AdminPage: React.FC = () => {
   const handleCityChange = (newCity: string) => {
     setSelectedCity(newCity);
     try { localStorage.setItem('city', newCity); } catch {}
+  };
+
+  const handleLogout = async () => {
+    await logoutAdmin('generic').catch(() => undefined);
+    window.location.href = '/admin/login';
   };
 
   const loadData = async () => {
@@ -102,6 +108,9 @@ const AdminPage: React.FC = () => {
             className="w-40"
             options={CITIES}
           />
+          <button type="button" onClick={() => void handleLogout()} className="px-3 py-2 text-sm text-gray-700 hover:text-black underline">
+            Выйти
+          </button>
         </div>
       </div>
 

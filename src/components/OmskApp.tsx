@@ -9,6 +9,7 @@ import ThemeSelector from './ThemeSelector';
 import { useTheme } from '../theme/ThemeContext';
 import { safeGetItem, safeSetItem, validateIncomingOrderData } from '../utils/localStorage';
 import { SkeletonCard } from './ui/Skeleton';
+import { clearOrderCancellationToken, getOrderCancellationToken, hasOrderCancellationToken, storeOrderCancellationToken } from '../utils/orderCancellation';
 
 // Omsk-specific API functions that use SQLite
 const fetchOmskOrdersFromAPI = async (date: string, address: string) => {
@@ -37,14 +38,21 @@ const submitOmskOrderToAPI = async (order: any) => {
     const msg = typeof errObj === 'string' && errObj.trim() ? errObj : 'Failed to submit order';
     throw new Error(msg);
   }
-  return body as EmployeeOrder;
+  const createdOrder = body as EmployeeOrder & { cancellationToken?: unknown };
+  storeOrderCancellationToken(createdOrder.id, createdOrder.cancellationToken);
+  delete createdOrder.cancellationToken;
+  return createdOrder;
 };
 
 const deleteOmskOrderFromAPI = async (id: string, address: string) => {
+  const token = getOrderCancellationToken(id);
   const response = await fetch(`/api/omsk/orders/${id}?address=${encodeURIComponent(address)}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    credentials: 'same-origin',
+    headers: token ? { 'x-order-cancellation-token': token } : {},
   });
   if (!response.ok) throw new Error('Failed to delete order');
+  clearOrderCancellationToken(id);
 };
 
 const getTodayDateString = (): string => {
@@ -527,13 +535,13 @@ setSelectedAggregateDate(nextDate);
                       })}
                     </div>
                   </div>
-                  <button
+                  {hasOrderCancellationToken(order.id) && <button
                     onClick={() => handleDeleteOrder(order.id)}
                     className="text-red-500 hover:text-red-700"
                     disabled={deletingOrderId === order.id}
                   >
                     ✕
-                  </button>
+                  </button>}
                 </div>
               ))}
             </div>

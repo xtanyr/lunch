@@ -1,20 +1,31 @@
 import React, { useState } from 'react';
 import Button from './ui/Button';
 import Input from './ui/Input';
-
-const ADMIN_CODE = import.meta.env.VITE_ADMIN_CODE;
+import { loginAdmin } from '../utils/adminSession';
 
 const AdminAccess: React.FC = () => {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (code === ADMIN_CODE) {
-      localStorage.setItem('adminCodeEntered', code);
-      window.location.href = '/admin';
-    } else {
-      setError('Неверный код доступа');
+    if (isLoading) return;
+    setIsLoading(true);
+    setError('');
+    try {
+      const result = await loginAdmin('generic', code);
+      if (result.valid) {
+        window.location.href = '/admin';
+      } else {
+        setError(result.retryAfterSeconds
+          ? `Слишком много попыток. Попробуйте снова через ${result.retryAfterSeconds} сек.`
+          : 'Неверный код доступа');
+      }
+    } catch {
+      setError('Ошибка соединения с сервером');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -37,8 +48,8 @@ const AdminAccess: React.FC = () => {
             className="w-full"
           />
           {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-          <Button type="submit" variant="primary" className="w-full">
-            Продолжить
+          <Button type="submit" variant="primary" className="w-full" disabled={isLoading}>
+            {isLoading ? 'Проверка...' : 'Продолжить'}
           </Button>
         </form>
       </div>

@@ -13,10 +13,7 @@ export default defineConfig({
     },
   },
   build: {
-    rollupOptions: {
-      external: ['xlsx'],
-    },
-    sourcemap: true,
+    sourcemap: process.env.GENERATE_SOURCEMAP === 'true',
   },
   preview: {
     allowedHosts: ['lunch.scr-tech.ru'],

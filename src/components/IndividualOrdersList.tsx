@@ -1,5 +1,6 @@
 import React from 'react';
 import { EmployeeOrder, Dish, SideDish } from '../types';
+import { hasOrderCancellationToken } from '../utils/orderCancellation';
 
 interface IndividualOrdersListProps {
   orders: EmployeeOrder[];
@@ -51,7 +52,7 @@ const IndividualOrdersList: React.FC<IndividualOrdersListProps> = ({ orders, men
                   <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium bg-neutral-200 text-neutral-700 border border-neutral-300">{order.department}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  {onDelete && (
+                  {onDelete && hasOrderCancellationToken(order.id) && (
                     <button
                       className="flex items-center gap-1 text-xs px-2 py-1 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white rounded transition disabled:opacity-50 shadow-sm"
                       onClick={e => { e.preventDefault(); onDelete(order.id); }}
