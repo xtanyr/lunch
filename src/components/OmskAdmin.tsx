@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../theme/ThemeContext';
 import { logoutAdmin } from '../utils/adminSession';
+import ConfirmModal from './ui/ConfirmModal';
 
 interface Dish {
   id: string;
@@ -43,6 +44,47 @@ const OmskAdmin: React.FC = () => {
   const [logsDateTo, setLogsDateTo] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<{ id: string; employeeName: string; orderDate: string } | null>(null);
+  const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
+  const [deleteOrderError, setDeleteOrderError] = useState<string | null>(null);
+  const [orderDeletionNotice, setOrderDeletionNotice] = useState<string | null>(null);
+  const deletionInFlight = useRef(false);
+  const ordersRequestVersion = useRef(0);
+  const deletionNoticeRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    if (orderDeletionNotice) deletionNoticeRef.current?.focus();
+  }, [orderDeletionNotice]);
+
+  const handleDeleteOrder = async () => {
+    if (!orderToDelete || deletionInFlight.current) return;
+    const order = orderToDelete;
+    deletionInFlight.current = true;
+    setDeletingOrderId(order.id);
+    setDeleteOrderError(null);
+    try {
+      const response = await fetch(`/api/omsk/orders/${encodeURIComponent(order.id)}`, {
+        method: 'DELETE',
+        credentials: 'same-origin',
+      });
+      if (!response.ok) {
+        setDeleteOrderError(response.status === 401 || response.status === 403
+          ? 'Сессия администратора истекла. Войдите снова и повторите удаление.'
+          : 'Не удалось удалить заказ. Попробуйте ещё раз.');
+        return;
+      }
+      // Invalidate any list snapshot requested before this deletion completed.
+      ordersRequestVersion.current += 1;
+      setOrders(previous => previous.filter(item => item.id !== order.id));
+      setOrderToDelete(null);
+      setOrderDeletionNotice(`Заказ сотрудника «${order.employeeName}» удалён.`);
+    } catch {
+      setDeleteOrderError('Не удалось удалить заказ. Попробуйте ещё раз.');
+    } finally {
+      deletionInFlight.current = false;
+      setDeletingOrderId(null);
+    }
+  };
 
   // Selected week for viewing its dishes
   const [selectedWeekForMenu, setSelectedWeekForMenu] = useState<number | null>(null);
@@ -200,9 +242,12 @@ const OmskAdmin: React.FC = () => {
       setDisabledDates(disabledData);
 
       // Load orders
+      const requestVersion = ++ordersRequestVersion.current;
       const ordersRes = await fetch(`/api/omsk/orders/${selectedDate}?address=all`);
       const ordersData = await ordersRes.json();
-      setOrders(Array.isArray(ordersData) ? ordersData : []);
+      if (requestVersion === ordersRequestVersion.current) {
+        setOrders(Array.isArray(ordersData) ? ordersData : []);
+      }
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -814,7 +859,7 @@ const OmskAdmin: React.FC = () => {
       </header>
 
       {/* Tabs */}
-      <div className="flex border-b" style={{ borderColor: palette.colors.border }}>
+      <div className="flex border-b overflow-x-auto" style={{ borderColor: palette.colors.border }}>
         {(['weeks', 'menu', 'garnishes', 'sauces', 'pastries', 'vegan', 'disabled', 'orders', 'logs'] as const).map(tab => (
           <button
             key={tab}
@@ -1852,7 +1897,7 @@ const OmskAdmin: React.FC = () => {
             {/* Orders Tab */}
             {activeTab === 'orders' && (
               <div className="space-y-6">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
                   <h2 className="text-2xl font-bold">Заказы</h2>
                   <div className="flex gap-4">
                     <input
@@ -1863,10 +1908,14 @@ const OmskAdmin: React.FC = () => {
                       style={{ borderColor: palette.colors.border, backgroundColor: palette.colors.cardBg, color: palette.colors.text }}
                     />
                     <button
+                      disabled={deletingOrderId !== null}
                       onClick={() => {
+                        const requestVersion = ++ordersRequestVersion.current;
                         fetch(`/api/omsk/orders/${selectedDate}?address=all`)
                           .then(res => res.json())
-                          .then(data => setOrders(data));
+                          .then(data => {
+                            if (requestVersion === ordersRequestVersion.current) setOrders(Array.isArray(data) ? data : []);
+                          });
                       }}
                       className="px-4 py-2 rounded text-white"
                       style={{ backgroundColor: palette.colors.primary }}
@@ -1875,6 +1924,13 @@ const OmskAdmin: React.FC = () => {
                     </button>
                   </div>
                 </div>
+
+                {orderDeletionNotice && (
+                  <p ref={deletionNoticeRef} role="status" tabIndex={-1} className="rounded border border-green-600 p-3 focus-visible:outline focus-visible:outline-2"
+                    style={{ backgroundColor: palette.colors.cardBg, color: palette.colors.text }}>
+                    {orderDeletionNotice}
+                  </p>
+                )}
 
                 {/* Date range for export */}
                 <div className="flex flex-wrap items-center gap-4 mb-4">
@@ -1937,8 +1993,8 @@ const OmskAdmin: React.FC = () => {
                           borderWidth: 1
                         }}
                       >
-                        <div className="flex justify-between items-start">
-                          <div>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
+                          <div className="min-w-0 break-words">
                             <div className="font-bold">{order.employeeName}</div>
                             <div className="text-sm" style={{ color: palette.colors.textSecondary }}>{order.department}</div>
                             <div className="text-sm mt-1">
@@ -1955,6 +2011,19 @@ const OmskAdmin: React.FC = () => {
                               {order.address} • {order.orderDate}
                             </div>
                           </div>
+                          <button
+                            type="button"
+                            aria-label={`Удалить заказ ${order.employeeName}`}
+                            disabled={deletingOrderId !== null}
+                            onClick={() => {
+                              setOrderToDelete(order);
+                              setDeleteOrderError(null);
+                              setOrderDeletionNotice(null);
+                            }}
+                            className="min-h-[44px] shrink-0 self-start rounded border border-red-600 px-3 py-2 text-sm font-semibold text-red-600 cursor-pointer hover:bg-red-600 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-600 active:opacity-70 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Удалить
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -2061,6 +2130,18 @@ const OmskAdmin: React.FC = () => {
           </>
         )}
       </main>
+      <ConfirmModal
+        open={orderToDelete !== null}
+        title="Удалить заказ?"
+        message={orderToDelete ? `Удалить заказ сотрудника «${orderToDelete.employeeName}» на ${orderToDelete.orderDate}? Это действие нельзя отменить.` : ''}
+        confirmText="Удалить"
+        cancelText="Отмена"
+        intent="danger"
+        busy={deletingOrderId !== null}
+        error={deleteOrderError}
+        onConfirm={() => { void handleDeleteOrder(); }}
+        onCancel={() => { if (!deletionInFlight.current) setOrderToDelete(null); }}
+      />
     </div>
   );
 };

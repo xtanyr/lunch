@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -95,6 +96,52 @@ async function login(baseUrl: string, pathName: string, code: string): Promise<s
 }
 
 describe('admin route protection', () => {
+  it('allows the Omsk admin to delete legacy orders at any date or address without cancellation tokens', async () => {
+    const { baseUrl, dataDir } = await startServer();
+    const legacyOrders = [
+      { id: 'legacy-past-office', employeeName: 'Test past employee', department: 'QA', orderDate: '2020-01-02', address: 'office_14' },
+      { id: 'legacy-future-cafe', employeeName: 'Test future employee', department: 'QA', orderDate: '2099-01-03', address: 'festival' },
+    ];
+    const items = [{ dishId: 'fixture-soup', dishName: 'Тестовый суп', category: 'soup', price: 100 }];
+    const database = new Database(path.join(dataDir, 'omsk.db'));
+    try {
+      const insertOrder = database.prepare(`
+        INSERT INTO orders (id, employeeName, department, orderDate, items, address, city, timestamp, cancellationTokenHash)
+        VALUES (?, ?, ?, ?, ?, ?, 'omsk', ?, NULL)
+      `);
+      for (const order of legacyOrders) {
+        insertOrder.run(order.id, order.employeeName, order.department, order.orderDate, JSON.stringify(items), order.address, `${order.orderDate}T09:00:00.000Z`);
+      }
+    } finally {
+      database.close();
+    }
+
+    const genericCookie = await login(baseUrl, '/api/admin/verify', 'test-generic-code');
+    const omskCookie = await login(baseUrl, '/api/omsk/admin/verify', 'test-omsk-code');
+    for (const order of legacyOrders) {
+      const deleteUrl = `${baseUrl}/api/omsk/orders/${order.id}`;
+      const listUrl = `${baseUrl}/api/omsk/orders/${order.orderDate}?address=${order.address}`;
+      expect((await fetch(deleteUrl, { method: 'DELETE' })).status).toBe(401);
+      expect((await fetch(deleteUrl, { method: 'DELETE', headers: { Cookie: genericCookie } })).status).toBe(401);
+      expect(await fetch(listUrl).then(response => response.json())).toEqual([
+        expect.objectContaining({ id: order.id }),
+      ]);
+
+      expect((await fetch(deleteUrl, { method: 'DELETE', headers: { Cookie: omskCookie } })).status).toBe(204);
+      expect(await fetch(listUrl).then(response => response.json())).toEqual([]);
+    }
+
+    const logsResponse = await fetch(`${baseUrl}/api/omsk/order-logs`, { headers: { Cookie: omskCookie } });
+    expect(logsResponse.status).toBe(200);
+    const logs = await logsResponse.json() as Array<{ orderId: string; action: string; employeeName: string; department: string; details: string }>;
+    expect(logs).toHaveLength(2);
+    for (const order of legacyOrders) {
+      const log = logs.find(entry => entry.orderId === order.id);
+      expect(log).toMatchObject({ action: 'deleted', employeeName: order.employeeName, department: 'QA' });
+      expect(JSON.parse(log!.details)).toEqual(items);
+    }
+  });
+
   it('filters SPB orders by cafe even if an address file contains mixed entries', async () => {
     const { baseUrl, dataDir } = await startServer();
     const orderDate = '2025-10-08';
